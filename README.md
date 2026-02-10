@@ -199,6 +199,90 @@ The monolith-per-node design must preserve the same externally visible lifecycle
 
 ---
 
+## API Surface Lock (Phase 0.4)
+
+This section freezes the method-level API surface and service ownership for v1.
+
+### API Namespace Convention (Locked)
+- **Client-facing API namespace:** `taskqueue.v1`
+- **Internal microservice API namespace (Design A):** `taskqueue.internal.v1`
+
+This separation prevents accidental coupling between public and internal contracts.
+
+### A) Client-Facing API (Design A and Design B must match)
+
+These methods define the externally visible system contract and must remain equivalent across both architectures.
+
+| Method | Public Endpoint Owner | Purpose |
+|---|---|---|
+| `SubmitJob` | Gateway Service | Accept a new job and return `job_id`. |
+| `GetJobStatus` | Gateway Service | Return canonical status for a `job_id`. |
+| `GetJobResult` | Gateway Service | Return final output when available. |
+| `CancelJob` | Gateway Service | Request cancellation (queued expected, running best-effort). |
+| `ListJobs` | Gateway Service | Return recent jobs with filtering/pagination. |
+
+**Fairness lock:** request/response semantics for these five methods are equivalent in both designs.
+
+### B) Internal Microservice API (Design A)
+
+These methods are internal implementation RPCs for the microservices design.
+
+#### Job Service (canonical metadata/status authority)
+- `CreateJob`
+- `GetJobRecord`
+- `ListJobRecords`
+- `TransitionJobStatus`
+- `SetCancelRequested`
+
+#### Queue Service (queue primitives only)
+- `EnqueueJob`
+- `DequeueJob`
+- `RemoveJobIfPresent`
+
+#### Coordinator Service (liveness + dispatch orchestration)
+- `WorkerHeartbeat`
+- `FetchWork`
+- `ReportWorkOutcome`
+
+#### Result Service (result payload authority)
+- `StoreResult`
+- `GetResult`
+
+#### Worker Service
+- Worker is primarily an RPC **client** in v1 (calls coordinator for heartbeat/fetch/report).
+- Worker does not own client-facing endpoints.
+- A local health endpoint may exist but is out of public API scope.
+
+### C) Caller-to-Method Matrix (Locked)
+
+| Caller | Allowed Calls |
+|---|---|
+| External Client | Gateway: `SubmitJob`, `GetJobStatus`, `GetJobResult`, `CancelJob`, `ListJobs` |
+| Gateway | Job: `CreateJob`, `GetJobRecord`, `ListJobRecords`, `SetCancelRequested`; Queue: `EnqueueJob`, `RemoveJobIfPresent`; Result: `GetResult` |
+| Coordinator | Queue: `DequeueJob`, `RemoveJobIfPresent`; Job: `TransitionJobStatus`, `GetJobRecord`; Result: `StoreResult` |
+| Worker | Coordinator: `WorkerHeartbeat`, `FetchWork`, `ReportWorkOutcome` |
+
+No other cross-service mutations are allowed in v1.
+
+### D) Status/Result Authority Lock
+
+- Canonical status returned to clients is sourced from **Job Service**.
+- Final output payload returned to clients is sourced from **Result Service**.
+- Gateway composes responses; it does not own canonical state.
+
+### E) Monolith Equivalence Constraint
+
+In Design B (monolith-per-node), internal method calls may become in-process function calls, but client-facing behavior for the five public API methods must remain equivalent.
+
+### F) Change Control for API Surface
+
+Any method addition/removal/rename after this lock must record:
+1. what changed,
+2. why it changed,
+3. expected impact on fairness, implementation, and evaluation.
+
+---
+
 ## Phase 0 Decision Lock (Frozen)
 
 **Freeze date:** 2026-02-10
