@@ -133,6 +133,85 @@ The proto service names above are frozen for v1 and used consistently in generat
 
 ---
 
+## Runtime Startup Contract (Step 2.1 Lock)
+
+This section defines the runtime wiring contract for Design A (microservices) so container startup is deterministic and reproducible.
+
+### A) Service Endpoint Map (Design A)
+
+| Service | Compose DNS name | Inbound Proto Service | Bind Host | Port | Inbound Business RPC |
+|---|---|---|---|---:|---|
+| Gateway | `gateway` | `taskqueue.v1.TaskQueuePublicService` | `0.0.0.0` | `50051` | Yes |
+| Job | `job` | `taskqueue.internal.v1.JobInternalService` | `0.0.0.0` | `50052` | Yes |
+| Queue | `queue` | `taskqueue.internal.v1.QueueInternalService` | `0.0.0.0` | `50053` | Yes |
+| Coordinator | `coordinator` | `taskqueue.internal.v1.CoordinatorInternalService` | `0.0.0.0` | `50054` | Yes |
+| Result | `result` | `taskqueue.internal.v1.ResultInternalService` | `0.0.0.0` | `50055` | Yes |
+| Worker | `worker` | (none; internal RPC client in v1) | n/a | n/a | No |
+
+### B) Upstream Dependency Addresses (Design A)
+
+| Consumer | Required upstream address env vars (default values) |
+|---|---|
+| Gateway | `JOB_SERVICE_ADDR=job:50052`, `QUEUE_SERVICE_ADDR=queue:50053`, `RESULT_SERVICE_ADDR=result:50055` |
+| Coordinator | `JOB_SERVICE_ADDR=job:50052`, `QUEUE_SERVICE_ADDR=queue:50053`, `RESULT_SERVICE_ADDR=result:50055` |
+| Worker | `COORDINATOR_ADDR=coordinator:50054` |
+| Job / Queue / Result | none |
+
+### C) Required Env Vars (Step 2 skeleton)
+
+Shared:
+- `LOG_LEVEL` (default `INFO`)
+- `PYTHONUNBUFFERED=1`
+
+Gateway:
+- `GATEWAY_PORT` (default `50051`)
+- `JOB_SERVICE_ADDR` (required)
+- `QUEUE_SERVICE_ADDR` (required)
+- `RESULT_SERVICE_ADDR` (required)
+
+Job:
+- `JOB_PORT` (default `50052`)
+- `MAX_DEDUP_KEYS` (default `10000`)
+
+Queue:
+- `QUEUE_PORT` (default `50053`)
+
+Coordinator:
+- `COORDINATOR_PORT` (default `50054`)
+- `JOB_SERVICE_ADDR` (required)
+- `QUEUE_SERVICE_ADDR` (required)
+- `RESULT_SERVICE_ADDR` (required)
+- `HEARTBEAT_INTERVAL_MS` (default `1000`)
+- `WORKER_TIMEOUT_MS` (default `4000`)
+
+Result:
+- `RESULT_PORT` (default `50055`)
+- `MAX_OUTPUT_BYTES` (default `262144`)
+
+Worker:
+- `COORDINATOR_ADDR` (required)
+- `WORKER_ID` (optional; fallback = container hostname)
+- `HEARTBEAT_INTERVAL_MS` (default `1000`)
+
+### D) Startup/Readiness Definition (Step 2)
+
+For services with inbound gRPC endpoints (Gateway/Job/Queue/Coordinator/Result), a service is considered **ready** when:
+1. configuration is parsed successfully, and
+2. gRPC server is bound to configured host/port, and
+3. startup log emits a ready event.
+
+For Worker, readiness is:
+1. configuration parsed, and
+2. worker loop started, and
+3. first heartbeat attempt emitted in logs.
+
+### E) Entrypoint Rule
+
+Each service container must declare exactly one startup command in Docker Compose.  
+If an entrypoint changes, README endpoint/env tables must be updated in the same commit.
+
+---
+
 ## Functional Requirements
 1. **SubmitJob**: Accept a job request and return a unique job ID.
 2. **GetJobStatus**: Return the current state of a job.
@@ -421,9 +500,9 @@ No additional RPC methods are added before v1 implementation and baseline benchm
 
 #### `JobOutcome` (enum)
 - `JOB_OUTCOME_UNSPECIFIED = 0`
-- `SUCCEEDED = 1`
-- `FAILED = 2`
-- `CANCELED = 3`
+- `JOB_OUTCOME_SUCCEEDED = 1`
+- `JOB_OUTCOME_FAILED = 2`
+- `JOB_OUTCOME_CANCELED = 3`
 
 #### `JobSort` (enum)
 - `JOB_SORT_UNSPECIFIED = 0` (treated as `CREATED_AT_DESC`)
@@ -915,6 +994,11 @@ distributed-task-queue/
 ├─ proto/
 │  ├─ taskqueue_public.proto
 │  └─ taskqueue_internal.proto
+├─ generated/
+│  ├─ taskqueue_public_pb2.py
+│  ├─ taskqueue_public_pb2_grpc.py
+│  ├─ taskqueue_internal_pb2.py
+│  └─ taskqueue_internal_pb2_grpc.py
 ├─ services/
 │  ├─ gateway/
 │  ├─ job/
