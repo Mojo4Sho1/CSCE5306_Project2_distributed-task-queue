@@ -62,6 +62,25 @@ The experiments also use the same load-generation and measurement logic across b
 
 ---
 
+## Non-Functional Requirements (NFRs)
+
+1. **NFR-1 (API Contract Consistency):**  
+   Both architectures expose equivalent client-facing gRPC APIs and status semantics.
+
+2. **NFR-2 (Scalability Testability):**  
+   The system supports controlled load tests across multiple concurrency levels without code changes.
+
+3. **NFR-3 (Performance Observability):**  
+   The evaluation records throughput (req/s, jobs/s), latency percentiles (p50/p95/p99), and end-to-end completion time.
+
+4. **NFR-4 (Reproducibility):**  
+   A clean environment can reproduce deployment and benchmark execution using documented Docker Compose and scripts.
+
+5. **NFR-5 (Baseline Fault Handling):**  
+   The coordinator tracks worker heartbeats and marks workers unavailable after timeout so queued jobs are not silently lost.
+
+---
+
 ## Evaluation Plan (High Level)
 
 The project evaluates both architectures under varying workloads by measuring:
