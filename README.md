@@ -57,9 +57,16 @@ The experiments also use the same load-generation and measurement logic across b
 - **Execution capacity parity:** total worker concurrency budget is fixed and equal across designs (`TOTAL_WORKER_SLOTS = 6` by default).
   - Design A (Microservices): 1 Worker Service container with 6 execution slots.
   - Design B (Monolith-per-node): 6 monolith nodes with 1 execution slot per node.
-- **Ingress policy:**  
-  - Design A load targets Gateway only.  
-  - Design B load is distributed round-robin across six monolith nodes.
+- **Ingress policy (locked):**
+  - Design A load targets Gateway only.
+  - Design B `SubmitJob` load is distributed round-robin across six monolith nodes.
+- **Design B state-coherence routing (locked):**
+  - `GetJobStatus`, `GetJobResult`, and `CancelJob` are routed to a deterministic owner node derived from `job_id` (stable hash partition).
+  - This avoids incoherence from purely round-robin reads/cancels with in-memory per-node state.
+- **ListJobs in Design B (locked):**
+  - `ListJobs` remains functionally available with the same public schema.
+  - In v1, `ListJobs` is best-effort and non-global in Design B unless explicit aggregation is added later.
+  - Primary performance parity analysis focuses on `SubmitJob`, `GetJobStatus`, and `GetJobResult`.
 - **Measurement parity:** same hardware, workload profiles, warm-up policy, run duration, and aggregation logic.
 
 ---
@@ -426,6 +433,13 @@ No additional RPC methods are added before v1 implementation and baseline benchm
   - request is treated as non-idempotent (new submit attempt)
 - Deduplication guarantees apply only while key entries remain in the in-memory dedup store (see dedup scope and bound below).
 
+**Dedup payload-equality rule (locked):**
+- “Same payload” means canonical-equivalent `JobSpec`:
+  - identical `job_type`
+  - identical `work_duration_ms`
+  - identical `payload_size_bytes`
+  - identical `labels` after key-sorted normalization
+
 #### `GetJobStatus`
 **Request:**
 - `string job_id`
@@ -508,6 +522,10 @@ No additional RPC methods are added before v1 implementation and baseline benchm
 - `SetCancelRequestedRequest { string job_id; bool cancel_requested; string reason; }`
 - `SetCancelRequestedResponse { bool applied; JobStatus current_status; }`
 
+**Transition guard strictness (locked):**
+- `expected_from_status` is mandatory for CAS transitions.
+- `expected_from_status = JOB_STATUS_UNSPECIFIED` is invalid and returns `INVALID_ARGUMENT`.
+
 #### Queue Service
 - `EnqueueJobRequest { string job_id; int64 enqueued_at_ms; }`
 - `EnqueueJobResponse { bool accepted; }`
@@ -515,6 +533,10 @@ No additional RPC methods are added before v1 implementation and baseline benchm
 - `DequeueJobResponse { bool found; string job_id; }`
 - `RemoveJobIfPresentRequest { string job_id; }`
 - `RemoveJobIfPresentResponse { bool removed; }`
+
+**Queue ordering strength (locked):**
+- v1 queue behavior is **best-effort FIFO** for accepted jobs.
+- Correctness does not depend on strict global FIFO under races.
 
 #### Coordinator Service
 - `WorkerHeartbeatRequest { string worker_id; int64 heartbeat_at_ms; uint32 capacity_hint; }`
@@ -530,16 +552,21 @@ No additional RPC methods are added before v1 implementation and baseline benchm
 
 #### Result Service
 - `StoreResultRequest { string job_id; JobStatus terminal_status; uint32 runtime_ms; string output_summary; bytes output_bytes; string checksum; }`
-- `StoreResultResponse { bool stored; }`
+- `StoreResultResponse { bool stored; bool already_exists; JobStatus current_terminal_status; }`
 - `GetResultRequest { string job_id; }`
 - `GetResultResponse { bool found; string job_id; JobStatus terminal_status; uint32 runtime_ms; string output_summary; bytes output_bytes; string checksum; }`
 
+**StoreResult conflict semantics (locked):**
+- `stored=true` indicates this call performed/confirmed canonical storage for the terminal envelope.
+- `already_exists=true` indicates a prior terminal envelope exists.
+- `current_terminal_status` returns authoritative stored terminal status for race/conflict handling.
+
 ### C) Field/Type Conventions (Locked)
-- IDs: `string` (UUID/ULID format decided at implementation time)
-- Time: `int64` epoch milliseconds (UTC), server-generated
-- Durations: `uint32` milliseconds
-- Binary output: `bytes`
-- Optional text fields: empty string when unset in v1
+- IDs: `string` using **UUIDv4** format in v1.
+- Time: `int64` epoch milliseconds (UTC), server-generated.
+- Durations: `uint32` milliseconds.
+- Binary output: `bytes`.
+- Optional text fields: empty string when unset in v1.
 - Pagination:
   - `page_size` default `50`, max `200`
   - if `page_size == 0`, server uses `50`
@@ -550,6 +577,9 @@ No additional RPC methods are added before v1 implementation and baseline benchm
   1. `WORKER_ID` environment variable
   2. container hostname fallback  
   `worker_id` remains stable for process lifetime.
+- Heartbeat policy constants:
+  - `HEARTBEAT_INTERVAL_MS = 1000`
+  - `WORKER_TIMEOUT_MS = 4000`
 - `checksum` format: lowercase hex SHA-256 of `output_bytes` (always populated, including empty payload).
 - `MAX_OUTPUT_BYTES = 262144` (256 KiB). Oversized output triggers failed outcome handling (`OUTPUT_TOO_LARGE`) and stores bounded failure metadata without oversized bytes.
 - `MAX_DEDUP_KEYS = 10000` for in-memory submit idempotency cache.
@@ -615,7 +645,7 @@ Use `OK` responses for:
 | `WorkerHeartbeat` | Yes | Refreshes liveness timestamp |
 | `FetchWork` | No | Assignment side effects; at-least-once delivery model |
 | `ReportWorkOutcome` | Effectively idempotent | First valid terminal write wins |
-| `StoreResult` | Idempotent by terminal record | Duplicate equivalent writes are safe |
+| `StoreResult` | Idempotent by terminal record | Duplicate equivalent writes are safe; conflicts are surfaced via response fields |
 | Read methods | Yes | Safe repeats |
 
 ### 6) Retry/Backoff Guidance (Locked)
@@ -624,7 +654,14 @@ Auto-retry only on:
 - `DEADLINE_EXCEEDED`
 - `RESOURCE_EXHAUSTED` (if used)
 
-Use exponential backoff with jitter.  
+Retry profile (v1 lock):
+- backoff strategy: exponential
+- jitter mode: full jitter
+- initial delay: `100 ms`
+- multiplier: `2.0`
+- max delay: `1000 ms`
+- max attempts: `4` total attempts (initial + 3 retries)
+
 Do not auto-retry `INVALID_ARGUMENT`, `NOT_FOUND`, or `FAILED_PRECONDITION` without changing assumptions.
 
 ### 7) Determinism Rules for Cancellation (Locked)
@@ -642,7 +679,27 @@ For every non-OK response, log:
 - job_id (if present)
 - caller/service identity (if available)
 
-### 9) Deadline Defaults (Locked)
+### 9) Logging Format (Locked)
+Log format for v1 is **JSON Lines** (one JSON object per line).
+
+Minimum required fields:
+- `ts_ms`
+- `level`
+- `service`
+- `method`
+- `event`
+- `job_id` (if present)
+- `worker_id` (if present)
+- `grpc_code` (for non-OK)
+- `message`
+
+Recommended optional fields:
+- `request_id`
+- `latency_ms`
+- `expected_status`
+- `current_status`
+
+### 10) Deadline Defaults (Locked)
 Client -> Gateway defaults:
 - `SubmitJob`: 3000 ms
 - `CancelJob`: 3000 ms
@@ -687,6 +744,16 @@ The following design ambiguities are now explicitly locked:
 24. **Empty status filter behavior:** `ListJobs` with empty filter includes all statuses.
 25. **Submit dedup cache bounds:** in-memory dedup map is bounded (`MAX_DEDUP_KEYS`) with eviction; guarantees hold while key is retained.
 26. **Proto service naming lock:** public/internal service names are frozen for v1 (`TaskQueuePublicService`, `JobInternalService`, `QueueInternalService`, `CoordinatorInternalService`, `ResultInternalService`).
+27. **Design B coherence routing:** job-scoped reads/cancel route by deterministic `job_id` owner mapping.
+28. **Design B ListJobs parity scope:** implemented with equivalent schema; excluded from primary throughput/latency parity conclusions.
+29. **StoreResult conflict visibility:** response carries `already_exists` and `current_terminal_status` for race introspection.
+30. **Transition guard strictness:** CAS requires explicit non-UNSPECIFIED `expected_from_status`.
+31. **Queue ordering strength:** best-effort FIFO only; strict global FIFO is out of v1 correctness assumptions.
+32. **Heartbeat timing constants:** interval `1000 ms`, timeout `4000 ms`.
+33. **Retry constants:** exponential backoff with full jitter (100ms start, x2, 1000ms cap, 4 total attempts).
+34. **Logging format:** JSON Lines with required structured fields.
+35. **Job ID format:** UUIDv4 for v1.
+36. **Submit payload canonical equality:** key-sorted `labels` and exact `JobSpec` field equality define dedup payload match.
 
 ---
 
