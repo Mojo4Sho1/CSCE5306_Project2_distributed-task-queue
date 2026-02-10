@@ -49,9 +49,10 @@ To ensure a fair comparison, both designs expose the same **client-facing** gRPC
 - `ListJobs`
 
 Both designs use equivalent request/response schemas and status semantics for these methods.  
-The experiments also use the same load-generation and measurement logic across both designs.
+For v1 equivalence, semantic parity is strict for `SubmitJob`, `GetJobStatus`, `GetJobResult`, and `CancelJob`.  
+`ListJobs` preserves functional availability and schema parity in both designs, while Design B may return non-global best-effort results in v1.
 
-> Internal service RPCs may differ between designs, but client-facing behavior remains equivalent.
+> Internal service RPCs may differ between designs, but client-facing behavior remains equivalent within the v1 scope above.
 
 ### Fairness Controls (Locked)
 - **Execution capacity parity:** total worker concurrency budget is fixed and equal across designs (`TOTAL_WORKER_SLOTS = 6` by default).
@@ -59,15 +60,43 @@ The experiments also use the same load-generation and measurement logic across b
   - Design B (Monolith-per-node): 6 monolith nodes with 1 execution slot per node.
 - **Ingress policy (locked):**
   - Design A load targets Gateway only.
-  - Design B `SubmitJob` load is distributed round-robin across six monolith nodes.
+  - Design B `SubmitJob` load is distributed round-robin across six monolith nodes **when `client_request_id` is empty**.
+- **Design B submit-idempotency routing (locked):**
+  - If `client_request_id` is non-empty, the client/load generator routes `SubmitJob` to a deterministic owner node derived from `client_request_id`.
+  - This preserves submit idempotency semantics with per-node in-memory dedup state.
 - **Design B state-coherence routing (locked):**
-  - `GetJobStatus`, `GetJobResult`, and `CancelJob` are routed to a deterministic owner node derived from `job_id` (stable hash partition).
-  - This avoids incoherence from purely round-robin reads/cancels with in-memory per-node state.
+  - `GetJobStatus`, `GetJobResult`, and `CancelJob` are routed to a deterministic owner node derived from `job_id` (stable partition).
+  - **Routing is performed by the client/load generator in v1**.
+  - Monolith nodes do not forward job-scoped requests to each other in v1.
 - **ListJobs in Design B (locked):**
   - `ListJobs` remains functionally available with the same public schema.
   - In v1, `ListJobs` is best-effort and non-global in Design B unless explicit aggregation is added later.
-  - Primary performance parity analysis focuses on `SubmitJob`, `GetJobStatus`, and `GetJobResult`.
+  - Primary performance parity analysis focuses on `SubmitJob`, `GetJobStatus`, `GetJobResult`, and `CancelJob`.
 - **Measurement parity:** same hardware, workload profiles, warm-up policy, run duration, and aggregation logic.
+
+### Deterministic Owner Routing Algorithm (Design B, Locked)
+To ensure routing reproducibility across runs and machines, owner mapping is fixed:
+
+- **Hash function:** SHA-256
+- **Input bytes:** UTF-8 bytes of the routing key
+- **Owner index formula:** `owner_index = uint64_be(first_8_bytes(sha256(key))) % N`
+- **N:** number of monolith nodes in the run (v1 default `N=6`)
+- **Node order:** fixed ordered node list from configuration (stable for the run)
+
+Routing keys:
+- `SubmitJob` with non-empty `client_request_id`: route by `client_request_id`
+- `GetJobStatus`, `GetJobResult`, `CancelJob`: route by `job_id`
+
+### ListJobs Parity Scope in Evaluation (Locked)
+`ListJobs` remains available with schema parity in both designs.  
+In v1, Design B may return non-global best-effort listings.  
+Therefore, primary throughput/latency parity conclusions are based on:
+- `SubmitJob`
+- `GetJobStatus`
+- `GetJobResult`
+- `CancelJob`
+
+`ListJobs` is reported separately as a secondary/qualitative result.
 
 ---
 
@@ -150,7 +179,8 @@ This project uses a single-owner model: each data domain has one primary owner s
 
 ### Job Service
 **Owns:** canonical job metadata and lifecycle status for each job ID (job spec, creation time, current state, cancellation flags).  
-**Does not own:** queue ordering, worker liveness, dispatch policy, or result payload storage.
+**Does not own:** queue ordering, worker liveness, dispatch policy, or result payload storage.  
+In v1, Job Service also owns submit-idempotency dedup state keyed by `client_request_id`.
 
 ### Queue Service
 **Owns:** queue primitives only (`enqueue`, `dequeue`, `remove-if-present`).  
@@ -241,6 +271,16 @@ If CAS fails (for example, cancellation or a terminal write wins race):
 - Event is logged as expected race behavior.
 - No silent drop is permitted.
 
+### Dequeue/CAS Rescue Rule (Locked)
+Because v1 dequeue is destructive, Coordinator must apply this rescue behavior:
+
+1. If CAS fails, Coordinator reads authoritative current status from Job Service.
+2. If current status is still `QUEUED`, Coordinator performs a single immediate `EnqueueJob(job_id)` rescue attempt.
+3. If status is terminal (or no longer queued), Coordinator does not re-enqueue.
+4. Rescue attempts are logged with `job_id` for observability.
+
+This rule prevents stranded `QUEUED` jobs and preserves baseline fault-handling guarantees.
+
 ### Terminal Result Consistency Protocol (Locked)
 
 For worker/coordinator terminal outcomes (`DONE`, `FAILED`, running `CANCELED` path):
@@ -267,9 +307,10 @@ Later conflicting terminal writes are ignored and logged.
 
 ### Cancellation Semantics (Locked)
 1. **Queued cancellation:** expected to succeed if job has not started.
-2. **Running cancellation:** best-effort only.
-3. Repeated cancellation requests are idempotent and deterministic once terminal.
-4. **Queued-cancel race fallback (locked):** if queued-cancel path loses the race (for example, `RemoveJobIfPresent=false` because dequeue already happened), Gateway must set `cancel_requested=true` via Job Service and return authoritative `current_status`. This transitions cancellation handling to the running-cancel path.
+2. **Running cancellation:** best-effort only and **non-preemptive** in v1.
+3. For running jobs, `CancelJob` sets `cancel_requested=true`; completion or failure may still win the race.
+4. Repeated cancellation requests are idempotent and deterministic once terminal.
+5. **Queued-cancel race fallback (locked):** if queued-cancel path loses the race (for example, `RemoveJobIfPresent=false` because dequeue already happened), Gateway must set `cancel_requested=true` via Job Service and return authoritative `current_status`. This transitions cancellation handling to the running-cancel path.
 
 ### Invalid Transition Handling (Locked)
 Any transition not listed above is rejected and logged as invalid (e.g., `DONE -> RUNNING`).
@@ -471,7 +512,13 @@ No additional RPC methods are added before v1 implementation and baseline benchm
 - Terminal `DONE`: `result_ready=true`; `output_bytes` may contain payload.
 - Terminal `FAILED`: `result_ready=true`; `output_bytes` may be empty; failure details appear in `output_summary` (and `GetJobStatus.failure_reason`).
 - Terminal `CANCELED`: `result_ready=true`; `output_bytes` may be empty; cancellation context appears in `output_summary`.
+- **Canonical precedence rule (locked):** `GetJobResult` resolves readiness from canonical Job Service status first. If status is non-terminal, return `result_ready=false` even if a stale/orphan result envelope exists.
 - **Terminal-mismatch rule (locked):** if canonical status is terminal but no terminal envelope exists in Result Service, API returns gRPC `UNAVAILABLE` and logs a consistency anomaly with `job_id`.
+
+**Terminal envelope minimums (Locked):**
+- `DONE`: `runtime_ms`, `checksum`, and optional `output_bytes`/`output_summary`.
+- `FAILED`: `runtime_ms` (if known), failure context in `output_summary`, `output_bytes` may be empty.
+- `CANCELED`: cancellation context in `output_summary`, `output_bytes` may be empty.
 
 #### `CancelJob`
 **Request:**
@@ -538,6 +585,10 @@ No additional RPC methods are added before v1 implementation and baseline benchm
 - v1 queue behavior is **best-effort FIFO** for accepted jobs.
 - Correctness does not depend on strict global FIFO under races.
 
+**Dequeue acknowledgment model (locked):**
+- `DequeueJob` is a destructive pop in v1 (no lease/ack/requeue protocol).
+- Crash-recovery requeue and visibility-timeout semantics are out of v1 scope.
+
 #### Coordinator Service
 - `WorkerHeartbeatRequest { string worker_id; int64 heartbeat_at_ms; uint32 capacity_hint; }`
 - `WorkerHeartbeatResponse { bool accepted; uint32 next_heartbeat_in_ms; }`
@@ -584,11 +635,18 @@ No additional RPC methods are added before v1 implementation and baseline benchm
 - `MAX_OUTPUT_BYTES = 262144` (256 KiB). Oversized output triggers failed outcome handling (`OUTPUT_TOO_LARGE`) and stores bounded failure metadata without oversized bytes.
 - `MAX_DEDUP_KEYS = 10000` for in-memory submit idempotency cache.
 - Dedup cache eviction policy in v1: bounded FIFO/LRU-style eviction. If a key is evicted, a later submit with the same key is treated as a new request attempt.
+- Timestamp authority mapping (locked):
+  - `created_at_ms`: set by Job Service on `CreateJob`.
+  - `started_at_ms`: set by Job Service when `QUEUED -> RUNNING` CAS applies.
+  - `finished_at_ms`: set by Job Service when terminal transition CAS applies.
 
-### D) Backward-Compatibility Note (v1)
-- Do not rename/remove fields after proto v1 freeze.
-- Add new fields only additively with new field numbers.
-- Keep enum numeric values stable once published.
+### Proto Evolution Hygiene (Locked)
+After proto v1 freeze:
+1. Do not rename/remove existing fields.
+2. Add new fields only additively with new field numbers.
+3. Keep enum numeric values stable once published.
+4. If a field is retired later, reserve its field number/name (do not reuse).
+5. Shared client-visible enums/messages remain single-source in public proto; duplicate definitions are disallowed.
 
 ---
 
@@ -632,6 +690,9 @@ Use `OK` responses for:
 
 **v1 dedup scope:** in-memory for process lifetime only (not across restarts), bounded by `MAX_DEDUP_KEYS`.
 
+**Design B routing note (locked):**  
+To preserve `SubmitJob` idempotency with in-memory per-node dedup state, requests with non-empty `client_request_id` are routed to a deterministic owner node by the locked routing algorithm above.
+
 ### 5) Internal API Idempotency Matrix (Design A, Locked)
 
 | Internal Method | Idempotent? | Required Behavior |
@@ -662,11 +723,13 @@ Retry profile (v1 lock):
 - max delay: `1000 ms`
 - max attempts: `4` total attempts (initial + 3 retries)
 
+- `SubmitJob` is auto-retried only when `client_request_id` is non-empty. If `client_request_id` is empty, do not auto-retry.
+
 Do not auto-retry `INVALID_ARGUMENT`, `NOT_FOUND`, or `FAILED_PRECONDITION` without changing assumptions.
 
 ### 7) Determinism Rules for Cancellation (Locked)
 - `QUEUED`: cancellation moves toward `CANCELED` with queue removal first, then guarded status transition.
-- `RUNNING`: best-effort; completion may win the race.
+- `RUNNING`: best-effort and non-preemptive in v1; completion may win the race.
 - terminal state: repeated cancel is deterministic non-error.
 - if queued-cancel race is lost, system sets `cancel_requested=true` and follows running-cancel path.
 
@@ -712,6 +775,12 @@ Internal defaults:
 - `FetchWork`: 1500 ms
 - `WorkerHeartbeat`: 1000 ms
 
+### Terminal/Result Mismatch Handling (Locked)
+If canonical job status is terminal but Result Service has no terminal envelope:
+- API returns `UNAVAILABLE`,
+- system logs a consistency anomaly with `job_id`,
+- retry policy treats this as transient/retryable per locked backoff rules.
+
 ---
 
 ## Ambiguity Locks (Finalized Phase 0 Clarifications)
@@ -754,6 +823,13 @@ The following design ambiguities are now explicitly locked:
 34. **Logging format:** JSON Lines with required structured fields.
 35. **Job ID format:** UUIDv4 for v1.
 36. **Submit payload canonical equality:** key-sorted `labels` and exact `JobSpec` field equality define dedup payload match.
+37. **Design B routing executor:** client/load generator performs deterministic owner routing for job-scoped reads/cancel; no inter-node forwarding in v1.
+38. **Design B submit idempotency routing:** non-empty `client_request_id` routes by deterministic key owner.
+39. **Running-cancel execution model:** non-preemptive best-effort; `cancel_requested` is advisory until terminal race resolves.
+40. **Dequeue model:** destructive pop in v1; no ack/requeue protocol.
+41. **Timestamp authority mapping:** Job Service stamps created/started/finished canonical times.
+42. **Dequeue/CAS rescue behavior:** if CAS fails and status remains `QUEUED`, Coordinator performs one immediate re-enqueue rescue.
+43. **Deterministic owner algorithm:** SHA-256 + first 8 bytes big-endian modulo N with fixed node ordering.
 
 ---
 
@@ -770,7 +846,7 @@ The following design ambiguities are now explicitly locked:
 - Proto packaging is fixed to two files (public + internal).
 - Storage assumption is fixed to **in-memory** for this project.
 - Processing semantics are fixed to **at-least-once** execution.
-- Cancellation semantics are fixed to: queued cancellation expected; running cancellation best-effort.
+- Cancellation semantics are fixed to: queued cancellation expected; running cancellation best-effort and non-preemptive.
 - Fairness controls are fixed and documented above.
 
 ### Out of Scope
@@ -785,6 +861,27 @@ If any frozen decision changes, record:
 1. what changed,
 2. why it changed,
 3. expected implementation/evaluation impact.
+
+---
+
+## Implementation Freeze Gate (Final Phase 0 Lock)
+
+The design is now frozen for v1 implementation.  
+No additional design changes are introduced before:
+1. both proto files compile,
+2. generated stubs are integrated, and
+3. microservice smoke tests pass for all five public RPCs.
+
+### Phase 0 Closure Rule (Locked)
+**Phase 0 is closed. No new design features are added before proto compilation, stub generation, and end-to-end smoke validation complete.**
+
+### Frozen v1 Clarifications
+- Design B client/load-generator routing is mandatory for benchmark/demo correctness:
+  - non-empty `client_request_id` submit routing uses deterministic key-owner mapping,
+  - job-scoped reads/cancel route by deterministic `job_id` owner mapping.
+- `StoreResult` accepts terminal statuses only (`DONE`, `FAILED`, `CANCELED`); otherwise return `INVALID_ARGUMENT`.
+- Dequeue is destructive in v1 with no lease/ack/requeue recovery guarantee; crash-recovery semantics are out of scope.
+- `ListJobs` page tokens are valid only for the same `(status_filter, sort)` query shape in v1.
 
 ---
 
