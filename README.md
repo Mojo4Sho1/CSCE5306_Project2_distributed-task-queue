@@ -540,6 +540,94 @@ This section freezes the v1 message shapes (fields + types + semantics) before `
 
 ---
 
+## Error Model and Idempotency Behavior (Phase 0.6 Lock)
+
+This section freezes error semantics and idempotency behavior for v1.
+
+### 1) Error Handling Model (Locked)
+
+The system uses a two-layer model:
+
+1. **Hard errors** use gRPC status codes (non-OK RPC response).
+2. **Soft outcomes** return `OK` with explicit response fields (e.g., `accepted`, `result_ready`, `already_terminal`).
+
+This prevents overloading gRPC errors for normal control flow.
+
+### 2) gRPC Status Code Policy (Locked)
+
+| Condition | gRPC Code | Retry Guidance | Notes |
+|---|---|---|---|
+| Invalid/malformed request fields | `INVALID_ARGUMENT` | Do not retry until request is fixed | Example: empty `job_id`, invalid page token format |
+| Unknown `job_id` | `NOT_FOUND` | Do not retry (unless eventual creation is expected) | Applies to status/result/cancel lookups |
+| Valid request but state prevents operation | `FAILED_PRECONDITION` | Retry only after state changes | Example: illegal transition attempt |
+| Idempotency key reused with different payload | `FAILED_PRECONDITION` | Do not retry with same conflicting key | Client must use a new key |
+| Temporary capacity pressure / rate limiting | `RESOURCE_EXHAUSTED` | Retry with backoff | Optional in v1, if rate limits are enabled |
+| Downstream service unavailable | `UNAVAILABLE` | Retry with backoff + jitter | Transient service/network conditions |
+| Request deadline exceeded | `DEADLINE_EXCEEDED` | Retry with backoff (idempotent methods only) | Caller should use sane deadlines |
+| Unexpected server failure | `INTERNAL` | Retry cautiously | Also log with correlation metadata |
+
+### 3) Soft Outcome Policy (Locked)
+
+Use normal (`OK`) responses for these non-exception outcomes:
+- `GetJobResult` when job is not terminal yet (`result_ready = false`).
+- `CancelJob` when job is already terminal (`already_terminal = true`).
+- Duplicate cancellation requests after cancellation is already requested (deterministic non-error response).
+
+### 4) Client-Facing Idempotency Matrix (Locked)
+
+| Method | Idempotent? | Key / Identity | Required Behavior |
+|---|---|---|---|
+| `SubmitJob` | **Conditionally** | `client_request_id` (if provided) | Same key + same effective payload returns original `job_id` (no duplicate job creation). Same key + different payload returns `FAILED_PRECONDITION`. Missing key is treated as non-idempotent submission. |
+| `GetJobStatus` | Yes | `job_id` | Safe repeated calls; no side effects. |
+| `GetJobResult` | Yes | `job_id` | Safe repeated calls; no side effects. |
+| `CancelJob` | Yes | `job_id` | Repeated calls must be deterministic and side-effect stable. |
+| `ListJobs` | Yes (read-only) | filter + page token | Repeated call with same inputs is safe; ordering consistency is best-effort under concurrent updates. |
+
+### 5) Internal API Idempotency Matrix (Design A, Locked)
+
+| Internal Method | Idempotent? | Required Behavior |
+|---|---|---|
+| `CreateJob` | Conditionally | Deduplicate by `client_request_id` when present. |
+| `EnqueueJob` | Yes-by-key | Same `job_id` must not appear twice in queue. |
+| `RemoveJobIfPresent` | Yes | Repeated remove calls are safe. |
+| `TransitionJobStatus` | Conditional (CAS style) | Apply only when `expected_from_status` matches current; otherwise no-op + `FAILED_PRECONDITION` or `applied=false` per contract. |
+| `SetCancelRequested` | Yes | Repeated set-to-true remains true; no duplicate side effects. |
+| `WorkerHeartbeat` | Yes | Latest heartbeat refreshes liveness timestamp. |
+| `FetchWork` | No (assignment side effects) | May return different work per call; worker must treat delivery as at-least-once. |
+| `ReportWorkOutcome` | Effectively idempotent per job terminal rule | First valid terminal write wins; later conflicting terminal reports are ignored and logged. |
+| `StoreResult` | Idempotent by `job_id` terminal record | Duplicate equivalent writes are safe; conflicting second terminal write is ignored and logged. |
+| `GetResult` / `GetJobRecord` / `ListJobRecords` | Yes | Read-only; safe repeats. |
+
+### 6) Retry/Backoff Guidance (Locked)
+
+Clients and services should only auto-retry on transient failures:
+- `UNAVAILABLE`
+- `DEADLINE_EXCEEDED`
+- `RESOURCE_EXHAUSTED` (if applicable)
+
+Use exponential backoff with jitter.  
+Do **not** auto-retry on `INVALID_ARGUMENT`, `NOT_FOUND`, or `FAILED_PRECONDITION` without changing request/state assumptions.
+
+### 7) Determinism Rules for Cancellation (Locked)
+
+- If job is `QUEUED`, cancellation transitions toward `CANCELED` and queue entry is removed.
+- If job is `RUNNING`, cancellation remains best-effort.
+- Once terminal (`DONE`, `FAILED`, `CANCELED`), repeated `CancelJob` is non-error and deterministic (`already_terminal = true`).
+
+### 8) Observability Requirements for Errors (Locked)
+
+For every non-OK response, log:
+- timestamp
+- method name
+- code
+- message
+- job_id (if present)
+- caller/service identity (if available)
+
+This is required for debugging and report reproducibility.
+
+---
+
 ## Phase 0 Decision Lock (Frozen)
 
 **Freeze date:** 2026-02-10
