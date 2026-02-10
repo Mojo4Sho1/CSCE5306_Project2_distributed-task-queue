@@ -38,6 +38,23 @@ The system uses **gRPC + Protocol Buffers** for service-to-service and client-to
 
 ---
 
+## Fair-Comparison Constraint (API Equivalence)
+
+To ensure a fair comparison, both designs expose the same **client-facing** gRPC API:
+
+- `SubmitJob`
+- `GetJobStatus`
+- `GetJobResult`
+- `CancelJob`
+- `ListJobs`
+
+Both designs use equivalent request/response schemas and status semantics for these methods.  
+The experiments also use the same load-generation and measurement logic across both designs.
+
+> Internal service RPCs (e.g., worker heartbeat/fetch-work) may differ between designs, but client-facing behavior remains equivalent.
+
+---
+
 ## Communication Model
 - **gRPC (RPC)**
 - **Protocol Buffers** for interface contracts and message schemas
@@ -73,20 +90,45 @@ The system uses **gRPC + Protocol Buffers** for service-to-service and client-to
 
 ---
 
-## Fair-Comparison Constraint (API Equivalence)
+## Service Ownership Boundaries (Phase 0 Lock)
 
-To ensure a fair comparison, both designs expose the same **client-facing** gRPC API:
+This project uses a single-owner model: each data domain has one primary owner service.
 
-- `SubmitJob`
-- `GetJobStatus`
-- `GetJobResult`
-- `CancelJob`
-- `ListJobs`
+### Gateway Service
+**Owns:** client-facing gRPC API surface and request routing/orchestration.  
+**Does not own:** canonical job state, queue internals, worker registry, or result payload storage.
 
-Both designs use equivalent request/response schemas and status semantics for these methods.  
-The experiments also use the same load-generation and measurement logic across both designs.
+### Job Service
+**Owns:** canonical job metadata and lifecycle status for each job ID (job spec, creation time, current state, cancellation flags).  
+**Does not own:** queue ordering, worker liveness, dispatch policy, or result payload storage.
 
-> Internal service RPCs (e.g., worker heartbeat/fetch-work) may differ between designs, but client-facing behavior remains equivalent.
+### Queue Service
+**Owns:** queue primitives only (`enqueue`, `dequeue`, `remove-if-present`).  
+**Does not own:** canonical lifecycle status, worker selection policy, or result payloads.
+
+### Coordinator Service
+**Owns:** worker liveness registry, heartbeat timeout policy, and dispatch orchestration flow.  
+**Does not own:** canonical job metadata schema or result payload persistence.
+
+### Worker Service
+**Owns:** execution of assigned jobs and reporting outcomes.  
+**Does not own:** global queue policy, canonical lifecycle authority, or client-facing API behavior.
+
+### Result Service
+**Owns:** completed job output retrieval path and result payload records.  
+**Does not own:** queueing, worker liveness, or dispatch decisions.
+
+### Mutation Authority Rules (Locked)
+- **Canonical status authority:** Job Service is the source of truth for job status.
+- **Queue authority:** Queue Service is the only service that mutates queue contents.
+- **Worker liveness authority:** Coordinator Service is the only service that determines worker availability from heartbeats.
+- **Result payload authority:** Result Service is the only service that stores/retrieves final output payloads.
+
+### Boundary Invariants (Locked)
+1. No service writes another service’s internal store directly.
+2. All cross-service actions use gRPC contracts.
+3. Gateway remains stateless with respect to canonical job state.
+4. Worker executes assigned jobs only; it does not self-assign via local policy.
 
 ---
 
@@ -101,9 +143,9 @@ The experiments also use the same load-generation and measurement logic across b
 - Node-count rule is fixed: load generator is not a functional node.
 - Communication model is fixed to gRPC + protobuf.
 - Storage assumption is fixed to **in-memory state** for this project.
-- Processing semantics: **at-least-once** execution.
-- Cancellation semantics: queued cancellation is expected; running cancellation is best-effort.
-- Evaluation fairness controls are fixed: same hardware, workload profiles, warm-up, run duration, and measurement method for both designs.
+- Processing semantics are fixed to **at-least-once** execution.
+- Cancellation semantics are fixed to: queued cancellation expected; running cancellation best-effort.
+- Evaluation fairness controls are fixed to: same hardware, workload profiles, warm-up, run duration, and measurement method for both designs.
 
 ### Out of Scope (Scope Control)
 - Durable persistence guarantees
