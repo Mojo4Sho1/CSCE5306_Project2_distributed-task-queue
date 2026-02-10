@@ -86,7 +86,7 @@ The experiments also use the same load-generation and measurement logic across b
    A clean environment can reproduce deployment and benchmark execution using documented Docker Compose and scripts.
 
 5. **NFR-5 (Baseline Fault Handling):**  
-   The coordinator tracks worker heartbeats and marks workers unavailable after timeout so queued jobs are not silently lost.
+   The coordinator tracks worker heartbeats and marks workers unavailable after timeout; queue operations do not silently drop queued jobs.
 
 ---
 
@@ -112,7 +112,8 @@ This project uses a single-owner model: each data domain has one primary owner s
 
 ### Worker Service
 **Owns:** execution of assigned jobs and reporting outcomes.  
-**Does not own:** global queue policy, canonical lifecycle authority, or client-facing API behavior.
+**Does not own:** global queue policy, canonical lifecycle authority, or client-facing API behavior.  
+In v1, Worker Service may run no public server endpoints; it primarily acts as an RPC client to Coordinator (`WorkerHeartbeat`, `FetchWork`, `ReportWorkOutcome`). Any local health endpoint is optional and out of public API scope.
 
 ### Result Service
 **Owns:** completed job output retrieval path and result payload records.  
@@ -166,6 +167,17 @@ No additional canonical states are introduced in v1.
 | Worker failure report | `RUNNING` | `FAILED` | Worker -> Coordinator -> Job | Failure reason is stored with metadata. |
 | Cancel pending job | `QUEUED` | `CANCELED` | Gateway/Coordinator -> Job (+ Queue remove) | Must remove from queue if still present. |
 | Cancel running job (best-effort) | `RUNNING` | `CANCELED` | Gateway/Coordinator/Worker | If cancellation reaches worker in time, final state is `CANCELED`. |
+
+### Submit Acceptance Atomicity (Locked)
+`SubmitJob` acceptance follows this sequence in Design A:
+
+1. Gateway requests `CreateJob` (initial status `QUEUED`) in Job Service.
+2. Gateway requests `EnqueueJob` in Queue Service.
+3. The submit is **accepted** only if enqueue succeeds.
+4. If enqueue fails after create succeeds, Gateway performs compensating action:
+   - `DeleteJobIfStatus(job_id, expected_status=QUEUED)` in Job Service.
+5. If compensation succeeds, client receives failure (typically `UNAVAILABLE`) and no accepted job remains.
+6. If compensation fails, event is logged as consistency anomaly for manual/debug follow-up.
 
 ### Cancellation Semantics (Locked)
 
@@ -229,6 +241,7 @@ These methods are internal implementation RPCs for the microservices design.
 
 #### Job Service (canonical metadata/status authority)
 - `CreateJob`
+- `DeleteJobIfStatus`
 - `GetJobRecord`
 - `ListJobRecords`
 - `TransitionJobStatus`
@@ -258,7 +271,7 @@ These methods are internal implementation RPCs for the microservices design.
 | Caller | Allowed Calls |
 |---|---|
 | External Client | Gateway: `SubmitJob`, `GetJobStatus`, `GetJobResult`, `CancelJob`, `ListJobs` |
-| Gateway | Job: `CreateJob`, `GetJobRecord`, `ListJobRecords`, `SetCancelRequested`; Queue: `EnqueueJob`, `RemoveJobIfPresent`; Result: `GetResult` |
+| Gateway | Job: `CreateJob`, `DeleteJobIfStatus`, `GetJobRecord`, `ListJobRecords`, `SetCancelRequested`; Queue: `EnqueueJob`, `RemoveJobIfPresent`; Result: `GetResult` |
 | Coordinator | Queue: `DequeueJob`, `RemoveJobIfPresent`; Job: `TransitionJobStatus`, `GetJobRecord`; Result: `StoreResult` |
 | Worker | Coordinator: `WorkerHeartbeat`, `FetchWork`, `ReportWorkOutcome` |
 
@@ -318,7 +331,8 @@ This section freezes the v1 message shapes (fields + types + semantics) before `
 - `uint32 priority`
 - `map<string, string> labels`
 
-> `work_duration_ms` and `payload_size_bytes` are workload knobs for repeatable benchmarking.
+> `work_duration_ms` and `payload_size_bytes` are workload knobs for repeatable benchmarking.  
+> `priority` is accepted in the v1 schema for forward compatibility, but dispatch ignores priority and uses FIFO order in v1. Priority-aware scheduling is out of scope for v1.
 
 #### `JobSummary`
 - `string job_id`
@@ -346,7 +360,7 @@ This section freezes the v1 message shapes (fields + types + semantics) before `
 #### `SubmitJob`
 **Request:**
 - `JobSpec spec`
-- `string client_request_id` (optional idempotency key placeholder)
+- `string client_request_id` (optional idempotency key)
 
 **Response:**
 - `string job_id`
@@ -373,11 +387,15 @@ This section freezes the v1 message shapes (fields + types + semantics) before `
 **Response:**
 - `string job_id`
 - `bool result_ready`
-- `JobStatus terminal_status` (`DONE`, `FAILED`, or `CANCELED` when terminal)
+- `JobStatus terminal_status`
 - `bytes output_bytes` (optional; may be empty in v1)
 - `string output_summary`
 - `uint32 runtime_ms`
 - `string checksum`
+
+**Locked semantics:**
+- If the job is **not terminal**: `result_ready = false`, `terminal_status = JOB_STATUS_UNSPECIFIED`.
+- If the job is **terminal**: `result_ready = true`, `terminal_status ∈ {DONE, FAILED, CANCELED}`.
 
 #### `CancelJob`
 **Request:**
@@ -400,6 +418,8 @@ This section freezes the v1 message shapes (fields + types + semantics) before `
 - `repeated JobSummary jobs`
 - `PageResponse page`
 
+Pagination behavior follows Section C field conventions (`page_size` default `50`, max `200`).
+
 ### B) Internal Microservice Message Draft (Design A)
 
 #### Job Service
@@ -411,6 +431,14 @@ This section freezes the v1 message shapes (fields + types + semantics) before `
 **`CreateJobResponse`**
 - `string job_id`
 - `JobStatus status` (expected `QUEUED`)
+
+**`DeleteJobIfStatusRequest`**
+- `string job_id`
+- `JobStatus expected_status` (for v1 compensation path this is `QUEUED`)
+
+**`DeleteJobIfStatusResponse`**
+- `bool deleted`
+- `JobStatus current_status`
 
 **`GetJobRecordRequest`**
 - `string job_id`
@@ -530,7 +558,9 @@ This section freezes the v1 message shapes (fields + types + semantics) before `
 - Durations: `uint32` milliseconds
 - Binary output: `bytes`
 - Optional text fields use empty string when not set in v1
-- Page size default and max limits are implementation-configurable (documented in README once chosen)
+- `ListJobs` pagination defaults: `page_size` default is `50`; maximum is `200`.
+- If `page_size == 0`, the server uses default `50`.
+- If `page_size > 200`, the server clamps to `200`.
 
 ### D) Backward-Compatibility Note (v1)
 
@@ -549,7 +579,7 @@ This section freezes error semantics and idempotency behavior for v1.
 The system uses a two-layer model:
 
 1. **Hard errors** use gRPC status codes (non-OK RPC response).
-2. **Soft outcomes** return `OK` with explicit response fields (e.g., `accepted`, `result_ready`, `already_terminal`).
+2. **Soft outcomes** return `OK` with explicit response fields (e.g., `accepted`, `result_ready`, `already_terminal`, `applied`).
 
 This prevents overloading gRPC errors for normal control flow.
 
@@ -559,7 +589,6 @@ This prevents overloading gRPC errors for normal control flow.
 |---|---|---|---|
 | Invalid/malformed request fields | `INVALID_ARGUMENT` | Do not retry until request is fixed | Example: empty `job_id`, invalid page token format |
 | Unknown `job_id` | `NOT_FOUND` | Do not retry (unless eventual creation is expected) | Applies to status/result/cancel lookups |
-| Valid request but state prevents operation | `FAILED_PRECONDITION` | Retry only after state changes | Example: illegal transition attempt |
 | Idempotency key reused with different payload | `FAILED_PRECONDITION` | Do not retry with same conflicting key | Client must use a new key |
 | Temporary capacity pressure / rate limiting | `RESOURCE_EXHAUSTED` | Retry with backoff | Optional in v1, if rate limits are enabled |
 | Downstream service unavailable | `UNAVAILABLE` | Retry with backoff + jitter | Transient service/network conditions |
@@ -572,6 +601,8 @@ Use normal (`OK`) responses for these non-exception outcomes:
 - `GetJobResult` when job is not terminal yet (`result_ready = false`).
 - `CancelJob` when job is already terminal (`already_terminal = true`).
 - Duplicate cancellation requests after cancellation is already requested (deterministic non-error response).
+- `TransitionJobStatus` CAS mismatch (`applied = false`, return current status).
+- `DeleteJobIfStatus` condition mismatch (`deleted = false`, return current status).
 
 ### 4) Client-Facing Idempotency Matrix (Locked)
 
@@ -583,14 +614,17 @@ Use normal (`OK`) responses for these non-exception outcomes:
 | `CancelJob` | Yes | `job_id` | Repeated calls must be deterministic and side-effect stable. |
 | `ListJobs` | Yes (read-only) | filter + page token | Repeated call with same inputs is safe; ordering consistency is best-effort under concurrent updates. |
 
+**v1 dedup scope lock:** idempotency-key deduplication is enforced in-memory for process lifetime only (not across service restarts).
+
 ### 5) Internal API Idempotency Matrix (Design A, Locked)
 
 | Internal Method | Idempotent? | Required Behavior |
 |---|---|---|
 | `CreateJob` | Conditionally | Deduplicate by `client_request_id` when present. |
+| `DeleteJobIfStatus` | Conditional | Deletes only if current status matches expected status; otherwise no-op. |
 | `EnqueueJob` | Yes-by-key | Same `job_id` must not appear twice in queue. |
 | `RemoveJobIfPresent` | Yes | Repeated remove calls are safe. |
-| `TransitionJobStatus` | Conditional (CAS style) | Apply only when `expected_from_status` matches current; otherwise no-op + `FAILED_PRECONDITION` or `applied=false` per contract. |
+| `TransitionJobStatus` | Conditional (CAS style) | Apply only when `expected_from_status` matches current; otherwise `OK` + `applied=false`. |
 | `SetCancelRequested` | Yes | Repeated set-to-true remains true; no duplicate side effects. |
 | `WorkerHeartbeat` | Yes | Latest heartbeat refreshes liveness timestamp. |
 | `FetchWork` | No (assignment side effects) | May return different work per call; worker must treat delivery as at-least-once. |
