@@ -268,6 +268,45 @@ This health/readiness model is intentionally minimal for v1 and is sufficient fo
 
 ---
 
+## Gateway Skeleton Behavior (Step 2.5 Lock)
+
+This section locks temporary Gateway behavior for initial service bring-up.
+
+### A) Scope (Locked)
+
+`TaskQueuePublicService` is implemented with skeleton handlers for:
+
+- `SubmitJob`
+- `GetJobStatus`
+- `GetJobResult`
+- `CancelJob`
+- `ListJobs`
+
+### B) Temporary Handler Behavior (Locked)
+
+For Step 2.5, each Gateway handler:
+
+1. accepts and parses the request successfully,
+2. executes handler code path without downstream service RPC calls,
+3. performs no canonical state mutations,
+4. returns gRPC `UNIMPLEMENTED` deterministically,
+5. emits structured logs for request receipt and unimplemented return.
+
+### C) Step 2.5 Exit Criteria (Locked)
+
+- Gateway container starts successfully.
+- gRPC server binds configured host/port.
+- All five public RPCs are callable and return deterministic `UNIMPLEMENTED`.
+- Gateway healthcheck passes.
+- Placeholder handlers never crash the process.
+
+### D) Scope Boundary (Locked)
+
+This is a milestone behavior lock for Step 2.5 only.  
+Final API/business semantics remain governed by the Phase 0 locks and are implemented in later steps.
+
+---
+
 ## Functional Requirements
 1. **SubmitJob**: Accept a job request and return a unique job ID.
 2. **GetJobStatus**: Return the current state of a job.
