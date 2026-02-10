@@ -77,14 +77,23 @@ The project uses **two proto files** in v1:
 1. `proto/taskqueue_public.proto`
    - `package taskqueue.v1`
    - contains only client-facing RPCs and messages
+   - defines public service: `TaskQueuePublicService`
 
 2. `proto/taskqueue_internal.proto`
    - `package taskqueue.internal.v1`
    - contains internal service-to-service and worker-coordinator RPCs
+   - defines internal services:
+     - `JobInternalService`
+     - `QueueInternalService`
+     - `CoordinatorInternalService`
+     - `ResultInternalService`
 
 ### v1 Import Rule
 `taskqueue_internal.proto` may import public message/types when needed to avoid schema drift.  
 No third "common proto" file is introduced in v1.
+
+### Service Naming Convention (Locked)
+The proto service names above are frozen for v1 and used consistently in generated stubs, docs, and implementation.
 
 ---
 
@@ -95,6 +104,10 @@ No third "common proto" file is introduced in v1.
 4. **CancelJob**: Cancel pending jobs (best-effort for running jobs).
 5. **ListJobs**: List jobs with filtering/pagination support.
 6. **WorkerHeartbeat / FetchWork**: Support worker liveness and job retrieval.
+
+### FR-6 Scope Clarification (Locked)
+FR-6 is an **internal functional requirement** (worker/coordinator control plane) in Design A.  
+FR-6 is **not** part of the client-facing public API used for architecture equivalence.
 
 ---
 
@@ -249,6 +262,7 @@ Later conflicting terminal writes are ignored and logged.
 1. **Queued cancellation:** expected to succeed if job has not started.
 2. **Running cancellation:** best-effort only.
 3. Repeated cancellation requests are idempotent and deterministic once terminal.
+4. **Queued-cancel race fallback (locked):** if queued-cancel path loses the race (for example, `RemoveJobIfPresent=false` because dequeue already happened), Gateway must set `cancel_requested=true` via Job Service and return authoritative `current_status`. This transitions cancellation handling to the running-cancel path.
 
 ### Invalid Transition Handling (Locked)
 Any transition not listed above is rejected and logged as invalid (e.g., `DONE -> RUNNING`).
@@ -266,6 +280,8 @@ Monolith-per-node preserves the same externally visible lifecycle and terminal-s
 
 ### A) Client-Facing API (must match in both designs)
 
+- **Service name:** `TaskQueuePublicService`
+
 | Method | Public Endpoint Owner | Purpose |
 |---|---|---|
 | `SubmitJob` | Gateway Service | Accept new job and return `job_id`. |
@@ -276,7 +292,7 @@ Monolith-per-node preserves the same externally visible lifecycle and terminal-s
 
 ### B) Internal Microservice API (Design A)
 
-#### Job Service
+#### Job Service (`JobInternalService`)
 - `CreateJob`
 - `DeleteJobIfStatus`
 - `GetJobRecord`
@@ -284,17 +300,17 @@ Monolith-per-node preserves the same externally visible lifecycle and terminal-s
 - `TransitionJobStatus`
 - `SetCancelRequested`
 
-#### Queue Service
+#### Queue Service (`QueueInternalService`)
 - `EnqueueJob`
 - `DequeueJob`
 - `RemoveJobIfPresent`
 
-#### Coordinator Service
+#### Coordinator Service (`CoordinatorInternalService`)
 - `WorkerHeartbeat`
 - `FetchWork`
 - `ReportWorkOutcome`
 
-#### Result Service
+#### Result Service (`ResultInternalService`)
 - `StoreResult`
 - `GetResult`
 
@@ -408,6 +424,7 @@ No additional RPC methods are added before v1 implementation and baseline benchm
   - same key + different payload returns `FAILED_PRECONDITION`
 - If `client_request_id` is empty:
   - request is treated as non-idempotent (new submit attempt)
+- Deduplication guarantees apply only while key entries remain in the in-memory dedup store (see dedup scope and bound below).
 
 #### `GetJobStatus`
 **Request:**
@@ -440,6 +457,7 @@ No additional RPC methods are added before v1 implementation and baseline benchm
 - Terminal `DONE`: `result_ready=true`; `output_bytes` may contain payload.
 - Terminal `FAILED`: `result_ready=true`; `output_bytes` may be empty; failure details appear in `output_summary` (and `GetJobStatus.failure_reason`).
 - Terminal `CANCELED`: `result_ready=true`; `output_bytes` may be empty; cancellation context appears in `output_summary`.
+- **Terminal-mismatch rule (locked):** if canonical status is terminal but no terminal envelope exists in Result Service, API returns gRPC `UNAVAILABLE` and logs a consistency anomaly with `job_id`.
 
 #### `CancelJob`
 **Request:**
@@ -471,6 +489,7 @@ No additional RPC methods are added before v1 implementation and baseline benchm
 
 **Semantics (Locked):**
 - Deterministic ordering uses requested sort on `created_at_ms` with tie-break `job_id` ascending.
+- Empty `status_filter` means **all statuses**.
 - v1 pagination is **best-effort non-snapshot**; concurrent writes may shift page boundaries between requests.
 
 ### B) Internal Microservice Message Draft (Design A)
@@ -533,6 +552,8 @@ No additional RPC methods are added before v1 implementation and baseline benchm
   `worker_id` remains stable for process lifetime.
 - `checksum` format: lowercase hex SHA-256 of `output_bytes` (always populated, including empty payload).
 - `MAX_OUTPUT_BYTES = 262144` (256 KiB). Oversized output triggers failed outcome handling (`OUTPUT_TOO_LARGE`) and stores bounded failure metadata without oversized bytes.
+- `MAX_DEDUP_KEYS = 10000` for in-memory submit idempotency cache.
+- Dedup cache eviction policy in v1: bounded FIFO/LRU-style eviction. If a key is evicted, a later submit with the same key is treated as a new request attempt.
 
 ### D) Backward-Compatibility Note (v1)
 - Do not rename/remove fields after proto v1 freeze.
@@ -557,6 +578,7 @@ The system uses a two-layer model:
 | Idempotency key reused with different payload | `FAILED_PRECONDITION` | Do not retry with same key | Use a new key |
 | Temporary capacity pressure | `RESOURCE_EXHAUSTED` | Retry with backoff | Optional in v1 |
 | Downstream service unavailable | `UNAVAILABLE` | Retry with backoff+jitter | Transient failure |
+| Terminal status present but terminal result missing | `UNAVAILABLE` | Retry with backoff+jitter | Consistency anomaly is logged with `job_id` |
 | Request deadline exceeded | `DEADLINE_EXCEEDED` | Retry idempotent methods | Use sane deadlines |
 | Unexpected server failure | `INTERNAL` | Retry cautiously | Log with correlation data |
 
@@ -572,13 +594,13 @@ Use `OK` responses for:
 
 | Method | Idempotent? | Key / Identity | Required Behavior |
 |---|---|---|---|
-| `SubmitJob` | Conditionally | `client_request_id` | Non-empty key: same key + same payload returns original `job_id`; same key + different payload returns `FAILED_PRECONDITION`. Empty key: treat as non-idempotent new submit. |
+| `SubmitJob` | Conditionally | `client_request_id` | Non-empty key: same key + same payload returns original `job_id`; same key + different payload returns `FAILED_PRECONDITION` while key remains in dedup cache. Empty key: treat as non-idempotent new submit. |
 | `GetJobStatus` | Yes | `job_id` | Safe repeated reads |
 | `GetJobResult` | Yes | `job_id` | Safe repeated reads |
 | `CancelJob` | Yes | `job_id` | Deterministic repeated calls |
 | `ListJobs` | Yes | filters + page token | Safe repeated reads |
 
-**v1 dedup scope:** in-memory for process lifetime only (not across restarts).
+**v1 dedup scope:** in-memory for process lifetime only (not across restarts), bounded by `MAX_DEDUP_KEYS`.
 
 ### 5) Internal API Idempotency Matrix (Design A, Locked)
 
@@ -609,6 +631,7 @@ Do not auto-retry `INVALID_ARGUMENT`, `NOT_FOUND`, or `FAILED_PRECONDITION` with
 - `QUEUED`: cancellation moves toward `CANCELED` with queue removal first, then guarded status transition.
 - `RUNNING`: best-effort; completion may win the race.
 - terminal state: repeated cancel is deterministic non-error.
+- if queued-cancel race is lost, system sets `cancel_requested=true` and follows running-cancel path.
 
 ### 8) Observability Requirements for Errors (Locked)
 For every non-OK response, log:
@@ -658,6 +681,12 @@ The following design ambiguities are now explicitly locked:
 18. **Checksum format and output cap:** lowercase SHA-256 checksum; max output bytes locked.
 19. **Cancel unknown ID behavior:** explicit `NOT_FOUND`.
 20. **ListJobs snapshot model:** best-effort non-snapshot pagination in v1.
+21. **FR-6 scope:** internal requirement only; not public API equivalence surface.
+22. **Queued-cancel race fallback:** if queue removal misses due to race, set cancel-request flag and continue best-effort running-cancel semantics.
+23. **Terminal-status/result mismatch behavior:** return `UNAVAILABLE` and log anomaly.
+24. **Empty status filter behavior:** `ListJobs` with empty filter includes all statuses.
+25. **Submit dedup cache bounds:** in-memory dedup map is bounded (`MAX_DEDUP_KEYS`) with eviction; guarantees hold while key is retained.
+26. **Proto service naming lock:** public/internal service names are frozen for v1 (`TaskQueuePublicService`, `JobInternalService`, `QueueInternalService`, `CoordinatorInternalService`, `ResultInternalService`).
 
 ---
 
@@ -716,18 +745,19 @@ Workload factors include:
 
 ## Repository Structure
 
-    distributed-task-queue/
-    ├─ README.md
-    ├─ proto/
-    │  ├─ taskqueue_public.proto
-    │  └─ taskqueue_internal.proto
-    ├─ services/
-    │  ├─ gateway/
-    │  ├─ job/
-    │  ├─ queue/
-    │  ├─ coordinator/
-    │  ├─ worker/
-    │  └─ result/
-    ├─ docker/
-    ├─ scripts/
-    └─ results/
+```text
+distributed-task-queue/
+├─ README.md
+├─ proto/
+│  ├─ taskqueue_public.proto
+│  └─ taskqueue_internal.proto
+├─ services/
+│  ├─ gateway/
+│  ├─ job/
+│  ├─ queue/
+│  ├─ coordinator/
+│  ├─ worker/
+│  └─ result/
+├─ docker/
+├─ scripts/
+└─ results/
