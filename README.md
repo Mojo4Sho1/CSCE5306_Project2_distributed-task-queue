@@ -55,6 +55,8 @@ The experiments also use the same load-generation and measurement logic across b
 
 ### Fairness Controls (Locked)
 - **Execution capacity parity:** total worker concurrency budget is fixed and equal across designs (`TOTAL_WORKER_SLOTS = 6` by default).
+  - Design A (Microservices): 1 Worker Service container with 6 execution slots.
+  - Design B (Monolith-per-node): 6 monolith nodes with 1 execution slot per node.
 - **Ingress policy:**  
   - Design A load targets Gateway only.  
   - Design B load is distributed round-robin across six monolith nodes.
@@ -65,6 +67,24 @@ The experiments also use the same load-generation and measurement logic across b
 ## Communication Model
 - **gRPC (RPC)**
 - **Protocol Buffers** for interface contracts and message schemas
+
+---
+
+## Proto Layout (Phase 0.7 Lock)
+
+The project uses **two proto files** in v1:
+
+1. `proto/taskqueue_public.proto`
+   - `package taskqueue.v1`
+   - contains only client-facing RPCs and messages
+
+2. `proto/taskqueue_internal.proto`
+   - `package taskqueue.internal.v1`
+   - contains internal service-to-service and worker-coordinator RPCs
+
+### v1 Import Rule
+`taskqueue_internal.proto` may import public message/types when needed to avoid schema drift.  
+No third "common proto" file is introduced in v1.
 
 ---
 
@@ -162,9 +182,10 @@ No additional canonical states are introduced in v1.
 `RUNNING -> CANCELED` (best-effort; see cancellation semantics)
 
 ### Transition Ownership
-- **Job Service** is the canonical authority for job status values.
-- **Coordinator Service** orchestrates execution-related transitions (dispatch/worker outcomes).
-- **Gateway Service** can request cancellation but does not directly mutate status stores.
+- **Job Service** is the canonical authority that applies job status values.
+- **Coordinator Service** is the execution-path transition orchestrator (`QUEUED->RUNNING`, `RUNNING->DONE|FAILED|CANCELED`).
+- **Gateway Service** requests cancellation and may apply guarded queued-cancel transition (`QUEUED->CANCELED`) after queue removal confirmation.
+- **Worker Service** never writes canonical status directly; it reports outcomes to Coordinator.
 - **Queue Service** owns queue membership only (not canonical status).
 
 ### Allowed Transitions (Locked)
@@ -172,11 +193,11 @@ No additional canonical states are introduced in v1.
 | Trigger | From | To | Primary Actor | Notes |
 |---|---|---|---|---|
 | Successful `SubmitJob` | (none) | `QUEUED` | Gateway -> Job (+ Queue) | Job is accepted only when enqueue succeeds. |
-| Work assignment / dequeue | `QUEUED` | `RUNNING` | Coordinator | Coordinator dispatches work to worker. |
+| Work assignment / dequeue | `QUEUED` | `RUNNING` | Coordinator -> Job (CAS) | Coordinator dispatches work only after CAS success. |
 | Worker success report | `RUNNING` | `DONE` | Worker -> Coordinator -> Job | Result payload is persisted in Result Service. |
 | Worker failure report | `RUNNING` | `FAILED` | Worker -> Coordinator -> Job | Failure reason is stored with metadata. |
-| Cancel pending job | `QUEUED` | `CANCELED` | Gateway/Coordinator -> Job (+ Queue remove) | Remove from queue if present. |
-| Cancel running job (best-effort) | `RUNNING` | `CANCELED` | Gateway/Coordinator/Worker | Applies only if cancellation wins the race. |
+| Cancel pending job | `QUEUED` | `CANCELED` | Gateway -> Queue remove -> Job (CAS) | Remove from queue first, then apply guarded transition. |
+| Cancel running job (best-effort) | `RUNNING` | `CANCELED` | Gateway sets cancel flag; Coordinator applies if race wins | Applies only if cancellation wins the race. |
 
 ### Submit Acceptance Atomicity (Locked)
 `SubmitJob` acceptance follows this sequence in Design A:
@@ -188,6 +209,17 @@ No additional canonical states are introduced in v1.
    - `DeleteJobIfStatus(job_id, expected_status=QUEUED)`
 5. If compensation succeeds, client receives failure (`UNAVAILABLE`) and no accepted job remains.
 6. If compensation fails, system logs a **consistency anomaly** (with `job_id`) for debugging/reporting.
+
+### Dequeue/CAS Race Handling (Locked)
+Coordinator dispatch follows:
+1. Dequeue `job_id` from Queue Service.
+2. Attempt CAS transition in Job Service: `QUEUED -> RUNNING`.
+3. Only if CAS succeeds does Coordinator assign work to Worker.
+
+If CAS fails (for example, cancellation or a terminal write wins race):
+- Coordinator does not assign work.
+- Event is logged as expected race behavior.
+- No silent drop is permitted.
 
 ### Anomaly Handling Rule (Locked)
 If a `QUEUED` job is not present in queue due to a partial failure window, the system logs an anomaly.  
@@ -260,11 +292,32 @@ Monolith-per-node preserves the same externally visible lifecycle and terminal-s
 | Caller | Allowed Calls |
 |---|---|
 | External Client | Gateway: `SubmitJob`, `GetJobStatus`, `GetJobResult`, `CancelJob`, `ListJobs` |
-| Gateway | Job: `CreateJob`, `DeleteJobIfStatus`, `GetJobRecord`, `ListJobRecords`, `SetCancelRequested`; Queue: `EnqueueJob`, `RemoveJobIfPresent`; Result: `GetResult` |
+| Gateway | Job: `CreateJob`, `DeleteJobIfStatus`, `GetJobRecord`, `ListJobRecords`, `SetCancelRequested`, `TransitionJobStatus` *(queued-cancel CAS only)*; Queue: `EnqueueJob`, `RemoveJobIfPresent`; Result: `GetResult` |
 | Coordinator | Queue: `DequeueJob`, `RemoveJobIfPresent`; Job: `TransitionJobStatus`, `GetJobRecord`; Result: `StoreResult` |
 | Worker | Coordinator: `WorkerHeartbeat`, `FetchWork`, `ReportWorkOutcome` |
 
 No other cross-service mutations are allowed in v1.
+
+---
+
+## Proto v1 Scope Boundary (Locked)
+
+Proto v1 is intentionally minimal and frozen to the current method set.
+
+### Public RPC set (frozen)
+- `SubmitJob`
+- `GetJobStatus`
+- `GetJobResult`
+- `CancelJob`
+- `ListJobs`
+
+### Internal RPC set (frozen for v1)
+- Job: `CreateJob`, `DeleteJobIfStatus`, `GetJobRecord`, `ListJobRecords`, `TransitionJobStatus`, `SetCancelRequested`
+- Queue: `EnqueueJob`, `DequeueJob`, `RemoveJobIfPresent`
+- Coordinator: `WorkerHeartbeat`, `FetchWork`, `ReportWorkOutcome`
+- Result: `StoreResult`, `GetResult`
+
+No additional RPC methods are added before v1 implementation and baseline benchmarking complete.
 
 ---
 
@@ -360,9 +413,11 @@ No other cross-service mutations are allowed in v1.
 - `uint32 runtime_ms`
 - `string checksum`
 
-**Semantics:**
-- Not terminal: `result_ready=false`, `terminal_status=JOB_STATUS_UNSPECIFIED`
-- Terminal: `result_ready=true`, `terminal_status ∈ {DONE, FAILED, CANCELED}`
+**Semantics (Locked):**
+- Non-terminal: `result_ready=false`, `terminal_status=JOB_STATUS_UNSPECIFIED`.
+- Terminal `DONE`: `result_ready=true`; `output_bytes` may contain payload.
+- Terminal `FAILED`: `result_ready=true`; `output_bytes` may be empty; failure details appear in `output_summary` (and `GetJobStatus.failure_reason`).
+- Terminal `CANCELED`: `result_ready=true`; `output_bytes` may be empty; cancellation context appears in `output_summary`.
 
 #### `CancelJob`
 **Request:**
@@ -374,6 +429,12 @@ No other cross-service mutations are allowed in v1.
 - `bool accepted`
 - `JobStatus current_status`
 - `bool already_terminal`
+
+**Semantics (Locked):**
+- `accepted=true` means the cancel request was successfully processed by the API path.
+- `already_terminal=true` means the job was terminal before this request.
+- `current_status` is always authoritative at response time.
+- For `RUNNING` jobs, `accepted=true` does not guarantee cancellation wins the race.
 
 #### `ListJobs`
 **Request:**
@@ -508,7 +569,7 @@ Use exponential backoff with jitter.
 Do not auto-retry `INVALID_ARGUMENT`, `NOT_FOUND`, or `FAILED_PRECONDITION` without changing assumptions.
 
 ### 7) Determinism Rules for Cancellation (Locked)
-- `QUEUED`: cancellation moves toward `CANCELED` and removes queue entry if present.
+- `QUEUED`: cancellation moves toward `CANCELED` with queue removal first, then guarded status transition.
 - `RUNNING`: best-effort; completion may win the race.
 - terminal state: repeated cancel is deterministic non-error.
 
@@ -528,7 +589,7 @@ For every non-OK response, log:
 The following design ambiguities are now explicitly locked:
 
 1. **Submit anomaly handling:** compensation + anomaly logging on create/enqueue partial failure.
-2. **Worker-slot fairness:** equal total worker slots across designs.
+2. **Worker-slot fairness:** equal total worker slots across designs with fixed per-design mapping.
 3. **Ingress policy:** fixed request routing policy per design.
 4. **Terminal race precedence:** first valid terminal write wins.
 5. **Sort behavior:** enum-based sort (`CREATED_AT_DESC` / `CREATED_AT_ASC`), no free-text sort.
@@ -537,6 +598,8 @@ The following design ambiguities are now explicitly locked:
 8. **Timestamp authority:** server-generated UTC epoch ms is authoritative.
 9. **Worker health scope:** heartbeat is canonical; optional health checks are operational only.
 10. **Priority treatment:** `priority` is removed from v1 `JobSpec`.
+11. **Proto packaging:** two files (`taskqueue_public.proto`, `taskqueue_internal.proto`), no common proto in v1.
+12. **Dequeue/CAS race policy:** CAS gate required before assignment; failed CAS is logged expected race behavior.
 
 ---
 
@@ -550,6 +613,7 @@ The following design ambiguities are now explicitly locked:
   - **Design B:** Monolith-per-node (6 nodes)
 - Node-count rule is fixed: load generator is not a functional node.
 - Communication model is fixed to gRPC + protobuf.
+- Proto packaging is fixed to two files (public + internal).
 - Storage assumption is fixed to **in-memory** for this project.
 - Processing semantics are fixed to **at-least-once** execution.
 - Cancellation semantics are fixed to: queued cancellation expected; running cancellation best-effort.
@@ -597,6 +661,8 @@ Workload factors include:
     distributed-task-queue/
     ├─ README.md
     ├─ proto/
+    │  ├─ taskqueue_public.proto
+    │  └─ taskqueue_internal.proto
     ├─ services/
     │  ├─ gateway/
     │  ├─ job/
