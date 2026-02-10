@@ -1,0 +1,208 @@
+syntax = "proto3";
+
+package taskqueue.internal.v1;
+
+import "taskqueue_public.proto";
+
+// ============================================================================
+// JobInternalService
+// ============================================================================
+
+// Creates a canonical job record (QUEUED on success path).
+// Dedup behavior is driven by client_request_id according to project semantics.
+message CreateJobRequest {
+  taskqueue.v1.JobSpec spec = 1;
+  string client_request_id = 2;
+}
+
+message CreateJobResponse {
+  string job_id = 1;
+  taskqueue.v1.JobStatus status = 2;
+}
+
+// Deletes a job record only if its current status matches expected_status.
+message DeleteJobIfStatusRequest {
+  string job_id = 1;
+  taskqueue.v1.JobStatus expected_status = 2;
+}
+
+message DeleteJobIfStatusResponse {
+  bool deleted = 1;
+  taskqueue.v1.JobStatus current_status = 2;
+}
+
+message GetJobRecordRequest {
+  string job_id = 1;
+}
+
+message GetJobRecordResponse {
+  taskqueue.v1.JobSummary summary = 1;
+  string failure_reason = 2;
+}
+
+message ListJobRecordsRequest {
+  repeated taskqueue.v1.JobStatus status_filter = 1;
+  taskqueue.v1.PageRequest page = 2;
+  taskqueue.v1.JobSort sort = 3;
+}
+
+message ListJobRecordsResponse {
+  repeated taskqueue.v1.JobSummary jobs = 1;
+  taskqueue.v1.PageResponse page = 2;
+}
+
+// CAS-style transition: applies only when expected_from_status matches current.
+message TransitionJobStatusRequest {
+  string job_id = 1;
+  taskqueue.v1.JobStatus expected_from_status = 2;
+  taskqueue.v1.JobStatus to_status = 3;
+  string actor = 4;
+  string reason = 5;
+}
+
+message TransitionJobStatusResponse {
+  bool applied = 1;
+  taskqueue.v1.JobStatus current_status = 2;
+}
+
+message SetCancelRequestedRequest {
+  string job_id = 1;
+  bool cancel_requested = 2;
+  string reason = 3;
+}
+
+message SetCancelRequestedResponse {
+  bool applied = 1;
+  taskqueue.v1.JobStatus current_status = 2;
+}
+
+service JobInternalService {
+  rpc CreateJob(CreateJobRequest) returns (CreateJobResponse);
+  rpc DeleteJobIfStatus(DeleteJobIfStatusRequest) returns (DeleteJobIfStatusResponse);
+  rpc GetJobRecord(GetJobRecordRequest) returns (GetJobRecordResponse);
+  rpc ListJobRecords(ListJobRecordsRequest) returns (ListJobRecordsResponse);
+  rpc TransitionJobStatus(TransitionJobStatusRequest) returns (TransitionJobStatusResponse);
+  rpc SetCancelRequested(SetCancelRequestedRequest) returns (SetCancelRequestedResponse);
+}
+
+// ============================================================================
+// QueueInternalService
+// ============================================================================
+
+message EnqueueJobRequest {
+  string job_id = 1;
+  int64 enqueued_at_ms = 2; // UTC epoch ms, caller-provided timestamp.
+}
+
+message EnqueueJobResponse {
+  bool accepted = 1;
+}
+
+message DequeueJobRequest {
+  string worker_id = 1;
+}
+
+message DequeueJobResponse {
+  bool found = 1;
+  string job_id = 2;
+}
+
+message RemoveJobIfPresentRequest {
+  string job_id = 1;
+}
+
+message RemoveJobIfPresentResponse {
+  bool removed = 1;
+}
+
+service QueueInternalService {
+  rpc EnqueueJob(EnqueueJobRequest) returns (EnqueueJobResponse);
+  rpc DequeueJob(DequeueJobRequest) returns (DequeueJobResponse);
+  rpc RemoveJobIfPresent(RemoveJobIfPresentRequest) returns (RemoveJobIfPresentResponse);
+}
+
+// ============================================================================
+// CoordinatorInternalService
+// ============================================================================
+
+message WorkerHeartbeatRequest {
+  string worker_id = 1;
+  int64 heartbeat_at_ms = 2; // UTC epoch ms.
+  uint32 capacity_hint = 3;
+}
+
+message WorkerHeartbeatResponse {
+  bool accepted = 1;
+  uint32 next_heartbeat_in_ms = 2;
+}
+
+message FetchWorkRequest {
+  string worker_id = 1;
+}
+
+message FetchWorkResponse {
+  bool assigned = 1;
+  string job_id = 2;
+  taskqueue.v1.JobSpec spec = 3;
+  uint32 retry_after_ms = 4;
+}
+
+message ReportWorkOutcomeRequest {
+  string worker_id = 1;
+  string job_id = 2;
+  taskqueue.v1.JobOutcome outcome = 3;
+  uint32 runtime_ms = 4;
+  string failure_reason = 5;
+  string output_summary = 6;
+  bytes output_bytes = 7;
+  string checksum = 8;
+}
+
+message ReportWorkOutcomeResponse {
+  bool accepted = 1;
+}
+
+service CoordinatorInternalService {
+  rpc WorkerHeartbeat(WorkerHeartbeatRequest) returns (WorkerHeartbeatResponse);
+  rpc FetchWork(FetchWorkRequest) returns (FetchWorkResponse);
+  rpc ReportWorkOutcome(ReportWorkOutcomeRequest) returns (ReportWorkOutcomeResponse);
+}
+
+// ============================================================================
+// ResultInternalService
+// ============================================================================
+
+// Stores terminal result envelope (DONE/FAILED/CANCELED).
+message StoreResultRequest {
+  string job_id = 1;
+  taskqueue.v1.JobStatus terminal_status = 2;
+  uint32 runtime_ms = 3;
+  string output_summary = 4;
+  bytes output_bytes = 5;
+  string checksum = 6;
+}
+
+message StoreResultResponse {
+  bool stored = 1;
+  bool already_exists = 2;
+  taskqueue.v1.JobStatus current_terminal_status = 3;
+}
+
+message GetResultRequest {
+  string job_id = 1;
+}
+
+message GetResultResponse {
+  bool found = 1;
+  string job_id = 2;
+  taskqueue.v1.JobStatus terminal_status = 3;
+  uint32 runtime_ms = 4;
+  string output_summary = 5;
+  bytes output_bytes = 6;
+  string checksum = 7;
+}
+
+service ResultInternalService {
+  rpc StoreResult(StoreResultRequest) returns (StoreResultResponse);
+  rpc GetResult(GetResultRequest) returns (GetResultResponse);
+}

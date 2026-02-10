@@ -1,0 +1,190 @@
+syntax = "proto3";
+
+package taskqueue.v1;
+
+// ============================================================================
+// Public enums
+// ============================================================================
+
+// Canonical lifecycle state for a job.
+enum JobStatus {
+  JOB_STATUS_UNSPECIFIED = 0;
+  QUEUED = 1;
+  RUNNING = 2;
+  DONE = 3;
+  FAILED = 4;
+  CANCELED = 5;
+}
+
+// Terminal outcome reported by workers/coordinator paths.
+// Included in public shared types so internal proto can import consistently.
+enum JobOutcome {
+  JOB_OUTCOME_UNSPECIFIED = 0;
+  JOB_OUTCOME_SUCCEEDED = 1;
+  JOB_OUTCOME_FAILED = 2;
+  JOB_OUTCOME_CANCELED = 3;
+}
+
+// Sorting options for ListJobs.
+enum JobSort {
+  JOB_SORT_UNSPECIFIED = 0; // Server treats as CREATED_AT_DESC.
+  CREATED_AT_DESC = 1;
+  CREATED_AT_ASC = 2;
+}
+
+// ============================================================================
+// Shared public/common messages
+// ============================================================================
+
+// Job specification submitted by clients.
+message JobSpec {
+  string job_type = 1;
+  uint32 work_duration_ms = 2;
+  uint32 payload_size_bytes = 3;
+  map<string, string> labels = 4;
+}
+
+// Compact job representation for list responses.
+message JobSummary {
+  string job_id = 1;
+  JobStatus status = 2;
+  string job_type = 3;
+  int64 created_at_ms = 4;   // Server-generated UTC epoch ms.
+  int64 started_at_ms = 5;   // 0 if not started.
+  int64 finished_at_ms = 6;  // 0 if not finished.
+  bool cancel_requested = 7;
+}
+
+// Offset-based pagination request.
+message PageRequest {
+  uint32 page_size = 1; // Server default/clamp rules applied by implementation.
+  string page_token = 2; // Stringified non-negative integer offset.
+}
+
+// Offset-based pagination response.
+message PageResponse {
+  string next_page_token = 1; // Empty means end.
+}
+
+// ============================================================================
+// SubmitJob
+// ============================================================================
+
+message SubmitJobRequest {
+  JobSpec spec = 1;
+
+  // Optional idempotency key.
+  // - Non-empty: same key + same canonical payload returns original job_id.
+  // - Non-empty: same key + different payload returns FAILED_PRECONDITION.
+  // - Empty: treated as non-idempotent submit attempt.
+  string client_request_id = 2;
+}
+
+message SubmitJobResponse {
+  string job_id = 1;
+  JobStatus initial_status = 2; // Expected QUEUED on successful accept.
+  int64 accepted_at_ms = 3;     // Server-generated UTC epoch ms.
+}
+
+// ============================================================================
+// GetJobStatus
+// ============================================================================
+
+message GetJobStatusRequest {
+  string job_id = 1;
+}
+
+message GetJobStatusResponse {
+  string job_id = 1;
+  JobStatus status = 2;
+  bool cancel_requested = 3;
+  int64 created_at_ms = 4;   // UTC epoch ms.
+  int64 started_at_ms = 5;   // 0 if not started.
+  int64 finished_at_ms = 6;  // 0 if not terminal.
+  string failure_reason = 7; // Empty unless FAILED.
+}
+
+// ============================================================================
+// GetJobResult
+// ============================================================================
+
+message GetJobResultRequest {
+  string job_id = 1;
+}
+
+message GetJobResultResponse {
+  string job_id = 1;
+
+  // False when canonical job status is non-terminal.
+  bool result_ready = 2;
+
+  // Canonical terminal status when result_ready=true.
+  // JOB_STATUS_UNSPECIFIED when not ready.
+  JobStatus terminal_status = 3;
+
+  bytes output_bytes = 4;
+  string output_summary = 5;
+  uint32 runtime_ms = 6;
+  string checksum = 7; // Lowercase hex SHA-256 of output_bytes.
+}
+
+// ============================================================================
+// CancelJob
+// ============================================================================
+
+message CancelJobRequest {
+  string job_id = 1;
+  string reason = 2;
+}
+
+message CancelJobResponse {
+  string job_id = 1;
+
+  // True when the cancel request was accepted/processed by API path.
+  bool accepted = 2;
+
+  // Authoritative status at response time.
+  JobStatus current_status = 3;
+
+  // True if job was already terminal before this request.
+  bool already_terminal = 4;
+}
+
+// ============================================================================
+// ListJobs
+// ============================================================================
+
+message ListJobsRequest {
+  // Empty filter means all statuses.
+  repeated JobStatus status_filter = 1;
+  PageRequest page = 2;
+  JobSort sort = 3;
+}
+
+message ListJobsResponse {
+  repeated JobSummary jobs = 1;
+  PageResponse page = 2;
+}
+
+// ============================================================================
+// Public client-facing service
+// ============================================================================
+
+service TaskQueuePublicService {
+  // Submit a new job request.
+  rpc SubmitJob(SubmitJobRequest) returns (SubmitJobResponse);
+
+  // Return canonical status for a job_id.
+  rpc GetJobStatus(GetJobStatusRequest) returns (GetJobStatusResponse);
+
+  // Return terminal output envelope when available.
+  rpc GetJobResult(GetJobResultRequest) returns (GetJobResultResponse);
+
+  // Request cancellation.
+  // Note: accepted cancellation does not guarantee race win for RUNNING jobs.
+  rpc CancelJob(CancelJobRequest) returns (CancelJobResponse);
+
+  // List jobs with filter/sort/pagination.
+  // v1 semantics are best-effort non-snapshot pagination.
+  rpc ListJobs(ListJobsRequest) returns (ListJobsResponse);
+}
