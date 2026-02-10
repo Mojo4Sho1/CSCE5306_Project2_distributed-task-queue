@@ -38,6 +38,14 @@ The system uses **gRPC + Protocol Buffers** for service-to-service and client-to
 
 ---
 
+### Fair-Comparison Constraint (API Equivalence)
+To ensure a fair comparison, both designs expose the same client-facing gRPC API:
+`SubmitJob`, `GetJobStatus`, `GetJobResult`, `CancelJob`, and `ListJobs`.
+Both designs use equivalent request/response schemas and status semantics for these methods.
+The experiments also use the same load-generation and measurement logic across both designs.
+
+---
+
 ## Communication Model
 - **gRPC (RPC)**
 - **Protocol Buffers** for interface contracts and message schemas
