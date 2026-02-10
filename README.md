@@ -38,14 +38,6 @@ The system uses **gRPC + Protocol Buffers** for service-to-service and client-to
 
 ---
 
-### Fair-Comparison Constraint (API Equivalence)
-To ensure a fair comparison, both designs expose the same client-facing gRPC API:
-`SubmitJob`, `GetJobStatus`, `GetJobResult`, `CancelJob`, and `ListJobs`.
-Both designs use equivalent request/response schemas and status semantics for these methods.
-The experiments also use the same load-generation and measurement logic across both designs.
-
----
-
 ## Communication Model
 - **gRPC (RPC)**
 - **Protocol Buffers** for interface contracts and message schemas
@@ -78,6 +70,53 @@ The experiments also use the same load-generation and measurement logic across b
 
 5. **NFR-5 (Baseline Fault Handling):**  
    The coordinator tracks worker heartbeats and marks workers unavailable after timeout so queued jobs are not silently lost.
+
+---
+
+## Fair-Comparison Constraint (API Equivalence)
+
+To ensure a fair comparison, both designs expose the same **client-facing** gRPC API:
+
+- `SubmitJob`
+- `GetJobStatus`
+- `GetJobResult`
+- `CancelJob`
+- `ListJobs`
+
+Both designs use equivalent request/response schemas and status semantics for these methods.  
+The experiments also use the same load-generation and measurement logic across both designs.
+
+> Internal service RPCs (e.g., worker heartbeat/fetch-work) may differ between designs, but client-facing behavior remains equivalent.
+
+---
+
+## Phase 0 Decision Lock (Frozen)
+
+**Freeze date:** 2026-02-10
+
+- System choice is fixed to **Distributed Task Queue**.
+- Architecture comparison is fixed to:
+  - **Design A:** Microservices (6 functional nodes)
+  - **Design B:** Monolith-per-node (6 nodes)
+- Node-count rule is fixed: load generator is not a functional node.
+- Communication model is fixed to gRPC + protobuf.
+- Storage assumption is fixed to **in-memory state** for this project.
+- Processing semantics: **at-least-once** execution.
+- Cancellation semantics: queued cancellation is expected; running cancellation is best-effort.
+- Evaluation fairness controls are fixed: same hardware, workload profiles, warm-up, run duration, and measurement method for both designs.
+
+### Out of Scope (Scope Control)
+- Durable persistence guarantees
+- Consensus/leader-election protocols
+- Exactly-once processing guarantees
+- Production-grade security hardening
+- Multi-region deployment
+
+### Change Control
+If any frozen decision changes, record:
+1. what changed,
+2. why it changed,
+3. expected impact on implementation/evaluation.
 
 ---
 
