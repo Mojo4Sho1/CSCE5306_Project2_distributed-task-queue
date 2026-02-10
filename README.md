@@ -198,17 +198,73 @@ Worker:
 For services with inbound gRPC endpoints (Gateway/Job/Queue/Coordinator/Result), a service is considered **ready** when:
 1. configuration is parsed successfully, and
 2. gRPC server is bound to configured host/port, and
-3. startup log emits a ready event.
+3. startup log emits a ready event, and
+4. corresponding Step 2.4 healthcheck passes.
 
 For Worker, readiness is:
 1. configuration parsed, and
 2. worker loop started, and
-3. first heartbeat attempt emitted in logs.
+3. first heartbeat attempt emitted in logs, and
+4. corresponding Step 2.4 healthcheck passes.
 
 ### E) Entrypoint Rule
 
 Each service container must declare exactly one startup command in Docker Compose.  
 If an entrypoint changes, README endpoint/env tables must be updated in the same commit.
+
+---
+
+## Healthcheck Strategy (Step 2.4 Lock)
+
+This section locks the container health/readiness strategy for v1.
+
+### A) Common Healthcheck Command Shape (Locked)
+
+All containers use one shared command interface:
+
+`python -m scripts.healthcheck --mode <tcp|worker> --target <host:port> --timeout-ms <ms> --service <name>`
+
+- `--mode`:
+  - `tcp`: check TCP connect to target host:port.
+  - `worker`: check Worker liveness by verifying coordinator reachability at target.
+- `--target`: required `host:port`.
+- `--timeout-ms`: optional, default `1000`.
+- `--service`: optional label for structured log output.
+
+**Exit semantics (locked):**
+- exit `0` = healthy
+- exit non-zero = unhealthy
+
+### B) Mode Mapping by Service (Design A)
+
+| Service | Mode | Target |
+|---|---|---|
+| Gateway | `tcp` | `127.0.0.1:${GATEWAY_PORT}` |
+| Job | `tcp` | `127.0.0.1:${JOB_PORT}` |
+| Queue | `tcp` | `127.0.0.1:${QUEUE_PORT}` |
+| Coordinator | `tcp` | `127.0.0.1:${COORDINATOR_PORT}` |
+| Result | `tcp` | `127.0.0.1:${RESULT_PORT}` |
+| Worker | `worker` | `${COORDINATOR_ADDR}` |
+
+### C) Docker Healthcheck Policy (Locked)
+
+Default healthcheck timing for all services:
+
+- `interval: 5s`
+- `timeout: 2s`
+- `retries: 12`
+- `start_period: 20s`
+
+These values are chosen to tolerate normal startup jitter while still surfacing failures promptly in local development.
+
+### D) Readiness Interpretation (Locked)
+
+- For Gateway/Job/Queue/Coordinator/Result:
+  - ready when service startup succeeds **and** healthcheck (`mode=tcp`) passes.
+- For Worker:
+  - ready when worker loop starts **and** healthcheck (`mode=worker`) passes coordinator reachability.
+
+This health/readiness model is intentionally minimal for v1 and is sufficient for container orchestration and smoke validation.
 
 ---
 
@@ -940,6 +996,14 @@ If any frozen decision changes, record:
 1. what changed,
 2. why it changed,
 3. expected implementation/evaluation impact.
+
+### Implementation Stability Rule (Locked)
+During active implementation of a task, design changes are allowed only for blocker-level reasons.  
+Any change must record:
+1. blocker description,
+2. why current design fails,
+3. exact scope of the change,
+4. impact on current task.
 
 ---
 
