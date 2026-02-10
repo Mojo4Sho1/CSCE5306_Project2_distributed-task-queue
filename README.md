@@ -132,6 +132,73 @@ This project uses a single-owner model: each data domain has one primary owner s
 
 ---
 
+## Job Lifecycle and State Machine (Phase 0 Lock)
+
+### Canonical Job States
+The system uses exactly five canonical states:
+
+- `QUEUED`
+- `RUNNING`
+- `DONE`
+- `FAILED`
+- `CANCELED`
+
+No additional canonical states are introduced in v1.
+
+### Lifecycle Graph
+`QUEUED -> RUNNING -> DONE | FAILED`  
+`QUEUED -> CANCELED`  
+`RUNNING -> CANCELED` (best-effort; see cancellation semantics)
+
+### Transition Ownership
+- **Job Service** is the canonical authority for job status values.
+- **Coordinator Service** orchestrates execution-related transitions (dispatch/worker outcomes).
+- **Gateway Service** can request cancellation, but does not directly mutate status stores.
+- **Queue Service** owns queue membership only (not canonical status).
+
+### Allowed Transitions (Locked)
+
+| Trigger | From | To | Primary Actor | Notes |
+|---|---|---|---|---|
+| Successful `SubmitJob` | (none) | `QUEUED` | Gateway -> Job (+ Queue) | Job is considered accepted only when enqueue succeeds. |
+| Work assignment / dequeue | `QUEUED` | `RUNNING` | Coordinator | Coordinator dispatches work to worker. |
+| Worker success report | `RUNNING` | `DONE` | Worker -> Coordinator -> Job | Result payload is persisted in Result Service. |
+| Worker failure report | `RUNNING` | `FAILED` | Worker -> Coordinator -> Job | Failure reason is stored with metadata. |
+| Cancel pending job | `QUEUED` | `CANCELED` | Gateway/Coordinator -> Job (+ Queue remove) | Must remove from queue if still present. |
+| Cancel running job (best-effort) | `RUNNING` | `CANCELED` | Gateway/Coordinator/Worker | If cancellation reaches worker in time, final state is `CANCELED`. |
+
+### Cancellation Semantics (Locked)
+
+1. **Queued cancellation:** expected to succeed if the job has not started.
+2. **Running cancellation:** best-effort only.
+   - If worker receives cancellation before finishing, final state is `CANCELED`.
+   - If worker finishes first, final state is `DONE` or `FAILED`.
+3. Repeated cancellation requests are idempotent no-ops once job is terminal.
+
+### Terminal-State Rule (Locked)
+
+`DONE`, `FAILED`, and `CANCELED` are terminal states.  
+Once a job reaches a terminal state, it cannot transition to another state.
+
+### Invalid Transition Handling (Locked)
+
+Any transition not explicitly listed in the allowed table is rejected and logged as invalid.  
+Examples:
+- `DONE -> RUNNING`
+- `FAILED -> DONE`
+- `CANCELED -> RUNNING`
+
+### Consistency / Retry Note (v1 Scope)
+
+This v1 implementation uses **at-least-once execution semantics** and in-memory state.  
+If duplicate completion reports occur, canonical status follows first valid terminal write; later conflicting writes are ignored and logged.
+
+### Monolith Equivalence Constraint
+
+The monolith-per-node design must preserve the same externally visible lifecycle semantics and terminal-state behavior for fair comparison.
+
+---
+
 ## Phase 0 Decision Lock (Frozen)
 
 **Freeze date:** 2026-02-10
