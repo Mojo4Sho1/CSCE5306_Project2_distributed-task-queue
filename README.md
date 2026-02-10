@@ -283,6 +283,263 @@ Any method addition/removal/rename after this lock must record:
 
 ---
 
+## Message Schema Draft (Phase 0.5 Lock)
+
+This section freezes the v1 message shapes (fields + types + semantics) before `.proto` implementation.
+
+### Schema Design Principles (Locked)
+
+1. Keep v1 minimal and implementation-friendly.
+2. Prefer explicit fields over deeply nested payloads.
+3. Use stable IDs and timestamps in milliseconds since epoch.
+4. Keep client-facing messages architecture-agnostic for fair comparison.
+5. Use enums for lifecycle-critical states (no free-text status strings).
+
+### Common Types (Locked)
+
+#### `JobStatus` (enum)
+- `JOB_STATUS_UNSPECIFIED = 0`
+- `QUEUED = 1`
+- `RUNNING = 2`
+- `DONE = 3`
+- `FAILED = 4`
+- `CANCELED = 5`
+
+#### `JobOutcome` (enum; worker/coordinator internal outcome)
+- `JOB_OUTCOME_UNSPECIFIED = 0`
+- `SUCCEEDED = 1`
+- `FAILED = 2`
+- `CANCELED = 3`
+
+#### `JobSpec`
+- `string job_type`
+- `uint32 work_duration_ms`
+- `uint32 payload_size_bytes`
+- `uint32 priority`
+- `map<string, string> labels`
+
+> `work_duration_ms` and `payload_size_bytes` are workload knobs for repeatable benchmarking.
+
+#### `JobSummary`
+- `string job_id`
+- `JobStatus status`
+- `string job_type`
+- `int64 created_at_ms`
+- `int64 started_at_ms` (0 if not started)
+- `int64 finished_at_ms` (0 if not finished)
+- `bool cancel_requested`
+
+#### `PageRequest`
+- `uint32 page_size`
+- `string page_token`
+
+#### `PageResponse`
+- `string next_page_token`
+
+#### `ErrorInfo` (in-band structured detail; does not replace gRPC status codes)
+- `string code`
+- `string message`
+- `string details`
+
+### A) Client-Facing API Message Draft (Locked)
+
+#### `SubmitJob`
+**Request:**
+- `JobSpec spec`
+- `string client_request_id` (optional idempotency key placeholder)
+
+**Response:**
+- `string job_id`
+- `JobStatus initial_status` (expected: `QUEUED`)
+- `int64 accepted_at_ms`
+
+#### `GetJobStatus`
+**Request:**
+- `string job_id`
+
+**Response:**
+- `string job_id`
+- `JobStatus status`
+- `bool cancel_requested`
+- `int64 created_at_ms`
+- `int64 started_at_ms`
+- `int64 finished_at_ms`
+- `string failure_reason` (empty unless `FAILED`)
+
+#### `GetJobResult`
+**Request:**
+- `string job_id`
+
+**Response:**
+- `string job_id`
+- `bool result_ready`
+- `JobStatus terminal_status` (`DONE`, `FAILED`, or `CANCELED` when terminal)
+- `bytes output_bytes` (optional; may be empty in v1)
+- `string output_summary`
+- `uint32 runtime_ms`
+- `string checksum`
+
+#### `CancelJob`
+**Request:**
+- `string job_id`
+- `string reason`
+
+**Response:**
+- `string job_id`
+- `bool accepted`
+- `JobStatus current_status`
+- `bool already_terminal`
+
+#### `ListJobs`
+**Request:**
+- `repeated JobStatus status_filter`
+- `PageRequest page`
+- `string sort_by` (default: `created_at_desc`)
+
+**Response:**
+- `repeated JobSummary jobs`
+- `PageResponse page`
+
+### B) Internal Microservice Message Draft (Design A)
+
+#### Job Service
+**`CreateJobRequest`**
+- `JobSpec spec`
+- `string client_request_id`
+- `int64 created_at_ms`
+
+**`CreateJobResponse`**
+- `string job_id`
+- `JobStatus status` (expected `QUEUED`)
+
+**`GetJobRecordRequest`**
+- `string job_id`
+
+**`GetJobRecordResponse`**
+- `JobSummary summary`
+- `string failure_reason`
+
+**`ListJobRecordsRequest`**
+- `repeated JobStatus status_filter`
+- `PageRequest page`
+
+**`ListJobRecordsResponse`**
+- `repeated JobSummary jobs`
+- `PageResponse page`
+
+**`TransitionJobStatusRequest`**
+- `string job_id`
+- `JobStatus expected_from_status`
+- `JobStatus to_status`
+- `string actor` (e.g., `coordinator`, `worker`)
+- `string reason`
+
+**`TransitionJobStatusResponse`**
+- `bool applied`
+- `JobStatus current_status`
+
+**`SetCancelRequestedRequest`**
+- `string job_id`
+- `bool cancel_requested`
+- `string reason`
+
+**`SetCancelRequestedResponse`**
+- `bool applied`
+- `JobStatus current_status`
+
+#### Queue Service
+**`EnqueueJobRequest`**
+- `string job_id`
+- `int64 enqueued_at_ms`
+
+**`EnqueueJobResponse`**
+- `bool accepted`
+
+**`DequeueJobRequest`**
+- `string worker_id`
+
+**`DequeueJobResponse`**
+- `bool found`
+- `string job_id`
+
+**`RemoveJobIfPresentRequest`**
+- `string job_id`
+
+**`RemoveJobIfPresentResponse`**
+- `bool removed`
+
+#### Coordinator Service
+**`WorkerHeartbeatRequest`**
+- `string worker_id`
+- `int64 heartbeat_at_ms`
+- `uint32 capacity_hint`
+
+**`WorkerHeartbeatResponse`**
+- `bool accepted`
+- `uint32 next_heartbeat_in_ms`
+
+**`FetchWorkRequest`**
+- `string worker_id`
+
+**`FetchWorkResponse`**
+- `bool assigned`
+- `string job_id`
+- `JobSpec spec`
+
+**`ReportWorkOutcomeRequest`**
+- `string worker_id`
+- `string job_id`
+- `JobOutcome outcome`
+- `uint32 runtime_ms`
+- `string failure_reason`
+- `string output_summary`
+- `bytes output_bytes`
+- `string checksum`
+
+**`ReportWorkOutcomeResponse`**
+- `bool accepted`
+
+#### Result Service
+**`StoreResultRequest`**
+- `string job_id`
+- `JobStatus terminal_status` (`DONE`, `FAILED`, or `CANCELED`)
+- `uint32 runtime_ms`
+- `string output_summary`
+- `bytes output_bytes`
+- `string checksum`
+
+**`StoreResultResponse`**
+- `bool stored`
+
+**`GetResultRequest`**
+- `string job_id`
+
+**`GetResultResponse`**
+- `bool found`
+- `string job_id`
+- `JobStatus terminal_status`
+- `uint32 runtime_ms`
+- `string output_summary`
+- `bytes output_bytes`
+- `string checksum`
+
+### C) Field/Type Conventions (Locked)
+
+- IDs: `string` (UUID/ULID format decided at implementation time)
+- Time: `int64` milliseconds since epoch (UTC)
+- Durations: `uint32` milliseconds
+- Binary output: `bytes`
+- Optional text fields use empty string when not set in v1
+- Page size default and max limits are implementation-configurable (documented in README once chosen)
+
+### D) Backward-Compatibility Note (v1)
+
+- Do not rename or remove fields after proto v1 freeze.
+- New fields must be additive and use new field numbers.
+- Enum numeric values remain stable once published.
+
+---
+
 ## Phase 0 Decision Lock (Frozen)
 
 **Freeze date:** 2026-02-10
