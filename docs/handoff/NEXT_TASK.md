@@ -5,52 +5,63 @@
 
 ## Task summary
 
-Validate runtime startup/health behavior in a dependency-complete (conda) environment using the now-normalized runtime-spec env keys.
+Implement `QueueInternalService` from skeleton to spec-compliant v1 behavior for Design A queue primitives.
 
 ## Why this task is next
 
-- `common/config.py`, `docker-compose.yml`, and smoke scripts are now aligned to runtime-spec env keys.
-- The remaining risk is execution-time validation in an environment where `grpcio` and runtime deps are available.
+- Runtime/health validation is complete, and Job Service business semantics are now implemented.
+- Queue service is the next foundational dependency for both Gateway (`SubmitJob`/queued-cancel paths) and Coordinator (`FetchWork` dispatch path).
+- Current Queue RPC handlers still return `UNIMPLEMENTED`.
 
 ## Scope (in)
 
-- In conda/runtime environment, bring up services via `docker compose up` and verify startup behavior.
-- Validate container healthchecks transition as expected for all six services.
-- Run representative smoke checks against running services.
-- Record validation outcomes and any runtime issues in handoff docs.
+- Implement Queue in-memory data structures and thread-safe mutation paths.
+- Implement `EnqueueJob`, `DequeueJob`, and `RemoveJobIfPresent` per locked specs.
+- Enforce idempotent enqueue/remove semantics and destructive dequeue behavior.
+- Preserve best-effort FIFO semantics with deterministic behavior under single-process access.
+- Add/adjust tests or service-level smoke checks to validate queue behavior and core edge cases.
+- Record outcomes and any unresolved behavior gaps in handoff docs.
 
 ## Scope (out)
 
-- Worker business execution logic and cross-service orchestration behavior.
-- Fairness/performance benchmark execution and report updates.
+- Gateway orchestration across downstream services.
+- Coordinator dispatch/rescue/business terminalization flow changes.
+- Result service business semantics.
+- Job service business semantics (already implemented in current focus).
 - API/proto schema changes.
-- Additional env-key schema changes (normalization is already complete).
+- Fairness benchmark execution/reporting updates.
 
 ## Dependencies / prerequisites
 
-- Conda environment access with project dependencies (`grpcio` and generated stubs importable).
-- Docker/Compose runtime available on the target machine.
+- Use conda environment `grpc` for all code/tests in this repo.
+- Prefer explicit command form to avoid shell-activation ambiguity:
+  - `conda run -n grpc python <script.py>`
+  - `conda run -n grpc pytest` (if/when pytest suites are added)
+- Generated stubs available under `generated/`.
 
 ## Implementation notes
 
-- Keep validation scope focused on runtime bring-up, healthchecks, and observable readiness.
-- Capture concrete failure evidence (service name, log snippet, failing healthcheck/smoke step).
+- Follow ownership rules: Queue Service owns queue membership only (`docs/spec/architecture.md`).
+- Respect queue constraints in specs: best-effort FIFO and destructive dequeue model (`docs/spec/api-contracts.md`, `docs/spec/state-machine.md`).
+- Keep behavior deterministic under local concurrency and test edge cases first (duplicate enqueue, remove idempotency, dequeue empty queue).
 
 ## Acceptance criteria (definition of done)
 
-- `docker compose up` completes with all Design A services started.
-- Healthchecks pass using shared `scripts.healthcheck` wiring.
-- Representative smoke probes confirm expected skeleton behavior under live runtime.
-- Handoff docs are updated with pass/fail evidence and any remaining blockers.
+- `QueueInternalService` RPCs return real responses (no `UNIMPLEMENTED`) for core happy paths.
+- `EnqueueJob` is idempotent by `job_id` and does not create duplicate queue entries.
+- `DequeueJob` follows destructive dequeue semantics and returns `found=false` when empty.
+- `RemoveJobIfPresent` is repeat-safe and deterministic for existing/missing jobs.
+- Focused smoke/tests cover enqueue duplicate, dequeue order, remove-before-dequeue, and dequeue-empty paths.
+- Handoff docs updated with concrete passing/failing evidence.
 
 ## Verification checklist
 
-- [ ] Activate conda/runtime environment with project dependencies.
-- [ ] `docker compose up` starts all services without config-key errors.
-- [ ] Container healthchecks pass for Gateway/Job/Queue/Coordinator/Result/Worker.
-- [ ] Run representative smoke probes and confirm expected outcomes.
+- [ ] Verify conda execution path using `conda run -n grpc python -c "import grpc,sys; print(sys.executable)"`.
+- [ ] Implement Queue service behavior and remove Queue-specific `UNIMPLEMENTED` responses.
+- [ ] Add/run Queue-focused checks covering idempotent enqueue/remove and dequeue semantics.
+- [ ] Capture concrete evidence (command outputs and key pass/fail notes) in `CURRENT_STATUS.md`.
 
 ## Risks / rollback notes
 
-- Runtime failures may surface only during live dependency-backed execution.
-- Service startup fallback behavior may still hide strict config contract violations and may require follow-up hardening.
+- Queue mutation semantics can drift from locked destructive/FIFO assumptions if dedup and removal logic are not carefully synchronized.
+- Existing skeleton smoke scripts may need selective updates once Queue RPCs stop returning `UNIMPLEMENTED`.

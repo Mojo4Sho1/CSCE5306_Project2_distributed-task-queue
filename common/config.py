@@ -46,7 +46,7 @@ class GatewayConfig(BaseServiceConfig):
 
 @dataclass(frozen=True)
 class JobConfig(BaseServiceConfig):
-    pass
+    max_dedup_keys: int
 
 
 @dataclass(frozen=True)
@@ -212,6 +212,8 @@ def load_service_config(service_name: Optional[str] = None) -> ServiceConfig:
     heartbeat_interval_ms: Optional[int] = None
     worker_timeout_ms: Optional[int] = None
 
+    max_dedup_keys: Optional[int] = None
+
     worker_coordinator_addr: Optional[str] = None
     worker_id: str = ""
     worker_heartbeat_interval_ms: Optional[int] = None
@@ -285,6 +287,13 @@ def load_service_config(service_name: Optional[str] = None) -> ServiceConfig:
                 min_value=1,
                 max_value=65535,
             )
+            max_dedup_keys = _get_optional_int(
+                "MAX_DEDUP_KEYS",
+                default=10000,
+                errors=errors,
+                min_value=1,
+                max_value=None,
+            )
         elif resolved_name == "queue":
             port = _get_optional_int(
                 "QUEUE_PORT",
@@ -332,7 +341,8 @@ def load_service_config(service_name: Optional[str] = None) -> ServiceConfig:
         )
 
     if resolved_name == "job":
-        return JobConfig(**base_kwargs)
+        assert max_dedup_keys is not None
+        return JobConfig(**base_kwargs, max_dedup_keys=max_dedup_keys)
 
     if resolved_name == "queue":
         return QueueConfig(**base_kwargs)

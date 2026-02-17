@@ -3,7 +3,8 @@
 Live smoke probes against an already-running Design A stack.
 
 This script does not start/stop services; it validates that exposed gRPC
-surfaces are reachable and still in expected skeleton behavior (UNIMPLEMENTED).
+surfaces are reachable and return expected responses for current implementation
+phase (mixed: implemented Job service + skeleton others).
 """
 
 from __future__ import annotations
@@ -49,6 +50,23 @@ def _expect_unimplemented(name: str, rpc_call: Callable[[], object]) -> CheckRes
             name=name,
             passed=False,
             detail=f"{code.name}: {detail}" if detail else code.name,
+        )
+
+
+def _expect_ok(name: str, rpc_call: Callable[[], object], validator: Callable[[object], bool], detail_fn: Callable[[object], str]) -> CheckResult:
+    try:
+        response = rpc_call()
+        passed = validator(response)
+        return CheckResult(
+            name=name,
+            passed=passed,
+            detail=detail_fn(response),
+        )
+    except grpc.RpcError as exc:
+        return CheckResult(
+            name=name,
+            passed=False,
+            detail=f"{exc.code().name}: {exc.details() or ''}".strip(),
         )
 
 
@@ -111,7 +129,7 @@ def main() -> int:
     with grpc.insecure_channel(f"{args.host}:{args.job_port}") as channel:
         stub = internal_pb2_grpc.JobInternalServiceStub(channel)
         checks.append(
-            _expect_unimplemented(
+            _expect_ok(
                 "job.CreateJob",
                 lambda: stub.CreateJob(
                     internal_pb2.CreateJobRequest(
@@ -124,6 +142,8 @@ def main() -> int:
                     ),
                     timeout=args.rpc_timeout,
                 ),
+                lambda resp: bool(resp.job_id) and resp.status == public_pb2.QUEUED,
+                lambda resp: f"job_id={resp.job_id}, status={resp.status}",
             )
         )
 
