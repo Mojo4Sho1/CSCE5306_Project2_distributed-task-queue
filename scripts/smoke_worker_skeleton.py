@@ -163,7 +163,6 @@ def main() -> int:
     env.setdefault("FETCH_IDLE_SLEEP_MS", "120")
     env.setdefault("WORKER_ID", "smoke-worker")
     env["COORDINATOR_ADDR"] = args.coordinator_addr
-    env["PORT"] = env.get("PORT", "50056")
 
     cmd = [sys.executable, "-m", "services.worker.main"]
 

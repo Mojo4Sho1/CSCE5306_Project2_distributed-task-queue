@@ -53,14 +53,75 @@ Proto contract authority:
 
 ```text
 distributed-task-queue/
+|-- .gitignore
 |-- README.md
+|-- docker-compose.yml
+|-- common/
+|   |-- __init__.py
+|   |-- config.py
+|   |-- grpc_server.py
+|   |-- logging.py
+|   `-- time_utils.py
+|-- docker/
+|   `-- .gitkeep
 |-- docs/
 |   |-- INDEX.md
+|   |-- handoff/
+|   |   |-- CURRENT_STATUS.md
+|   |   `-- NEXT_TASK.md
 |   `-- spec/
-|-- proto/
+|       |-- api-contracts.md
+|       |-- architecture.md
+|       |-- constants.md
+|       |-- error-idempotency.md
+|       |-- fairness-evaluation.md
+|       |-- governance.md
+|       |-- requirements.md
+|       |-- runtime-config.md
+|       `-- state-machine.md
 |-- generated/
-|-- services/
-|-- common/
+|   |-- taskqueue_internal_pb2.py
+|   |-- taskqueue_internal_pb2_grpc.py
+|   |-- taskqueue_public_pb2.py
+|   `-- taskqueue_public_pb2_grpc.py
+|-- proto/
+|   |-- taskqueue_internal.proto
+|   `-- taskqueue_public.proto
+|-- results/
+|   `-- .gitkeep
 |-- scripts/
-`-- results/
+|   |-- healthcheck.py
+|   |-- smoke_coordinator_skeleton.py
+|   |-- smoke_gateway_skeleton.py
+|   |-- smoke_job_skeleton.py
+|   |-- smoke_queue_skeleton.py
+|   |-- smoke_result_skeleton.py
+|   `-- smoke_worker_skeleton.py
+`-- services/
+    |-- coordinator/
+    |   |-- main.py
+    |   |-- server.py
+    |   `-- servicer.py
+    |-- gateway/
+    |   |-- __init__.py
+    |   |-- main.py
+    |   |-- server.py
+    |   `-- servicer.py
+    |-- job/
+    |   |-- __init__.py
+    |   |-- main.py
+    |   |-- server.py
+    |   `-- servicer.py
+    |-- queue/
+    |   |-- main.py
+    |   |-- server.py
+    |   `-- servicer.py
+    |-- result/
+    |   |-- main.py
+    |   |-- server.py
+    |   `-- servicer.py
+    `-- worker/
+        |-- .gitkeep
+        |-- main.py
+        `-- worker.py
 ```

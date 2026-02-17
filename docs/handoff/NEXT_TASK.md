@@ -1,50 +1,56 @@
 # Next Task
 
-**Last updated:** YYYY-MM-DD  
-**Owner:** <name or team>
+**Last updated:** 2026-02-17  
+**Owner:** Joe + Codex
 
 ## Task summary
 
-<single-sentence description of the next task>
+Validate runtime startup/health behavior in a dependency-complete (conda) environment using the now-normalized runtime-spec env keys.
 
 ## Why this task is next
 
-- <reason 1>
-- <reason 2>
+- `common/config.py`, `docker-compose.yml`, and smoke scripts are now aligned to runtime-spec env keys.
+- The remaining risk is execution-time validation in an environment where `grpcio` and runtime deps are available.
 
 ## Scope (in)
 
-- <item in scope 1>
-- <item in scope 2>
+- In conda/runtime environment, bring up services via `docker compose up` and verify startup behavior.
+- Validate container healthchecks transition as expected for all six services.
+- Run representative smoke checks against running services.
+- Record validation outcomes and any runtime issues in handoff docs.
 
 ## Scope (out)
 
-- <item out of scope 1>
-- <item out of scope 2>
+- Worker business execution logic and cross-service orchestration behavior.
+- Fairness/performance benchmark execution and report updates.
+- API/proto schema changes.
+- Additional env-key schema changes (normalization is already complete).
 
 ## Dependencies / prerequisites
 
-- <dependency 1>
-- <dependency 2>
+- Conda environment access with project dependencies (`grpcio` and generated stubs importable).
+- Docker/Compose runtime available on the target machine.
 
 ## Implementation notes
 
-- <note 1>
-- <note 2>
+- Keep validation scope focused on runtime bring-up, healthchecks, and observable readiness.
+- Capture concrete failure evidence (service name, log snippet, failing healthcheck/smoke step).
 
 ## Acceptance criteria (definition of done)
 
-- <criterion 1>
-- <criterion 2>
-- <criterion 3>
+- `docker compose up` completes with all Design A services started.
+- Healthchecks pass using shared `scripts.healthcheck` wiring.
+- Representative smoke probes confirm expected skeleton behavior under live runtime.
+- Handoff docs are updated with pass/fail evidence and any remaining blockers.
 
 ## Verification checklist
 
-- [ ] <verification step 1>
-- [ ] <verification step 2>
-- [ ] <verification step 3>
+- [ ] Activate conda/runtime environment with project dependencies.
+- [ ] `docker compose up` starts all services without config-key errors.
+- [ ] Container healthchecks pass for Gateway/Job/Queue/Coordinator/Result/Worker.
+- [ ] Run representative smoke probes and confirm expected outcomes.
 
 ## Risks / rollback notes
 
-- <risk or rollback consideration 1>
-- <risk or rollback consideration 2>
+- Runtime failures may surface only during live dependency-backed execution.
+- Service startup fallback behavior may still hide strict config contract violations and may require follow-up hardening.

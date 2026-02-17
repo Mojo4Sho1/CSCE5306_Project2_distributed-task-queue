@@ -1,0 +1,144 @@
+services:
+  gateway:
+    image: python:3.11-slim
+    working_dir: /app
+    command: ["python", "-m", "services.gateway.main"]
+    volumes:
+      - ./:/app
+    environment:
+      PYTHONUNBUFFERED: "1"
+      LOG_LEVEL: "INFO"
+      SERVICE_NAME: "gateway"
+      GATEWAY_PORT: "50051"
+      JOB_SERVICE_ADDR: "job:50052"
+      QUEUE_SERVICE_ADDR: "queue:50053"
+      RESULT_SERVICE_ADDR: "result:50055"
+      PYTHONPATH: "/app:/app/generated"
+    ports:
+      - "50051:50051"
+    depends_on:
+      - job
+      - queue
+      - result
+    healthcheck:
+      test: ["CMD", "python", "-m", "scripts.healthcheck", "--mode", "tcp", "--target", "127.0.0.1:50051", "--timeout-ms", "1000", "--service", "gateway"]
+      interval: 5s
+      timeout: 2s
+      retries: 12
+      start_period: 20s
+
+  job:
+    image: python:3.11-slim
+    working_dir: /app
+    command: ["python", "-m", "services.job.main"]
+    volumes:
+      - ./:/app
+    environment:
+      PYTHONUNBUFFERED: "1"
+      LOG_LEVEL: "INFO"
+      SERVICE_NAME: "job"
+      JOB_PORT: "50052"
+      PYTHONPATH: "/app:/app/generated"
+    ports:
+      - "50052:50052"
+    healthcheck:
+      test: ["CMD", "python", "-m", "scripts.healthcheck", "--mode", "tcp", "--target", "127.0.0.1:50052", "--timeout-ms", "1000", "--service", "job"]
+      interval: 5s
+      timeout: 2s
+      retries: 12
+      start_period: 20s
+
+  queue:
+    image: python:3.11-slim
+    working_dir: /app
+    command: ["python", "-m", "services.queue.main"]
+    volumes:
+      - ./:/app
+    environment:
+      PYTHONUNBUFFERED: "1"
+      LOG_LEVEL: "INFO"
+      SERVICE_NAME: "queue"
+      QUEUE_PORT: "50053"
+      PYTHONPATH: "/app:/app/generated"
+    ports:
+      - "50053:50053"
+    healthcheck:
+      test: ["CMD", "python", "-m", "scripts.healthcheck", "--mode", "tcp", "--target", "127.0.0.1:50053", "--timeout-ms", "1000", "--service", "queue"]
+      interval: 5s
+      timeout: 2s
+      retries: 12
+      start_period: 20s
+
+  coordinator:
+    image: python:3.11-slim
+    working_dir: /app
+    command: ["python", "-m", "services.coordinator.main"]
+    volumes:
+      - ./:/app
+    environment:
+      PYTHONUNBUFFERED: "1"
+      LOG_LEVEL: "INFO"
+      SERVICE_NAME: "coordinator"
+      COORDINATOR_PORT: "50054"
+      JOB_SERVICE_ADDR: "job:50052"
+      QUEUE_SERVICE_ADDR: "queue:50053"
+      RESULT_SERVICE_ADDR: "result:50055"
+      HEARTBEAT_INTERVAL_MS: "1000"
+      WORKER_TIMEOUT_MS: "4000"
+      PYTHONPATH: "/app:/app/generated"
+    ports:
+      - "50054:50054"
+    depends_on:
+      - job
+      - queue
+      - result
+    healthcheck:
+      test: ["CMD", "python", "-m", "scripts.healthcheck", "--mode", "tcp", "--target", "127.0.0.1:50054", "--timeout-ms", "1000", "--service", "coordinator"]
+      interval: 5s
+      timeout: 2s
+      retries: 12
+      start_period: 20s
+
+  result:
+    image: python:3.11-slim
+    working_dir: /app
+    command: ["python", "-m", "services.result.main"]
+    volumes:
+      - ./:/app
+    environment:
+      PYTHONUNBUFFERED: "1"
+      LOG_LEVEL: "INFO"
+      SERVICE_NAME: "result"
+      RESULT_PORT: "50055"
+      PYTHONPATH: "/app:/app/generated"
+    ports:
+      - "50055:50055"
+    healthcheck:
+      test: ["CMD", "python", "-m", "scripts.healthcheck", "--mode", "tcp", "--target", "127.0.0.1:50055", "--timeout-ms", "1000", "--service", "result"]
+      interval: 5s
+      timeout: 2s
+      retries: 12
+      start_period: 20s
+
+  worker:
+    image: python:3.11-slim
+    working_dir: /app
+    command: ["python", "-m", "services.worker.main"]
+    volumes:
+      - ./:/app
+    environment:
+      PYTHONUNBUFFERED: "1"
+      LOG_LEVEL: "INFO"
+      SERVICE_NAME: "worker"
+      COORDINATOR_ADDR: "coordinator:50054"
+      HEARTBEAT_INTERVAL_MS: "1000"
+      WORKER_ID: "worker-1"
+      PYTHONPATH: "/app:/app/generated"
+    depends_on:
+      - coordinator
+    healthcheck:
+      test: ["CMD", "python", "-m", "scripts.healthcheck", "--mode", "worker", "--target", "coordinator:50054", "--timeout-ms", "1000", "--service", "worker"]
+      interval: 5s
+      timeout: 2s
+      retries: 12
+      start_period: 20s

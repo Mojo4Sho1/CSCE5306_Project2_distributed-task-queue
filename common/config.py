@@ -186,7 +186,6 @@ def load_service_config(service_name: Optional[str] = None) -> ServiceConfig:
 
     # Base/common fields
     host = _get_optional_str("HOST", "0.0.0.0")
-    port = _get_required_int("PORT", errors, min_value=1, max_value=65535)
     log_level_raw = _get_optional_str("LOG_LEVEL", "INFO").upper()
     grpc_max_workers = _get_optional_int(
         "GRPC_MAX_WORKERS",
@@ -219,14 +218,28 @@ def load_service_config(service_name: Optional[str] = None) -> ServiceConfig:
     fetch_idle_sleep_ms: Optional[int] = None
 
     if resolved_name == "gateway":
-        gateway_job_addr = _get_required_addr("JOB_ADDR", errors)
-        gateway_queue_addr = _get_required_addr("QUEUE_ADDR", errors)
-        gateway_result_addr = _get_required_addr("RESULT_ADDR", errors)
+        port = _get_optional_int(
+            "GATEWAY_PORT",
+            default=50051,
+            errors=errors,
+            min_value=1,
+            max_value=65535,
+        )
+        gateway_job_addr = _get_required_addr("JOB_SERVICE_ADDR", errors)
+        gateway_queue_addr = _get_required_addr("QUEUE_SERVICE_ADDR", errors)
+        gateway_result_addr = _get_required_addr("RESULT_SERVICE_ADDR", errors)
 
     elif resolved_name == "coordinator":
-        coordinator_job_addr = _get_required_addr("JOB_ADDR", errors)
-        coordinator_queue_addr = _get_required_addr("QUEUE_ADDR", errors)
-        coordinator_result_addr = _get_required_addr("RESULT_ADDR", errors)
+        port = _get_optional_int(
+            "COORDINATOR_PORT",
+            default=50054,
+            errors=errors,
+            min_value=1,
+            max_value=65535,
+        )
+        coordinator_job_addr = _get_required_addr("JOB_SERVICE_ADDR", errors)
+        coordinator_queue_addr = _get_required_addr("QUEUE_SERVICE_ADDR", errors)
+        coordinator_result_addr = _get_required_addr("RESULT_SERVICE_ADDR", errors)
 
         heartbeat_interval_ms = _get_optional_int(
             "HEARTBEAT_INTERVAL_MS",
@@ -244,6 +257,8 @@ def load_service_config(service_name: Optional[str] = None) -> ServiceConfig:
         )
 
     elif resolved_name == "worker":
+        # Worker has no inbound business RPC in v1; keep base port as n/a sentinel.
+        port = 0
         worker_coordinator_addr = _get_required_addr("COORDINATOR_ADDR", errors)
         worker_id = _get_optional_str("WORKER_ID", "")
         worker_heartbeat_interval_ms = _get_optional_int(
@@ -262,8 +277,30 @@ def load_service_config(service_name: Optional[str] = None) -> ServiceConfig:
         )
 
     elif resolved_name in {"job", "queue", "result"}:
-        # No extra fields in v1.
-        pass
+        if resolved_name == "job":
+            port = _get_optional_int(
+                "JOB_PORT",
+                default=50052,
+                errors=errors,
+                min_value=1,
+                max_value=65535,
+            )
+        elif resolved_name == "queue":
+            port = _get_optional_int(
+                "QUEUE_PORT",
+                default=50053,
+                errors=errors,
+                min_value=1,
+                max_value=65535,
+            )
+        else:
+            port = _get_optional_int(
+                "RESULT_PORT",
+                default=50055,
+                errors=errors,
+                min_value=1,
+                max_value=65535,
+            )
 
     else:
         # Should not happen due to _resolve_service_name.

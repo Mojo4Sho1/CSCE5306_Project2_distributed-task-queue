@@ -167,7 +167,7 @@ def main() -> int:
     env.setdefault("PYTHONUNBUFFERED", "1")
     env.setdefault("LOG_LEVEL", "INFO")
     env.setdefault("SERVICE_NAME", "coordinator")
-    env["PORT"] = str(args.port)
+    env["COORDINATOR_PORT"] = str(args.port)
 
     cmd = [sys.executable, "-m", "services.coordinator.main"]
 
