@@ -119,6 +119,14 @@ At the start of each implementation session:
 3. Check relevant spec docs for affected behavior.
 4. Implement with spec/doc updates in the same change set when behavior changes.
 
+## Execution Environment Requirement
+
+- Use the conda environment `grpc` for running project code/tests that import runtime dependencies (especially `grpcio`).
+- Prefer explicit invocation to avoid shell-activation drift:
+  - `conda run -n grpc python <script.py>`
+  - `conda run -n grpc pytest` (if/when pytest suites are added)
+- Rationale: default/base Python in local setups may not include required runtime deps, causing false failures.
+
 ---
 
 ## Update Rules

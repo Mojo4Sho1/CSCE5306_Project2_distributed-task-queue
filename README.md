@@ -49,6 +49,32 @@ Proto contract authority:
 - Docker / Docker Compose
 - Git / GitHub
 
+## Environment Setup (Conda)
+
+Use the checked-in `environment.yml` to create the required runtime environment (`grpc`) on any machine.
+
+```bash
+conda env create -f environment.yml
+```
+
+If the environment already exists and you pulled updates:
+
+```bash
+conda env update -f environment.yml --prune
+```
+
+Run repo commands with explicit env selection (recommended for agents and automation):
+
+```bash
+conda run -n grpc python scripts/smoke_gateway_skeleton.py
+```
+
+Optional interactive shell:
+
+```bash
+conda activate grpc
+```
+
 ## Repository Structure
 
 ```text
