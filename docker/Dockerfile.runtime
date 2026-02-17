@@ -1,0 +1,9 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Runtime dependencies required by generated stubs and service imports.
+RUN pip install --no-cache-dir \
+    "grpcio>=1.76.0,<2" \
+    "protobuf>=6.31.1,<7" \
+    "grpcio-tools>=1.76.0,<2"
