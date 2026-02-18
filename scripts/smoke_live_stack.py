@@ -4,7 +4,7 @@ Live smoke probes against an already-running Design A stack.
 
 This script does not start/stop services; it validates that exposed gRPC
 surfaces are reachable and return expected responses for current implementation
-phase (mixed: implemented Job service + skeleton others).
+phase (mixed: implemented Job/Queue services + skeleton others).
 """
 
 from __future__ import annotations
@@ -150,12 +150,14 @@ def main() -> int:
     with grpc.insecure_channel(f"{args.host}:{args.queue_port}") as channel:
         stub = internal_pb2_grpc.QueueInternalServiceStub(channel)
         checks.append(
-            _expect_unimplemented(
+            _expect_ok(
                 "queue.EnqueueJob",
                 lambda: stub.EnqueueJob(
                     internal_pb2.EnqueueJobRequest(job_id="smoke-job", enqueued_at_ms=0),
                     timeout=args.rpc_timeout,
                 ),
+                lambda resp: bool(resp.accepted),
+                lambda resp: f"accepted={resp.accepted}",
             )
         )
 

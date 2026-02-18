@@ -117,9 +117,12 @@ distributed-task-queue/
 |   `-- .gitkeep
 |-- scripts/
 |   |-- healthcheck.py
+|   |-- smoke_job_behavior.py
+|   |-- smoke_queue_behavior.py
 |   |-- smoke_coordinator_skeleton.py
 |   |-- smoke_gateway_skeleton.py
 |   |-- smoke_job_skeleton.py
+|   |-- smoke_live_stack.py
 |   |-- smoke_queue_skeleton.py
 |   |-- smoke_result_skeleton.py
 |   `-- smoke_worker_skeleton.py

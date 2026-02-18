@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import threading
+from collections import OrderedDict
 from typing import Optional
 
 import grpc
@@ -17,61 +19,66 @@ except ModuleNotFoundError:  # pragma: no cover
 
 class QueueServicer(pb2_grpc.QueueInternalServiceServicer):
     """
-    Skeleton implementation for taskqueue.internal.v1.QueueInternalService.
+    QueueInternalService v1 implementation.
 
-    Current scope:
-    - All QueueInternalService RPC handlers are explicitly implemented.
-    - Every handler returns deterministic UNIMPLEMENTED while service scaffolding
-      is being built.
+    Semantics:
+    - Enqueue is idempotent by job_id (no duplicate queue entries)
+    - Dequeue is destructive and best-effort FIFO
+    - RemoveIfPresent is repeat-safe (idempotent)
     """
 
-    def __init__(self, logger: Optional[logging.Logger] = None) -> None:
+    def __init__(self, config: Optional[object] = None, logger: Optional[logging.Logger] = None) -> None:
         self._logger = logger or logging.getLogger("queue.servicer")
+        self._lock = threading.RLock()
+        # Ordered dict behaves as a FIFO set keyed by job_id.
+        self._queue: OrderedDict[str, int] = OrderedDict()
 
-    def _unimplemented(
-        self,
-        method_name: str,
-        context: grpc.ServicerContext,
-        response_message,
-    ):
-        detail = f"{method_name} not implemented yet (queue skeleton)"
-        self._logger.info(
-            "queue.rpc.unimplemented",
-            extra={"method": method_name, "grpc_code": "UNIMPLEMENTED"},
-        )
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    def _set_error(self, context: grpc.ServicerContext, code: grpc.StatusCode, detail: str) -> None:
+        context.set_code(code)
         context.set_details(detail)
-        return response_message
 
     def EnqueueJob(
         self,
         request: pb2.EnqueueJobRequest,
         context: grpc.ServicerContext,
     ) -> pb2.EnqueueJobResponse:
-        return self._unimplemented(
-            "EnqueueJob",
-            context,
-            pb2.EnqueueJobResponse(accepted=False),
-        )
+        job_id = request.job_id.strip()
+        if not job_id:
+            self._set_error(context, grpc.StatusCode.INVALID_ARGUMENT, "job_id must be non-empty")
+            return pb2.EnqueueJobResponse(accepted=False)
+
+        with self._lock:
+            if job_id not in self._queue:
+                self._queue[job_id] = int(request.enqueued_at_ms)
+            return pb2.EnqueueJobResponse(accepted=True)
 
     def DequeueJob(
         self,
         request: pb2.DequeueJobRequest,
         context: grpc.ServicerContext,
     ) -> pb2.DequeueJobResponse:
-        return self._unimplemented(
-            "DequeueJob",
-            context,
-            pb2.DequeueJobResponse(found=False, job_id=""),
-        )
+        if not request.worker_id.strip():
+            self._set_error(context, grpc.StatusCode.INVALID_ARGUMENT, "worker_id must be non-empty")
+            return pb2.DequeueJobResponse(found=False, job_id="")
+
+        with self._lock:
+            if not self._queue:
+                return pb2.DequeueJobResponse(found=False, job_id="")
+            job_id, _ = self._queue.popitem(last=False)
+            return pb2.DequeueJobResponse(found=True, job_id=job_id)
 
     def RemoveJobIfPresent(
         self,
         request: pb2.RemoveJobIfPresentRequest,
         context: grpc.ServicerContext,
     ) -> pb2.RemoveJobIfPresentResponse:
-        return self._unimplemented(
-            "RemoveJobIfPresent",
-            context,
-            pb2.RemoveJobIfPresentResponse(removed=False),
-        )
+        job_id = request.job_id.strip()
+        if not job_id:
+            self._set_error(context, grpc.StatusCode.INVALID_ARGUMENT, "job_id must be non-empty")
+            return pb2.RemoveJobIfPresentResponse(removed=False)
+
+        with self._lock:
+            existed = job_id in self._queue
+            if existed:
+                self._queue.pop(job_id, None)
+            return pb2.RemoveJobIfPresentResponse(removed=existed)

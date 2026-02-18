@@ -1,33 +1,33 @@
 # Next Task
 
-**Last updated:** 2026-02-17  
+**Last updated:** 2026-02-18  
 **Owner:** Joe + Codex
 
 ## Task summary
 
-Implement `QueueInternalService` from skeleton to spec-compliant v1 behavior for Design A queue primitives.
+Implement `ResultInternalService` from skeleton to spec-compliant v1 behavior for terminal result envelopes in Design A.
 
 ## Why this task is next
 
-- Runtime/health validation is complete, and Job Service business semantics are now implemented.
-- Queue service is the next foundational dependency for both Gateway (`SubmitJob`/queued-cancel paths) and Coordinator (`FetchWork` dispatch path).
-- Current Queue RPC handlers still return `UNIMPLEMENTED`.
+- Runtime/health validation is complete, and Job/Queue service business semantics are now implemented.
+- Result service is required for terminal envelope storage and retrieval contracts used by Gateway and Coordinator terminalization flows.
+- Current Result RPC handlers still return `UNIMPLEMENTED`.
 
 ## Scope (in)
 
-- Implement Queue in-memory data structures and thread-safe mutation paths.
-- Implement `EnqueueJob`, `DequeueJob`, and `RemoveJobIfPresent` per locked specs.
-- Enforce idempotent enqueue/remove semantics and destructive dequeue behavior.
-- Preserve best-effort FIFO semantics with deterministic behavior under single-process access.
-- Add/adjust tests or service-level smoke checks to validate queue behavior and core edge cases.
+- Implement Result in-memory data structures and thread-safe mutation paths.
+- Implement `StoreResult` and `GetResult` per locked specs.
+- Enforce terminal-status-only validation for `StoreResult` (`DONE`, `FAILED`, `CANCELED`) with `INVALID_ARGUMENT` on non-terminal statuses.
+- Enforce idempotent conflict semantics for repeated `StoreResult` calls (`stored`, `already_exists`, `current_terminal_status`).
+- Enforce output size bounds (`MAX_OUTPUT_BYTES`) and deterministic response fields.
+- Add/adjust tests or service-level smoke checks to validate result behavior and edge cases.
 - Record outcomes and any unresolved behavior gaps in handoff docs.
 
 ## Scope (out)
 
 - Gateway orchestration across downstream services.
 - Coordinator dispatch/rescue/business terminalization flow changes.
-- Result service business semantics.
-- Job service business semantics (already implemented in current focus).
+- Queue/Job business semantics (already implemented in current focus).
 - API/proto schema changes.
 - Fairness benchmark execution/reporting updates.
 
@@ -41,27 +41,27 @@ Implement `QueueInternalService` from skeleton to spec-compliant v1 behavior for
 
 ## Implementation notes
 
-- Follow ownership rules: Queue Service owns queue membership only (`docs/spec/architecture.md`).
-- Respect queue constraints in specs: best-effort FIFO and destructive dequeue model (`docs/spec/api-contracts.md`, `docs/spec/state-machine.md`).
-- Keep behavior deterministic under local concurrency and test edge cases first (duplicate enqueue, remove idempotency, dequeue empty queue).
+- Follow ownership rules: Result Service owns terminal output envelope storage/retrieval (`docs/spec/architecture.md`).
+- Respect terminal/result semantics in specs (`docs/spec/api-contracts.md`, `docs/spec/state-machine.md`, `docs/spec/error-idempotency.md`).
+- Keep behavior deterministic under local concurrency and test edge cases first (invalid terminal status, duplicate store, oversized output).
 
 ## Acceptance criteria (definition of done)
 
-- `QueueInternalService` RPCs return real responses (no `UNIMPLEMENTED`) for core happy paths.
-- `EnqueueJob` is idempotent by `job_id` and does not create duplicate queue entries.
-- `DequeueJob` follows destructive dequeue semantics and returns `found=false` when empty.
-- `RemoveJobIfPresent` is repeat-safe and deterministic for existing/missing jobs.
-- Focused smoke/tests cover enqueue duplicate, dequeue order, remove-before-dequeue, and dequeue-empty paths.
+- `ResultInternalService` RPCs return real responses (no `UNIMPLEMENTED`) for core happy paths.
+- `StoreResult` accepts terminal statuses only and rejects invalid status with `INVALID_ARGUMENT`.
+- Repeated store attempts are idempotent and surface conflict visibility via response fields.
+- `GetResult` returns `found=false` for unknown `job_id` and deterministic envelope fields for stored records.
+- Focused smoke/tests cover invalid status, duplicate store, get-missing, and output-size bound behavior.
 - Handoff docs updated with concrete passing/failing evidence.
 
 ## Verification checklist
 
 - [ ] Verify conda execution path using `conda run -n grpc python -c "import grpc,sys; print(sys.executable)"`.
-- [ ] Implement Queue service behavior and remove Queue-specific `UNIMPLEMENTED` responses.
-- [ ] Add/run Queue-focused checks covering idempotent enqueue/remove and dequeue semantics.
+- [ ] Implement Result service behavior and remove Result-specific `UNIMPLEMENTED` responses.
+- [ ] Add/run Result-focused checks covering terminal validation, idempotent store, and retrieval semantics.
 - [ ] Capture concrete evidence (command outputs and key pass/fail notes) in `CURRENT_STATUS.md`.
 
 ## Risks / rollback notes
 
-- Queue mutation semantics can drift from locked destructive/FIFO assumptions if dedup and removal logic are not carefully synchronized.
-- Existing skeleton smoke scripts may need selective updates once Queue RPCs stop returning `UNIMPLEMENTED`.
+- Result consistency semantics can drift from locked terminal-envelope rules if status validation/idempotency handling is not strict.
+- Existing skeleton smoke scripts may need selective updates once Result RPCs stop returning `UNIMPLEMENTED`.
