@@ -5,76 +5,64 @@
 
 ## Task summary
 
-Implement `TaskQueuePublicService` (Gateway) from skeleton to spec-compliant v1 orchestration behavior for submit/status/result/cancel/list in Design A.
+Execute full Design A live-stack integration validation for implemented public/internal services and harden remaining cross-service behavior gaps.
 
 ## Why this task is next
 
-- Runtime/health validation is complete, and Job/Queue/Result/Coordinator internal services now implement core v1 behavior.
-- Gateway is now the remaining major service with client-facing RPC handlers still at skeleton-level `UNIMPLEMENTED`.
-- Public API completion is required for end-to-end behavior validation and Design A parity scope.
+- Gateway public API orchestration is now implemented and Gateway-focused behavior checks are passing.
+- The highest remaining risk is integration drift under real inter-service networking/runtime conditions (not in-process fakes).
+- End-to-end validation is required before moving into benchmark/fairness execution work.
 
 ## Scope (in)
 
-- Implement Gateway orchestration logic for:
-  - `SubmitJob` create + enqueue + compensation (`DeleteJobIfStatus`) on partial failure,
-  - `GetJobStatus` canonical reads from Job service,
-  - `GetJobResult` canonical-status-first behavior with terminal-envelope retrieval from Result service,
-  - `CancelJob` queued-cancel and running-cancel semantics per locked contracts,
-  - `ListJobs` pass-through filtering/sort/pagination semantics from Job service.
-- Enforce locked gRPC status/error/idempotency behavior for public methods.
-- Add/adjust smoke checks for Gateway behavior and key edge cases.
-- Record outcomes and unresolved behavior gaps in handoff docs.
+- Run and validate full Design A stack with implemented Gateway using live probes.
+- Validate submit/status/result/cancel/list flows through real service-to-service RPC paths.
+- Add one focused integration smoke covering submit -> dispatch/fetch -> report outcome -> terminal result retrieval.
+- Investigate and document any observed cross-service anomalies (status/result mismatch, cancel race drift, timeout regressions).
+- Update handoff docs with concrete command outputs, pass/fail evidence, and residual risk notes.
 
 ## Scope (out)
 
-- Worker execution-loop behavior changes beyond current control-plane compatibility.
-- Job/Queue/Result/Coordinator internal semantics already implemented.
-- API/proto schema changes.
-- Fairness benchmark execution/reporting updates.
+- Design B implementation work.
+- Proto/schema/contract changes.
+- Fairness benchmark execution/report generation.
+- Production-grade reliability features (durability, lease/ack queue model, etc.).
 
 ## Dependencies / prerequisites
 
 - Use conda environment `grpc` for all code/tests in this repo.
-- Prefer explicit command form to avoid shell-activation ambiguity:
+- Prefer explicit command form:
   - `conda run -n grpc python <script.py>`
   - `conda run -n grpc pytest` (if/when pytest suites are added)
-- Gateway requires configured upstream addresses:
+- Live-stack checks require running Design A services with configured upstream addresses:
   - `JOB_SERVICE_ADDR`
   - `QUEUE_SERVICE_ADDR`
   - `RESULT_SERVICE_ADDR`
+  - `COORDINATOR_ADDR`
 
 ## Implementation notes
 
-- Follow ownership rules in `docs/spec/architecture.md`:
-  - Gateway owns public API routing/orchestration,
-  - Job owns canonical status,
-  - Queue owns queue membership,
-  - Result owns terminal envelopes.
-- Respect submit/cancel/result consistency contracts in:
-  - `docs/spec/state-machine.md`
-  - `docs/spec/api-contracts.md`
-  - `docs/spec/error-idempotency.md`
-- Keep behavior deterministic under local concurrency and validate race/edge paths first.
+- Treat `docs/spec/state-machine.md` and `docs/spec/error-idempotency.md` as primary lock references for integration drift triage.
+- Preserve canonical-status-first logic for result readiness in all integration checks.
+- Validate queued-cancel remove-miss fallback and terminal-envelope consistency under realistic timing/race windows.
+- Keep smoke checks deterministic and reproducible (fixed small workloads, explicit timeouts).
 
 ## Acceptance criteria (definition of done)
 
-- `TaskQueuePublicService` RPCs return real responses (no `UNIMPLEMENTED`) for core paths.
-- `SubmitJob` follows create+enqueue acceptance rules with compensation on partial failure.
-- `GetJobStatus` and `ListJobs` return canonical/deterministic data per locked contracts.
-- `GetJobResult` enforces canonical-status-first readiness and terminal-envelope mismatch handling.
-- `CancelJob` follows queued/running terminalization semantics and deterministic repeated-call behavior.
-- Focused smoke/tests cover submit/status/result/cancel/list core paths and edge cases.
-- Handoff docs updated with concrete passing/failing evidence.
+- `scripts/smoke_live_stack.py` passes against a running Design A stack with implemented Gateway behavior.
+- Integration smoke demonstrates end-to-end terminalization path and successful `GetJobResult` retrieval on terminal job.
+- Any failures are documented with exact commands, timestamps, and root-cause hypotheses in `CURRENT_STATUS.md`.
+- Handoff docs are updated with concrete evidence and clearly stated next technical risk.
 
 ## Verification checklist
 
 - [ ] Verify conda execution path using `conda run -n grpc python -c "import grpc,sys; print(sys.executable)"`.
-- [ ] Implement Gateway service behavior and remove Gateway-specific `UNIMPLEMENTED` responses.
-- [ ] Add/run Gateway-focused checks covering submit acceptance/compensation, status/result readiness, cancel behavior, and list semantics.
-- [ ] Capture concrete evidence (command outputs and key pass/fail notes) in `CURRENT_STATUS.md`.
+- [ ] Bring up Design A stack and run `conda run -n grpc python scripts/smoke_live_stack.py`.
+- [ ] Add/run one integration smoke covering submit -> execution outcome -> terminal result retrieval.
+- [ ] Record concrete command outputs and pass/fail notes in `docs/handoff/CURRENT_STATUS.md`.
 
 ## Risks / rollback notes
 
-- Submit compensation failure can leave create/enqueue partial-state anomalies.
-- Cancel-path ordering drift (`RemoveJobIfPresent` / `StoreResult` / Job CAS) can create status/result mismatch anomalies.
-- Terminal status/result consistency handling must preserve locked `UNAVAILABLE` behavior for missing envelopes.
+- Live-stack timing may expose transient races not seen in in-process smoke tests.
+- Terminal status/result consistency anomalies can surface under cancellation/execution race windows.
+- Short internal RPC deadlines may need tuning if real container startup or network jitter causes false `UNAVAILABLE` paths.

@@ -3,8 +3,8 @@
 Live smoke probes against an already-running Design A stack.
 
 This script does not start/stop services; it validates that exposed gRPC
-surfaces are reachable and return expected responses for current implementation
-phase (implemented Job/Queue/Result/Coordinator services + skeleton Gateway).
+surfaces are reachable and return expected responses for the current
+implementation phase (implemented Gateway/Job/Queue/Result/Coordinator).
 """
 
 from __future__ import annotations
@@ -27,30 +27,6 @@ class CheckResult:
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
-
-
-def _expect_unimplemented(name: str, rpc_call: Callable[[], object]) -> CheckResult:
-    try:
-        _ = rpc_call()
-        return CheckResult(
-            name=name,
-            passed=False,
-            detail="returned OK; expected UNIMPLEMENTED during skeleton phase",
-        )
-    except grpc.RpcError as exc:
-        code = exc.code()
-        detail = exc.details() or ""
-        if code == grpc.StatusCode.UNIMPLEMENTED:
-            return CheckResult(
-                name=name,
-                passed=True,
-                detail=f"UNIMPLEMENTED ({detail})" if detail else "UNIMPLEMENTED",
-            )
-        return CheckResult(
-            name=name,
-            passed=False,
-            detail=f"{code.name}: {detail}" if detail else code.name,
-        )
 
 
 def _expect_ok(name: str, rpc_call: Callable[[], object], validator: Callable[[object], bool], detail_fn: Callable[[object], str]) -> CheckResult:
@@ -114,17 +90,39 @@ def main() -> int:
 
     with grpc.insecure_channel(f"{args.host}:{args.gateway_port}") as channel:
         stub = public_pb2_grpc.TaskQueuePublicServiceStub(channel)
-        checks.append(
-            _expect_unimplemented(
-                "gateway.SubmitJob",
-                lambda: stub.SubmitJob(
-                    public_pb2.SubmitJobRequest(
-                        spec=public_pb2.JobSpec(job_type="smoke", work_duration_ms=1, payload_size_bytes=0),
-                    ),
-                    timeout=args.rpc_timeout,
+        submit_resp = None
+        try:
+            submit_resp = stub.SubmitJob(
+                public_pb2.SubmitJobRequest(
+                    spec=public_pb2.JobSpec(job_type="smoke", work_duration_ms=1, payload_size_bytes=0),
                 ),
+                timeout=args.rpc_timeout,
             )
-        )
+            submit = CheckResult(
+                name="gateway.SubmitJob",
+                passed=bool(submit_resp.job_id) and submit_resp.initial_status == public_pb2.QUEUED,
+                detail=f"job_id={submit_resp.job_id}, status={submit_resp.initial_status}",
+            )
+        except grpc.RpcError as exc:
+            submit = CheckResult(
+                name="gateway.SubmitJob",
+                passed=False,
+                detail=f"{exc.code().name}: {exc.details() or ''}".strip(),
+            )
+        checks.append(submit)
+
+        if submit.passed and submit_resp is not None:
+            checks.append(
+                _expect_ok(
+                    "gateway.GetJobStatus",
+                    lambda: stub.GetJobStatus(
+                        public_pb2.GetJobStatusRequest(job_id=submit_resp.job_id),
+                        timeout=args.rpc_timeout,
+                    ),
+                    lambda resp: resp.job_id == submit_resp.job_id and resp.status != public_pb2.JOB_STATUS_UNSPECIFIED,
+                    lambda resp: f"job_id={resp.job_id}, status={resp.status}",
+                )
+            )
 
     with grpc.insecure_channel(f"{args.host}:{args.job_port}") as channel:
         stub = internal_pb2_grpc.JobInternalServiceStub(channel)
