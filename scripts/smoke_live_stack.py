@@ -4,7 +4,7 @@ Live smoke probes against an already-running Design A stack.
 
 This script does not start/stop services; it validates that exposed gRPC
 surfaces are reachable and return expected responses for current implementation
-phase (mixed: implemented Job/Queue services + skeleton others).
+phase (implemented Job/Queue/Result/Coordinator services + skeleton Gateway).
 """
 
 from __future__ import annotations
@@ -164,7 +164,7 @@ def main() -> int:
     with grpc.insecure_channel(f"{args.host}:{args.coordinator_port}") as channel:
         stub = internal_pb2_grpc.CoordinatorInternalServiceStub(channel)
         checks.append(
-            _expect_unimplemented(
+            _expect_ok(
                 "coordinator.WorkerHeartbeat",
                 lambda: stub.WorkerHeartbeat(
                     internal_pb2.WorkerHeartbeatRequest(
@@ -174,25 +174,29 @@ def main() -> int:
                     ),
                     timeout=args.rpc_timeout,
                 ),
+                lambda resp: bool(resp.accepted) and int(resp.next_heartbeat_in_ms) > 0,
+                lambda resp: f"accepted={resp.accepted}, next={resp.next_heartbeat_in_ms}",
             )
         )
 
     with grpc.insecure_channel(f"{args.host}:{args.result_port}") as channel:
         stub = internal_pb2_grpc.ResultInternalServiceStub(channel)
         checks.append(
-            _expect_unimplemented(
+            _expect_ok(
                 "result.StoreResult",
                 lambda: stub.StoreResult(
                     internal_pb2.StoreResultRequest(
                         job_id="smoke-job",
-                        terminal_status=0,
-                        runtime_ms=0,
-                        output_summary="",
-                        output_bytes=b"",
+                        terminal_status=public_pb2.DONE,
+                        runtime_ms=1,
+                        output_summary="smoke",
+                        output_bytes=b"ok",
                         checksum="",
                     ),
                     timeout=args.rpc_timeout,
                 ),
+                lambda resp: bool(resp.stored) and (not resp.already_exists) and resp.current_terminal_status == public_pb2.DONE,
+                lambda resp: f"stored={resp.stored}, already_exists={resp.already_exists}, status={resp.current_terminal_status}",
             )
         )
 
