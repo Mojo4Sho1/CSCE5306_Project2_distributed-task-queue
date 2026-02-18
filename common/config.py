@@ -73,7 +73,7 @@ class WorkerConfig(BaseServiceConfig):
 
 @dataclass(frozen=True)
 class ResultConfig(BaseServiceConfig):
-    pass
+    max_output_bytes: int
 
 
 ServiceConfig = Union[
@@ -218,6 +218,7 @@ def load_service_config(service_name: Optional[str] = None) -> ServiceConfig:
     worker_id: str = ""
     worker_heartbeat_interval_ms: Optional[int] = None
     fetch_idle_sleep_ms: Optional[int] = None
+    max_output_bytes: Optional[int] = None
 
     if resolved_name == "gateway":
         port = _get_optional_int(
@@ -310,6 +311,13 @@ def load_service_config(service_name: Optional[str] = None) -> ServiceConfig:
                 min_value=1,
                 max_value=65535,
             )
+            max_output_bytes = _get_optional_int(
+                "MAX_OUTPUT_BYTES",
+                default=262144,
+                errors=errors,
+                min_value=1,
+                max_value=None,
+            )
 
     else:
         # Should not happen due to _resolve_service_name.
@@ -375,7 +383,8 @@ def load_service_config(service_name: Optional[str] = None) -> ServiceConfig:
         )
 
     if resolved_name == "result":
-        return ResultConfig(**base_kwargs)
+        assert max_output_bytes is not None
+        return ResultConfig(**base_kwargs, max_output_bytes=max_output_bytes)
 
     # Defensive fallback (should be unreachable).
     raise ConfigError(f"Unhandled service_name={resolved_name!r}")
