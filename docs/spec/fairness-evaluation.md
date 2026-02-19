@@ -2,7 +2,7 @@
 
 **Document path:** `docs/spec/fairness-evaluation.md`  
 **Status:** Locked for v1 benchmarking and report analysis  
-**Last updated:** 2026-02-17
+**Last updated:** 2026-02-19
 
 ---
 
@@ -237,6 +237,13 @@ Summary artifacts should include:
 - percentile tables by method/design/scenario
 - throughput tables by method/design/scenario
 - error-rate tables by code/design/scenario
+
+Scaffold contract reference (pre-traffic implementation):
+- `common/loadgen_contracts.py`
+  - `BenchmarkScenario` (machine-readable scenario schema/validation)
+  - `BenchmarkRunner` (warm-up -> measure -> cool-down -> repeat flow)
+  - `BenchmarkRow` + JSONL/CSV row writers
+- `scripts/loadgen/run_benchmark_scaffold.py` (artifact writer entrypoint)
 
 ---
 

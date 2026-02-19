@@ -1,0 +1,29 @@
+{
+  "scenario_id": "design_b_balanced_baseline",
+  "design": "B_monolith",
+  "concurrency": 24,
+  "work_duration_ms": 250,
+  "request_mix_profile": "balanced",
+  "request_mix_weights": {
+    "SubmitJob": 4,
+    "GetJobStatus": 8,
+    "GetJobResult": 6,
+    "CancelJob": 1,
+    "ListJobs": 1
+  },
+  "warmup_seconds": 10,
+  "measure_seconds": 30,
+  "cooldown_seconds": 5,
+  "repetitions": 3,
+  "run_seed": 5306,
+  "total_worker_slots": 6,
+  "design_b_round_robin_start": 0,
+  "design_b_ordered_targets": [
+    "127.0.0.1:51051",
+    "127.0.0.1:52051",
+    "127.0.0.1:53051",
+    "127.0.0.1:54051",
+    "127.0.0.1:55051",
+    "127.0.0.1:56051"
+  ]
+}

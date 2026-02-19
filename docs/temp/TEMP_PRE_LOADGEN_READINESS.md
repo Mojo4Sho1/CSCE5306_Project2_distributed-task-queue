@@ -26,10 +26,10 @@ Track remaining prerequisites between current Design B routing correctness and f
   - [x] `SubmitJob` with non-empty `client_request_id` uses deterministic owner routing.
   - [x] `GetJobStatus` / `GetJobResult` / `CancelJob` route by `job_id` owner.
 - [x] Routing node-order source is explicit and shared (single config surface; no duplicate hardcoded order lists).
-- [ ] Scenario config format exists for workload matrix (concurrency, mix, durations, run windows, seeds).
-- [ ] Benchmark output schema is defined and machine-readable.
-- [ ] A runner workflow exists for warm-up -> measure -> cool-down -> repeat.
-- [ ] Design A and Design B parity checks are executable and documented.
+- [x] Scenario config format exists for workload matrix (concurrency, mix, durations, run windows, seeds).
+- [x] Benchmark output schema is defined and machine-readable.
+- [x] A runner workflow exists for warm-up -> measure -> cool-down -> repeat.
+- [x] Design A and Design B parity checks are executable and documented.
 
 ## Workstreams Before Loadgen
 
@@ -47,11 +47,11 @@ Definition of done:
 
 ## 2) Benchmark Scenario Specification
 
-- [ ] Add a scenario definition artifact (likely under `docs/spec/` and/or config file under `scripts/` or `tests/`).
+- [x] Add a scenario definition artifact (likely under `docs/spec/` and/or config file under `scripts/` or `tests/`).
 - [ ] Encode locked fairness controls from `docs/spec/fairness-evaluation.md`:
-  - [ ] identical total worker slots,
+  - [x] identical total worker slots,
   - [ ] consistent deadlines/retries,
-  - [ ] fixed warm-up/measurement windows,
+  - [x] fixed warm-up/measurement windows,
   - [ ] same request mix and pacing model.
 - [ ] Define minimum scenario matrix:
   - [ ] low, medium, high load,
@@ -62,11 +62,11 @@ Definition of done:
 
 ## 3) Metrics and Output Contract
 
-- [ ] Define output rows to include at least:
-  - [ ] design, scenario_id, run_id, method,
-  - [ ] start_ts_ms, latency_ms, grpc_code,
-  - [ ] accepted/result_ready/already_terminal where applicable,
-  - [ ] concurrency, work_duration_ms, request_mix_profile, total_worker_slots.
+- [x] Define output rows to include at least:
+  - [x] design, scenario_id, run_id, method,
+  - [x] start_ts_ms, latency_ms, grpc_code,
+  - [x] accepted/result_ready/already_terminal where applicable,
+  - [x] concurrency, work_duration_ms, request_mix_profile, total_worker_slots.
 - [ ] Define summary outputs:
   - [ ] per-method throughput,
   - [ ] p50/p95/p99 latency,
@@ -80,14 +80,14 @@ Definition of done:
 
 - [ ] Add run wrapper that orchestrates:
   - [ ] stack health precheck,
-  - [ ] warm-up traffic (not recorded),
-  - [ ] measurement window (recorded),
-  - [ ] cool-down handling,
-  - [ ] repeated runs with stable naming.
+  - [x] warm-up traffic (not recorded),
+  - [x] measurement window (recorded),
+  - [x] cool-down handling,
+  - [x] repeated runs with stable naming.
 - [ ] Add reproducibility controls:
-  - [ ] explicit random seed,
+  - [x] explicit random seed,
   - [ ] fixed timeout/deadline defaults,
-  - [ ] run metadata capture.
+  - [x] run metadata capture.
 
 Definition of done:
 - Repeated runs are easy to execute and compare with minimal manual steps.
@@ -96,7 +96,7 @@ Definition of done:
 
 - [x] Confirm required unit and smoke tests pass for current baseline.
 - [x] Confirm Design B routing smoke passes with deterministic evidence.
-- [ ] Confirm documentation includes benchmark run commands and artifact locations.
+- [x] Confirm documentation includes benchmark run commands and artifact locations.
 
 Definition of done:
 - Team can start load-generator implementation with clear acceptance targets.

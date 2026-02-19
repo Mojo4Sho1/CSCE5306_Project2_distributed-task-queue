@@ -5,39 +5,45 @@
 
 ## Task summary
 
-Implement the pre-loadgen benchmark contract scaffold: scenario configuration schema, runner skeleton, and output artifact schema, with Design B ingress wired through the shared client-routing utility.
+Implement live benchmark traffic execution on top of the new scaffold contracts, including request scheduling, RPC execution, and summary aggregation artifacts.
 
 ## Why this task is next
 
-- Design B client routing parity is now implemented and validated for both locked ingress modes.
-- Remaining blocker before full benchmark implementation is a reproducible scenario + output contract.
-- Locking scenario/output structure now reduces rework when full load traffic generation is added.
+- The scaffold contract is now implemented and verified:
+  - machine-readable scenario schema/loader,
+  - warm-up/measure/cool-down/repeat runner skeleton,
+  - fairness-aligned row schema and artifact writers,
+  - Design B routing wired through shared `DesignBClientRouter`.
+- Remaining gap before full A/B benchmarking is actual traffic generation and recorded measurement rows during the measure window.
 
 ## Scope (in)
 
-- Add machine-readable scenario config artifact and loader for benchmark runs.
-- Add runner scaffold implementing warm-up -> measure -> cool-down -> repeat control flow.
-- Add output row schema/writer aligned with fairness spec required fields.
-- Ensure Design B path uses shared routing utility (`common/design_b_routing.py`) and explicit ordered target list.
-- Add deterministic tests for scenario parsing/validation and output serialization.
-- Update docs and handoff with commands/evidence.
+- Add request scheduler that uses scenario request-mix weights and concurrency controls.
+- Add RPC client adapter layer for `SubmitJob`, `GetJobStatus`, `GetJobResult`, `CancelJob` execution.
+- Enforce locked retry/deadline policy on benchmark client calls per spec constants/error model.
+- Record real measurement rows during measure window and write scaffold artifacts.
+- Add summary tables/artifacts:
+  - per-method throughput,
+  - latency p50/p95/p99,
+  - grpc-code error rates.
+- Add deterministic tests for scheduler/mix behavior and row production with mocked RPC adapter.
+- Update docs/handoff with commands/evidence and residual risks.
 
 ## Scope (out)
 
-- Full high-throughput load-generation engine implementation.
-- Benchmark result interpretation/plotting.
-- Proto/schema/contract changes.
-- Inter-node forwarding or storage durability redesign.
-- New external dependencies.
+- Proto/schema changes.
+- Service-side state model changes.
+- Fairness lock modifications (`TOTAL_WORKER_SLOTS`, routing formula, parity method scope).
+- Plotting/report visualization layer.
 
 ## Dependencies / prerequisites
 
 - Use conda environment `grpc` for all code/tests:
   - `conda run -n grpc python <script.py>`
   - `conda run -n grpc python -m unittest <test_path.py>`
-- Keep both runtime stacks available for smoke/non-regression:
-  - `docker compose -f docker/docker-compose.design-a.yml up --build -d`
-  - `docker compose -f docker/docker-compose.design-b.yml up --build -d`
+- Keep Design A and Design B stacks healthy for live smoke/non-regression checks:
+  - `docker compose -f docker/docker-compose.design-a.yml ps`
+  - `docker compose -f docker/docker-compose.design-b.yml ps`
 
 ## Implementation notes
 
@@ -46,18 +52,21 @@ Implement the pre-loadgen benchmark contract scaffold: scenario configuration sc
   - `docs/spec/constants.md`
   - `docs/spec/error-idempotency.md`
   - `docs/spec/state-machine.md`
-- Reuse shared Design B routing utility:
+- Build on existing scaffold contract paths:
+  - `common/loadgen_contracts.py`
+  - `scripts/loadgen/run_benchmark_scaffold.py`
+  - `scripts/loadgen/scenarios/design_b_balanced_baseline.json`
+- Keep Design B ingress/routing delegated to shared utility:
   - `common/design_b_routing.py`
-- Keep contracts frozen: no proto/schema changes.
-- Keep scaffolding additive and separable from core service runtime.
+- Keep changes additive and separable from core service runtime.
 
 ## Acceptance criteria (definition of done)
 
-- Scenario config schema exists with validation for workload/fairness controls.
-- Runner scaffold exists for warm-up/measure/cool-down/repeat flow and stable run IDs.
-- Output row schema includes required fairness fields and writes parseable artifacts.
-- Design B scaffold path resolves targets and routing through shared helper.
-- Deterministic tests for config parse/validation and output serialization pass.
+- Live request scheduler executes operations according to scenario mix/concurrency.
+- Measure window rows are populated with real outcomes and written via existing schema writers.
+- Summary artifacts are generated and parseable for fairness reporting fields.
+- Design B paths continue using shared router utility for submit/job-scoped target resolution.
+- Deterministic scheduler/serialization tests pass.
 - Existing baseline checks remain green:
   - `conda run -n grpc python -m unittest tests/test_worker_report_retry.py`
   - `conda run -n grpc python -m unittest tests/test_coordinator_report_outcome_idempotency.py`
@@ -69,11 +78,12 @@ Implement the pre-loadgen benchmark contract scaffold: scenario configuration sc
 
 ## Verification checklist
 
-- [ ] Add scenario config schema + loader.
-- [ ] Add runner scaffold for warm-up/measure/cool-down/repeat.
-- [ ] Add output row schema/writer for benchmark artifacts.
-- [ ] Add deterministic tests for scenario parsing and artifact serialization.
-- [ ] Ensure Design B runner path uses `common/design_b_routing.py`.
+- [ ] Implement live request scheduler using scenario mix/concurrency.
+- [ ] Add RPC adapter execution path for parity methods.
+- [ ] Enforce locked retry/deadline controls in benchmark client path.
+- [ ] Write measure-window rows from real RPC outcomes.
+- [ ] Add summary artifact generation (throughput/latency/error rates).
+- [ ] Add deterministic tests for scheduler + mocked row production.
 - [ ] Re-run `tests/test_worker_report_retry.py`.
 - [ ] Re-run `tests/test_coordinator_report_outcome_idempotency.py`.
 - [ ] Re-run `tests/integration/smoke_live_stack.py`.
@@ -84,6 +94,6 @@ Implement the pre-loadgen benchmark contract scaffold: scenario configuration sc
 
 ## Risks / rollback notes
 
-- Scenario/output drift without a fixed schema can invalidate A/B comparability.
-- If runner control-flow semantics drift from fairness spec (timing windows, seeds), benchmark reproducibility degrades.
-- Rollback path is low risk: scaffolding is additive and can be isolated from service runtime.
+- If scheduler pacing/mix semantics drift from scenario contract, benchmark reproducibility degrades.
+- If retry/deadline behavior diverges from locked constants, A/B comparability is weakened.
+- Rollback path remains low risk: current scaffold is additive and isolated from runtime services.

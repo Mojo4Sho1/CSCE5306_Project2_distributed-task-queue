@@ -71,6 +71,9 @@ Runtime defaults remain aligned with locked v1 constants for:
 - Shared client utility module for this policy:
   - `common/design_b_routing.py`
   - `DesignBClientRouter` (policy), `build_ordered_targets` (ordered target config surface).
+- Loadgen scaffold binding:
+  - `common/loadgen_contracts.py` + `scripts/loadgen/run_benchmark_scaffold.py`
+  - Scenario config uses explicit `design_b_ordered_targets` to seed `DesignBClientRouter`.
 - Monolith node job creation enforces owner-affine `job_id` generation based on configured node order, so `job_id`-routed follow-up calls map back to the creating owner node without inter-node forwarding.
 
 ## Health visibility

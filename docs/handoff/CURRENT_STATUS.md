@@ -5,81 +5,84 @@
 
 ## Current focus
 
-Design B client-routing parity utility (empty-key round-robin + deterministic owner routing) and non-regression validation.
+Pre-loadgen benchmark contract scaffold: scenario schema/loader, runner phase control flow, output row schema/writers, and Design B router wiring.
 
 ## Completed in current focus
 
-- Added reusable Design B client-routing module:
-  - `common/design_b_routing.py`
-  - provides `DesignBClientRouter` and `build_ordered_targets` for one shared ingress policy surface.
-- Added focused unit coverage for client-routing behaviors:
-  - `tests/test_design_b_client_routing.py`
-  - verifies empty-key round-robin progression/wrap,
-  - verifies non-empty submit-key deterministic owner routing,
-  - verifies job-scoped routing by `job_id`,
-  - verifies invalid-argument guards.
-- Extended Design B live smoke to cover both locked ingress modes using shared helper:
-  - `tests/integration/smoke_design_b_owner_routing.py`
-  - now validates:
-    - empty-key round-robin submit progression,
-    - empty-key non-idempotent distinct `job_id` behavior,
-    - empty-key submit-to-job-owner coherence,
-    - existing non-empty key owner-routing/idempotency checks,
-    - existing job-scoped owner-routing checks (`GetJobStatus`/`GetJobResult`/`CancelJob`).
-- Updated docs for new utility and verification matrix:
+- Added loadgen contract scaffold module:
+  - `common/loadgen_contracts.py`
+  - includes:
+    - `BenchmarkScenario` machine-readable schema + validation,
+    - `BenchmarkRunner` warm-up -> measure -> cool-down -> repeat flow,
+    - deterministic stable run ID generation,
+    - `BenchmarkRow` schema aligned to fairness Section 10 fields,
+    - JSONL + CSV artifact writers,
+    - Design B routing integration through `DesignBClientRouter`.
+- Added loadgen scaffold CLI:
+  - `scripts/loadgen/run_benchmark_scaffold.py`
+  - loads scenario config and writes per-run artifacts to `results/loadgen/...`.
+- Added canonical Design B scenario artifact:
+  - `scripts/loadgen/scenarios/design_b_balanced_baseline.json`
+  - includes locked fairness controls: concurrency, request mix, warm-up/measure/cool-down windows, repetitions, run seed, and `total_worker_slots=6`.
+- Added deterministic non-live tests:
+  - `tests/test_loadgen_contracts.py`
+  - verifies scenario parsing/validation + Design B router path,
+  - verifies output serialization and per-run artifact writing.
+- Updated documentation/indexes:
   - `README.md`,
+  - `docs/spec/fairness-evaluation.md`,
+  - `docs/spec/runtime-config-design-b.md`,
   - `tests/_TEST_INDEX.md`,
-  - `docs/spec/runtime-config-design-b.md`.
+  - `scripts/_SCRIPT_INDEX.md`.
 
 ## Passing checks
 
-- Run timestamp anchor: `2026-02-19 14:44:31 -06:00` (start), `2026-02-19 14:47:39 -06:00` (end).
-- `conda run -n grpc python -m py_compile common/design_b_routing.py tests/test_design_b_client_routing.py tests/integration/smoke_design_b_owner_routing.py`: PASS
-- `conda run -n grpc python -m unittest tests/test_design_b_client_routing.py`: PASS
-  - `Ran 6 tests ... OK`
-- `conda run -n grpc python -m unittest tests/test_owner_routing.py`: PASS
-  - `Ran 3 tests ... OK`
+- Run timestamp anchor: `2026-02-19 15:03:28 -06:00`.
+- `conda run -n grpc python -m py_compile common/loadgen_contracts.py scripts/loadgen/run_benchmark_scaffold.py tests/test_loadgen_contracts.py`: PASS
+- `conda run -n grpc python -m unittest tests/test_loadgen_contracts.py`: PASS
+  - `Ran 2 tests ... OK`
 - `conda run -n grpc python -m unittest tests/test_worker_report_retry.py`: PASS
   - `Ran 6 tests ... OK`
 - `conda run -n grpc python -m unittest tests/test_coordinator_report_outcome_idempotency.py`: PASS
   - `Ran 3 tests ... OK`
-- `docker compose -f docker/docker-compose.design-b.yml up --build -d`: PASS
+- `conda run -n grpc python -m unittest tests/test_owner_routing.py`: PASS
+  - `Ran 3 tests ... OK`
+- `conda run -n grpc python -m unittest tests/test_design_b_client_routing.py`: PASS
+  - `Ran 6 tests ... OK`
+- `docker compose -f docker/docker-compose.design-a.yml ps`: PASS
+  - `gateway`, `job`, `queue`, `coordinator`, `result`, `worker` all `Up (... healthy)` during verification window.
 - `docker compose -f docker/docker-compose.design-b.yml ps`: PASS
   - `monolith-1..monolith-6` all `Up (... healthy)` during verification window.
-- `conda run -n grpc python -c "import grpc,sys; print(sys.executable)"`: PASS (`D:\Programming\anaconda3\envs\grpc\python.exe`)
-- `conda run -n grpc python tests/integration/smoke_design_b_owner_routing.py`: PASS
-  - all probe lines `PASS`, final `RESULT: PASS`,
-  - includes explicit empty-key round-robin and non-empty deterministic owner evidence.
-- `docker compose -f docker/docker-compose.design-a.yml up --build -d`: PASS (services started healthy; one tool invocation timed out at 12s but subsequent `ps` was healthy).
-- `docker compose -f docker/docker-compose.design-a.yml ps`: PASS
-  - `gateway`, `job`, `queue`, `coordinator`, `result`, `worker` all `Up (... healthy)`.
 - `conda run -n grpc python tests/integration/smoke_live_stack.py`: PASS
-  - final `RESULT: PASS`.
+  - final `RESULT: PASS`
 - `conda run -n grpc python tests/integration/smoke_integration_terminal_path.py`: PASS
-  - final `RESULT: PASS`.
+  - final `RESULT: PASS`
 - `conda run -n grpc python tests/integration/smoke_integration_failure_path.py`: PASS
-  - final `RESULT: PASS`.
+  - final `RESULT: PASS`
+- `conda run -n grpc python tests/integration/smoke_design_b_owner_routing.py`: PASS
+  - final `RESULT: PASS`
+- `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_b_balanced_baseline.json --output-dir results/loadgen`: PASS
+  - produced 3 run directories with deterministic run IDs and parseable `rows.jsonl`, `rows.csv`, `metadata.json`.
 
 ## Known gaps/blockers
 
-- No functional blockers for this routing milestone.
-- Residual risk: round-robin cursor is process-local to the client/router instance; multi-process load generators must share or partition submit streams intentionally for globally balanced distribution.
-- Operational note: running both compose files concurrently under one compose project still produces orphan warnings; expected in current local workflow.
+- No functional blocker for this scaffold milestone.
+- Runner is intentionally pre-traffic: measurement rows are empty unless `operation_hook` is provided by future load-generation logic.
+- Summary aggregations (percentile/throughput/error-rate tables) are not yet implemented.
 
 ## Timing/race observations
 
-- Initial smoke run after refactor failed with script unpacking bug (`submit_target` returns three values); fixed and re-verified in same session.
-- Empty-key submits validated as non-idempotent and distributed in configured round-robin order.
+- First attempt of scaffold CLI verification timed out due scenario durations (`10s + 30s + 5s`, repeated 3 times); reran with extended command timeout and verified PASS.
 
 ## Next task (single target)
 
-Define and implement load-generator scenario/output contract scaffold (config schema + runner skeleton + artifact schema) that consumes `common/design_b_routing.py` for Design B ingress policy.
+Implement live benchmark traffic execution on top of scaffold contracts (request scheduling + RPC execution + retry/deadline controls + summary aggregations).
 
 ## Definition of done for next task
 
-- Add machine-readable scenario config format covering locked fairness controls (concurrency, request mix, warm-up/measure/cool-down windows, run seed).
-- Add loadgen runner scaffold that can execute warm-up -> measure -> cool-down -> repeat and write per-run artifacts.
-- Add benchmark row schema/output writer aligned with `docs/spec/fairness-evaluation.md` Section 10 fields.
-- Wire Design B path to shared `DesignBClientRouter` and explicit ordered targets config.
-- Add at least one deterministic non-live unit test for scenario parsing and output row serialization.
-- Update docs/spec + handoff docs with commands, assumptions, and residual risk notes.
+- Implement live RPC operation engine for primary parity methods (`SubmitJob`, `GetJobStatus`, `GetJobResult`, `CancelJob`) using scenario request-mix controls.
+- Preserve locked retry/deadline semantics from `docs/spec/error-idempotency.md` and `docs/spec/constants.md`.
+- Populate measurement rows during measure window with real call outcomes (grpc code + soft outcome fields).
+- Add summary artifact generation (per-method throughput, p50/p95/p99 latency, grpc-code error rates) per fairness spec Section 10.
+- Add deterministic unit tests for scheduler/mix logic and at least one non-live integration-style test with mocked RPC client adapter.
+- Update docs/spec + handoff docs with commands, assumptions, and residual risks.

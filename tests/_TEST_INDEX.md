@@ -16,6 +16,7 @@ For script-only utilities and wrappers, see:
 - `conda run -n grpc python -m unittest tests/test_coordinator_report_outcome_idempotency.py`
 - `conda run -n grpc python -m unittest tests/test_owner_routing.py`
 - `conda run -n grpc python -m unittest tests/test_design_b_client_routing.py`
+- `conda run -n grpc python -m unittest tests/test_loadgen_contracts.py`
 - `conda run -n grpc python tests/integration/smoke_live_stack.py`
 - `conda run -n grpc python tests/integration/smoke_integration_terminal_path.py`
 - `conda run -n grpc python tests/integration/smoke_integration_failure_path.py`

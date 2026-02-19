@@ -9,6 +9,7 @@ Test commands and test taxonomy live in:
 
 - Manual CLI tools: `scripts/manual/`
 - Developer utilities: `scripts/dev/`
+- Load generator scaffolding: `scripts/loadgen/`
 - Legacy retained helpers: `scripts/legacy_smoke/`
 
 ## Canonical Commands
@@ -16,6 +17,7 @@ Test commands and test taxonomy live in:
 - `conda run -n grpc python scripts/manual/manual_gateway_client.py --help`
 - `conda run -n grpc python scripts/manual/manual_gateway_client.py submit --spec-file examples/jobs/hello_distributed.json`
 - `conda run -n grpc python scripts/dev/healthcheck.py --mode tcp --target gateway:50051 --service gateway`
+- `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_b_balanced_baseline.json --output-dir results/loadgen`
 
 ## Compatibility Wrappers (Deprecated)
 
