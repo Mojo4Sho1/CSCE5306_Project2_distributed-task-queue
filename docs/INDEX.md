@@ -60,7 +60,7 @@ If two sources conflict, use this precedence:
 - **`docs/INDEX.md`** *(this file)*  
   Navigation, governance, and authority model.
 - **`README.md`**  
-  Project overview, quickstart, and links to authoritative docs.
+  Project overview, quickstart, and links to authoritative docs (including the practical A/B evaluation execution plan).
 
 ## Handoff
 - **`docs/handoff/CURRENT_STATUS.md`**  

@@ -154,6 +154,35 @@ Failure-path note:
 Retry semantics note:
 - Worker `ReportWorkOutcome` retries use bounded exponential backoff with full jitter (per locked v1 constants/spec).
 
+## Evaluation Execution Plan (A vs B)
+
+Use this runbook after both designs and the load generator are complete.
+
+1. Lock parity before any measurement:
+   - same total worker-slot capacity across designs (per locked constants),
+   - same workload mix, request pacing model, runtime, and warmup/cooldown windows,
+   - same host resource limits and background-load conditions.
+2. Keep production retry semantics enabled for benchmark realism:
+   - bounded exponential backoff + full jitter stays on for both designs.
+3. Define workload matrix:
+   - low/medium/high offered load,
+   - mixed job profiles (short/long runtime and payload variation),
+   - at least one sustained run duration per point (not burst-only).
+4. Run repeated trials per workload point for each design:
+   - execute multiple independent runs (for example, 10),
+   - alternate A/B run order when possible to reduce time-of-day and thermal bias.
+5. Report distribution-oriented metrics, not single-run snapshots:
+   - throughput, success rate, and error-rate breakdown by gRPC code,
+   - end-to-end latency p50/p95/p99,
+   - fairness metrics defined in `docs/spec/fairness-evaluation.md`,
+   - retry observability (retry count and retry-wait behavior) to interpret jitter impact.
+6. Add controlled transient-failure scenarios:
+   - briefly degrade one internal dependency (for example temporary unavailability),
+   - measure recovery profile, tail-latency behavior, and completion stability.
+7. Compare A vs B using aggregate statistics:
+   - present mean/median plus spread (stddev or confidence intervals),
+   - base conclusions on repeated-run distributions, not best-case outliers.
+
 ## Demo UX TODO (Post-Core Milestones)
 
 After completing Design A remaining tasks, Design B, and load-generator implementation, add a lightweight alias workflow to reduce manual demo friction:
