@@ -138,7 +138,81 @@ A run is valid only if the same workload profile is executed against both design
 
 ---
 
-## 7) Run Protocol (Locked)
+## 7) Starter Scenario Matrix (Locked Baseline for Initial Benchmarking)
+
+This matrix is the default initial benchmark plan for v1 A/B comparison runs.
+
+## 7.1 Primary comparison policy (`ListJobs = 0%`)
+
+Primary parity conclusions are based on:
+- `SubmitJob`
+- `GetJobStatus`
+- `GetJobResult`
+- `CancelJob`
+
+Therefore starter primary scenarios set `ListJobs` traffic to `0%`.
+
+Rationale:
+- keeps primary throughput/latency comparisons focused on locked parity-critical methods,
+- avoids contaminating headline comparisons with Design B v1 `ListJobs` non-global scope caveat,
+- preserves `ListJobs` for secondary/qualitative analysis and user demo workflows.
+
+## 7.2 Request-mix profiles (starter)
+
+### `submit_heavy`
+- `SubmitJob`: `60%`
+- `GetJobStatus`: `20%`
+- `GetJobResult`: `15%`
+- `CancelJob`: `5%`
+- `ListJobs`: `0%`
+
+### `poll_heavy`
+- `SubmitJob`: `15%`
+- `GetJobStatus`: `45%`
+- `GetJobResult`: `35%`
+- `CancelJob`: `5%`
+- `ListJobs`: `0%`
+
+### `balanced`
+- `SubmitJob`: `35%`
+- `GetJobStatus`: `30%`
+- `GetJobResult`: `25%`
+- `CancelJob`: `10%`
+- `ListJobs`: `0%`
+
+## 7.3 Load levels (starter)
+
+- `low`: `concurrency=6`, `request_rate_rps=5`
+- `medium`: `concurrency=24`, `request_rate_rps=20`
+- `high`: `concurrency=48`, `request_rate_rps=40`
+
+## 7.4 Timing defaults (starter)
+
+- `warmup_seconds=15`
+- `measure_seconds=60`
+- `cooldown_seconds=15`
+- `repetitions=10`
+- fixed per-scenario seed base
+
+## 7.5 Canonical starter scenario IDs (9)
+
+- `s_low_submit_heavy`
+- `s_low_poll_heavy`
+- `s_low_balanced`
+- `s_medium_submit_heavy`
+- `s_medium_poll_heavy`
+- `s_medium_balanced`
+- `s_high_submit_heavy`
+- `s_high_poll_heavy`
+- `s_high_balanced`
+
+## 7.6 Secondary optional extension
+
+Secondary runs may introduce non-zero `ListJobs` traffic, but must be reported separately from primary parity conclusions and explicitly labeled with the Design B v1 `ListJobs` caveat.
+
+---
+
+## 8) Run Protocol (Locked)
 
 Each benchmark scenario must follow this sequence:
 
@@ -167,7 +241,7 @@ Each benchmark scenario must follow this sequence:
 
 ---
 
-## 8) Metrics and Definitions
+## 9) Metrics and Definitions
 
 ## 8.1 Throughput
 - **RPC throughput:** completed successful RPCs per second, per method
@@ -195,7 +269,7 @@ Track:
 
 ---
 
-## 9) Primary vs Secondary Analysis Scope
+## 10) Primary vs Secondary Analysis Scope
 
 ## Primary (strict parity conclusions)
 - `SubmitJob`
@@ -213,7 +287,7 @@ When reporting `ListJobs`, clearly state non-global best-effort scope in Design 
 
 ---
 
-## 10) Data Recording Requirements
+## 11) Data Recording Requirements
 
 Each recorded row should include at least:
 
@@ -247,7 +321,7 @@ Scaffold contract reference (pre-traffic implementation):
 
 ---
 
-## 11) Validity Checks and Exclusion Rules
+## 12) Validity Checks and Exclusion Rules
 
 A run is **invalid** and must be rerun if any of the following occur:
 
@@ -260,7 +334,7 @@ A run is **invalid** and must be rerun if any of the following occur:
 
 ---
 
-## 12) Reporting Requirements
+## 13) Reporting Requirements
 
 For each workload axis and profile, report:
 
@@ -277,7 +351,7 @@ Required clarity statements in report/slides:
 
 ---
 
-## 13) Threats to Fairness and Mitigations
+## 14) Threats to Fairness and Mitigations
 
 ## Threat: Different execution capacity
 - **Mitigation:** fixed `TOTAL_WORKER_SLOTS`
@@ -296,7 +370,7 @@ Required clarity statements in report/slides:
 
 ---
 
-## 14) Non-Goals for v1 Evaluation
+## 15) Non-Goals for v1 Evaluation
 
 The fairness comparison does **not** claim:
 - durable persistence behavior
@@ -309,7 +383,7 @@ Conclusions are bounded to the defined v1 in-memory, single-environment evaluati
 
 ---
 
-## 15) Change Control
+## 16) Change Control
 
 Any fairness-affecting change requires explicit entry in project change notes:
 
@@ -327,7 +401,7 @@ Examples of fairness-affecting changes:
 
 ---
 
-## 16) Quick Compliance Checklist (Per Scenario)
+## 17) Quick Compliance Checklist (Per Scenario)
 
 - [ ] Same hardware/environment
 - [ ] Same `TOTAL_WORKER_SLOTS`

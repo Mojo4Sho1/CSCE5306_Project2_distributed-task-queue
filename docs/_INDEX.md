@@ -97,7 +97,7 @@ If two sources conflict, use this precedence:
 - **`docs/spec/error-idempotency.md`**  
   gRPC status policy, soft outcomes, idempotency matrix, retry/backoff defaults.
 - **`docs/spec/fairness-evaluation.md`**  
-  A/B fairness constraints, routing rules, workload controls, and reporting scope.
+  A/B fairness constraints, routing rules, workload controls, starter scenario matrix, and reporting scope.
 - **`docs/spec/constants.md`**  
   Locked constants (timeouts, caps, defaults, limits).
 - **`docs/spec/requirements.md`**  

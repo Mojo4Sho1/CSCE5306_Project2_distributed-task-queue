@@ -56,6 +56,8 @@ Implement live benchmark traffic execution on top of the new scaffold contracts,
   - `common/loadgen_contracts.py`
   - `scripts/loadgen/run_benchmark_scaffold.py`
   - `scripts/loadgen/scenarios/design_b_balanced_baseline.json`
+- Use starter matrix/policy from:
+  - `docs/spec/fairness-evaluation.md` (Section 7 starter matrix; primary runs keep `ListJobs=0%`)
 - Keep Design B ingress/routing delegated to shared utility:
   - `common/design_b_routing.py`
 - Keep changes additive and separable from core service runtime.

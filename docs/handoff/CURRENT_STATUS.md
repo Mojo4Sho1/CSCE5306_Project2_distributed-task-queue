@@ -15,7 +15,7 @@ Pre-loadgen benchmark contract scaffold: scenario schema/loader, runner phase co
     - `BenchmarkScenario` machine-readable schema + validation,
     - `BenchmarkRunner` warm-up -> measure -> cool-down -> repeat flow,
     - deterministic stable run ID generation,
-    - `BenchmarkRow` schema aligned to fairness Section 10 fields,
+    - `BenchmarkRow` schema aligned to fairness Section 11 fields,
     - JSONL + CSV artifact writers,
     - Design B routing integration through `DesignBClientRouter`.
 - Added loadgen scaffold CLI:
@@ -83,6 +83,6 @@ Implement live benchmark traffic execution on top of scaffold contracts (request
 - Implement live RPC operation engine for primary parity methods (`SubmitJob`, `GetJobStatus`, `GetJobResult`, `CancelJob`) using scenario request-mix controls.
 - Preserve locked retry/deadline semantics from `docs/spec/error-idempotency.md` and `docs/spec/constants.md`.
 - Populate measurement rows during measure window with real call outcomes (grpc code + soft outcome fields).
-- Add summary artifact generation (per-method throughput, p50/p95/p99 latency, grpc-code error rates) per fairness spec Section 10.
+- Add summary artifact generation (per-method throughput, p50/p95/p99 latency, grpc-code error rates) per fairness spec Section 11.
 - Add deterministic unit tests for scheduler/mix logic and at least one non-live integration-style test with mocked RPC client adapter.
 - Update docs/spec + handoff docs with commands, assumptions, and residual risks.

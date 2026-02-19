@@ -54,8 +54,8 @@ Definition of done:
   - [x] fixed warm-up/measurement windows,
   - [ ] same request mix and pacing model.
 - [ ] Define minimum scenario matrix:
-  - [ ] low, medium, high load,
-  - [ ] submit-heavy, poll-heavy, balanced profiles.
+  - [x] low, medium, high load,
+  - [x] submit-heavy, poll-heavy, balanced profiles.
 
 Definition of done:
 - Scenario settings can be consumed programmatically by load generator and runner.

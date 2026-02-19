@@ -123,6 +123,7 @@ Design B v1 parity boundary reminder:
 - Design B owner routing for job-scoped operations remains a client/load-generator responsibility per `docs/spec/fairness-evaluation.md`.
 - Shared client-routing helper for Design B parity is available at `common/design_b_routing.py` (`DesignBClientRouter` + `build_ordered_targets`) for empty-key round-robin and key/job deterministic owner routing.
 - Monolith job creation enforces owner-affine `job_id` generation so `job_id`-based routing is coherent across submit/status/result/cancel paths.
+- `ListJobs` is still available for user/demo flows in both designs, but primary A/B performance comparisons intentionally exclude `ListJobs` traffic (`ListJobs=0%` in starter matrix) because Design B v1 list scope is non-global best-effort.
 
 ## User Demo Workflow (Design A)
 
@@ -275,7 +276,7 @@ Use this runbook after both designs and the load generator are complete.
    - bounded exponential backoff + full jitter stays on for both designs.
 3. Define workload matrix:
    - low/medium/high offered load,
-   - mixed job profiles (short/long runtime and payload variation),
+   - request-mix profiles (`submit_heavy`, `poll_heavy`, `balanced`) with starter definitions in `docs/spec/fairness-evaluation.md`,
    - at least one sustained run duration per point (not burst-only).
 4. Run repeated trials per workload point for each design:
    - execute multiple independent runs (for example, 10),
