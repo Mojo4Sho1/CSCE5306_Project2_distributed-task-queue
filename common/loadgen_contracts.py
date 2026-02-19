@@ -4,6 +4,7 @@ import csv
 import hashlib
 import json
 import random
+import socket
 import sys
 import threading
 import time
@@ -33,6 +34,15 @@ DEFAULT_CLIENT_DEADLINES_S = {
 }
 RETRYABLE_GRPC_CODES = frozenset(("UNAVAILABLE", "DEADLINE_EXCEEDED", "RESOURCE_EXHAUSTED"))
 SUBMIT_CLIENT_REQUEST_ID_MODES = frozenset(("empty", "unique_non_empty"))
+TERMINAL_JOB_STATUS_NAMES = frozenset(("DONE", "FAILED", "CANCELED"))
+JOB_STATUS_VALUE_TO_NAME = {
+    0: "JOB_STATUS_UNSPECIFIED",
+    1: "QUEUED",
+    2: "RUNNING",
+    3: "DONE",
+    4: "FAILED",
+    5: "CANCELED",
+}
 
 
 def _require_non_empty_str(raw: Any, field_name: str) -> str:
@@ -193,11 +203,12 @@ class BenchmarkRow:
     run_id: str
     method: str
     start_ts_ms: int
-    latency_ms: int
+    latency_ms: float
     grpc_code: str
     accepted: bool | None
     result_ready: bool | None
     already_terminal: bool | None
+    job_terminal: bool | None
     job_id: str | None
     concurrency: int
     work_duration_ms: int
@@ -702,7 +713,7 @@ class GrpcPublicApiAdapter:
             allow_retry=bool(client_request_id),
             rng=rng,
         )
-        latency_ms = max(0, int((self._monotonic_fn() - start_monotonic) * 1000))
+        latency_ms = _elapsed_latency_ms(start_monotonic, self._monotonic_fn)
         accepted = bool(result.response is not None and str(result.response.job_id).strip())
         job_id = str(result.response.job_id).strip() if result.response is not None else None
         if result.grpc_code == "OK" and job_id:
@@ -719,6 +730,7 @@ class GrpcPublicApiAdapter:
             accepted=accepted if result.grpc_code == "OK" else None,
             result_ready=None,
             already_terminal=None,
+            job_terminal=None,
             job_id=job_id,
             concurrency=context.scenario.concurrency,
             work_duration_ms=context.scenario.work_duration_ms,
@@ -743,7 +755,10 @@ class GrpcPublicApiAdapter:
             allow_retry=True,
             rng=rng,
         )
-        latency_ms = max(0, int((self._monotonic_fn() - start_monotonic) * 1000))
+        latency_ms = _elapsed_latency_ms(start_monotonic, self._monotonic_fn)
+        job_terminal = None
+        if result.grpc_code == "OK" and result.response is not None:
+            job_terminal = _is_terminal_job_status(result.response.status)
 
         return BenchmarkRow(
             design=context.scenario.design,
@@ -756,6 +771,7 @@ class GrpcPublicApiAdapter:
             accepted=None,
             result_ready=None,
             already_terminal=None,
+            job_terminal=job_terminal,
             job_id=job_id,
             concurrency=context.scenario.concurrency,
             work_duration_ms=context.scenario.work_duration_ms,
@@ -780,10 +796,14 @@ class GrpcPublicApiAdapter:
             allow_retry=True,
             rng=rng,
         )
-        latency_ms = max(0, int((self._monotonic_fn() - start_monotonic) * 1000))
+        latency_ms = _elapsed_latency_ms(start_monotonic, self._monotonic_fn)
         result_ready = None
+        job_terminal = None
         if result.grpc_code == "OK" and result.response is not None:
             result_ready = bool(result.response.result_ready)
+            job_terminal = bool(result_ready) and _is_terminal_job_status(
+                result.response.terminal_status
+            )
 
         return BenchmarkRow(
             design=context.scenario.design,
@@ -796,6 +816,7 @@ class GrpcPublicApiAdapter:
             accepted=None,
             result_ready=result_ready,
             already_terminal=None,
+            job_terminal=job_terminal,
             job_id=job_id,
             concurrency=context.scenario.concurrency,
             work_duration_ms=context.scenario.work_duration_ms,
@@ -823,12 +844,14 @@ class GrpcPublicApiAdapter:
             allow_retry=True,
             rng=rng,
         )
-        latency_ms = max(0, int((self._monotonic_fn() - start_monotonic) * 1000))
+        latency_ms = _elapsed_latency_ms(start_monotonic, self._monotonic_fn)
         accepted = None
         already_terminal = None
+        job_terminal = None
         if result.grpc_code == "OK" and result.response is not None:
             accepted = bool(result.response.accepted)
             already_terminal = bool(result.response.already_terminal)
+            job_terminal = _is_terminal_job_status(result.response.current_status)
 
         return BenchmarkRow(
             design=context.scenario.design,
@@ -841,6 +864,7 @@ class GrpcPublicApiAdapter:
             accepted=accepted,
             result_ready=None,
             already_terminal=already_terminal,
+            job_terminal=job_terminal,
             job_id=job_id,
             concurrency=context.scenario.concurrency,
             work_duration_ms=context.scenario.work_duration_ms,
@@ -868,7 +892,7 @@ class GrpcPublicApiAdapter:
             allow_retry=True,
             rng=random.Random(0),
         )
-        latency_ms = max(0, int((self._monotonic_fn() - start_monotonic) * 1000))
+        latency_ms = _elapsed_latency_ms(start_monotonic, self._monotonic_fn)
         return BenchmarkRow(
             design=context.scenario.design,
             scenario_id=context.scenario.scenario_id,
@@ -880,6 +904,7 @@ class GrpcPublicApiAdapter:
             accepted=None,
             result_ready=None,
             already_terminal=None,
+            job_terminal=None,
             job_id=None,
             concurrency=context.scenario.concurrency,
             work_duration_ms=context.scenario.work_duration_ms,
@@ -965,7 +990,7 @@ def summarize_measurement_rows(rows: Sequence[BenchmarkRow], measure_seconds: fl
         method_rows = by_method.get(method, [])
         total = len(method_rows)
         ok_count = sum(1 for row in method_rows if row.grpc_code == "OK")
-        latency_values = [max(0, int(row.latency_ms)) for row in method_rows]
+        latency_values = [max(0.0, float(row.latency_ms)) for row in method_rows]
         code_counts: dict[str, int] = {}
         for row in method_rows:
             code_counts[row.grpc_code] = code_counts.get(row.grpc_code, 0) + 1
@@ -988,9 +1013,20 @@ def summarize_measurement_rows(rows: Sequence[BenchmarkRow], measure_seconds: fl
             }
         )
 
+    terminal_jobs = {
+        str(row.job_id).strip()
+        for row in rows
+        if row.grpc_code == "OK" and bool(row.job_terminal) and str(row.job_id or "").strip()
+    }
+    terminal_job_count = len(terminal_jobs)
+
     return {
         "measure_seconds": float(measure_seconds),
         "total_rows": len(rows),
+        "job_terminal_throughput": {
+            "unique_terminal_jobs": terminal_job_count,
+            "throughput_rps": round(terminal_job_count / effective_seconds, 6),
+        },
         "methods": method_summaries,
     }
 
@@ -1011,10 +1047,13 @@ def write_summary_csv(summary: Mapping[str, Any], output_path: Path) -> None:
         "latency_p95_ms",
         "latency_p99_ms",
         "grpc_code_rates_json",
+        "job_terminal_unique_jobs",
+        "job_terminal_throughput_rps",
     )
     with output_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader()
+        terminal_summary = summary.get("job_terminal_throughput", {})
         for entry in summary.get("methods", []):
             latency = entry.get("latency_ms", {})
             writer.writerow(
@@ -1031,17 +1070,82 @@ def write_summary_csv(summary: Mapping[str, Any], output_path: Path) -> None:
                         separators=(",", ":"),
                         sort_keys=True,
                     ),
+                    "job_terminal_unique_jobs": terminal_summary.get("unique_terminal_jobs", 0),
+                    "job_terminal_throughput_rps": terminal_summary.get("throughput_rps", 0.0),
                 }
             )
 
 
-def _percentile(values: Sequence[int], percentile: int) -> int:
+def _percentile(values: Sequence[float], percentile: int) -> float:
     if not values:
-        return 0
+        return 0.0
     sorted_values = sorted(values)
     rank = int(round((max(1, int(percentile)) / 100.0) * len(sorted_values) + 0.5)) - 1
     index = max(0, min(rank, len(sorted_values) - 1))
-    return int(sorted_values[index])
+    return round(float(sorted_values[index]), 3)
+
+
+def validate_stack_health_targets(
+    scenario: BenchmarkScenario,
+    *,
+    timeout_ms: int = 1000,
+) -> list[dict[str, str]]:
+    if timeout_ms <= 0:
+        raise ValueError("timeout_ms must be > 0")
+    targets = (
+        [str(scenario.design_a_gateway_target)]
+        if scenario.design == "A_microservices"
+        else list(scenario.design_b_ordered_targets)
+    )
+    failures: list[dict[str, str]] = []
+    timeout_s = float(timeout_ms) / 1000.0
+    for target in targets:
+        host, port = _parse_target_host_port(target)
+        try:
+            with socket.create_connection((host, port), timeout=timeout_s):
+                continue
+        except OSError as exc:
+            failures.append({"target": target, "error": str(exc)})
+    return failures
+
+
+def _parse_target_host_port(target: str) -> tuple[str, int]:
+    raw = str(target or "").strip()
+    if ":" not in raw:
+        raise ValueError(f"target must be host:port, got {raw!r}")
+    host, port_raw = raw.rsplit(":", 1)
+    host = host.strip()
+    port_raw = port_raw.strip()
+    if not host:
+        raise ValueError(f"target host must be non-empty, got {raw!r}")
+    port = int(port_raw)
+    if port <= 0 or port > 65535:
+        raise ValueError(f"target port out of range, got {raw!r}")
+    return host, port
+
+
+def _status_name(value: Any) -> str:
+    if value is None:
+        return ""
+    name = getattr(value, "name", None)
+    if name is not None:
+        return str(name)
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, int):
+        return JOB_STATUS_VALUE_TO_NAME.get(value, str(value))
+    return str(value)
+
+
+def _is_terminal_job_status(value: Any) -> bool:
+    return _status_name(value) in TERMINAL_JOB_STATUS_NAMES
+
+
+def _elapsed_latency_ms(start_monotonic: float, monotonic_fn: Callable[[], float]) -> float:
+    elapsed_ms = max(0.0, (monotonic_fn() - start_monotonic) * 1000.0)
+    if elapsed_ms <= 0.0:
+        return 0.001
+    return round(max(elapsed_ms, 0.001), 3)
 
 
 def _phase_seed(base_seed: int, repeat_index: int, phase_name: str) -> int:

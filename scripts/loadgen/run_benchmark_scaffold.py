@@ -14,6 +14,7 @@ from common.loadgen_contracts import (
     GrpcPublicApiAdapter,
     LiveTrafficEngine,
     load_scenario_config,
+    validate_stack_health_targets,
 )
 
 
@@ -42,6 +43,17 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Optional global request-rate override (RPS). If omitted, scenario value is used.",
     )
+    parser.add_argument(
+        "--precheck-health",
+        action="store_true",
+        help="Run pre-run TCP health probes for required ingress targets and fail fast on unhealthy state.",
+    )
+    parser.add_argument(
+        "--precheck-timeout-ms",
+        type=int,
+        default=1000,
+        help="Timeout for each precheck probe in milliseconds (default: 1000).",
+    )
     return parser.parse_args()
 
 
@@ -51,6 +63,37 @@ def main() -> int:
     output_dir = Path(args.output_dir)
 
     scenario = load_scenario_config(scenario_path)
+    if args.precheck_health:
+        if args.precheck_timeout_ms <= 0:
+            print(
+                json.dumps(
+                    {
+                        "error": "invalid precheck timeout",
+                        "precheck_timeout_ms": args.precheck_timeout_ms,
+                    }
+                ),
+                file=sys.stderr,
+            )
+            return 2
+        failures = validate_stack_health_targets(
+            scenario,
+            timeout_ms=args.precheck_timeout_ms,
+        )
+        if failures:
+            print(
+                json.dumps(
+                    {
+                        "error": "precheck failed",
+                        "scenario_id": scenario.scenario_id,
+                        "design": scenario.design,
+                        "failures": failures,
+                    },
+                    indent=2,
+                ),
+                file=sys.stderr,
+            )
+            return 2
+
     runner = BenchmarkRunner(scenario=scenario, output_root=output_dir)
     adapter = None
     try:

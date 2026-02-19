@@ -16,6 +16,8 @@ from common.loadgen_contracts import (
     RequestMixScheduler,
     build_stable_run_id,
     load_scenario_config,
+    summarize_measurement_rows,
+    validate_stack_health_targets,
 )
 
 
@@ -57,6 +59,7 @@ class _FakeAdapter:
             accepted=True if method == "SubmitJob" else None,
             result_ready=None,
             already_terminal=None,
+            job_terminal=False if job_id else None,
             job_id=job_id,
             concurrency=context.scenario.concurrency,
             work_duration_ms=context.scenario.work_duration_ms,
@@ -185,6 +188,7 @@ class LoadgenContractTests(unittest.TestCase):
                         accepted=True,
                         result_ready=None,
                         already_terminal=None,
+                        job_terminal=False,
                         job_id="job-123",
                         concurrency=scenario.concurrency,
                         work_duration_ms=scenario.work_duration_ms,
@@ -325,6 +329,73 @@ class LoadgenContractTests(unittest.TestCase):
         )
         self.assertEqual("UNAVAILABLE", empty_row.grpc_code)
         self.assertEqual(1, empty_stub.calls)
+
+    def test_summary_latency_precision_and_job_terminal_throughput(self) -> None:
+        rows = [
+            BenchmarkRow(
+                design="A_microservices",
+                scenario_id="summary_precision",
+                run_id="r1",
+                method="GetJobStatus",
+                start_ts_ms=1,
+                latency_ms=0.111,
+                grpc_code="OK",
+                accepted=None,
+                result_ready=None,
+                already_terminal=None,
+                job_terminal=False,
+                job_id="job-1",
+                concurrency=1,
+                work_duration_ms=100,
+                request_mix_profile="balanced",
+                total_worker_slots=6,
+            ),
+            BenchmarkRow(
+                design="A_microservices",
+                scenario_id="summary_precision",
+                run_id="r1",
+                method="GetJobStatus",
+                start_ts_ms=2,
+                latency_ms=0.444,
+                grpc_code="OK",
+                accepted=None,
+                result_ready=None,
+                already_terminal=None,
+                job_terminal=True,
+                job_id="job-2",
+                concurrency=1,
+                work_duration_ms=100,
+                request_mix_profile="balanced",
+                total_worker_slots=6,
+            ),
+        ]
+        summary = summarize_measurement_rows(rows=rows, measure_seconds=2.0)
+        get_status_entry = next(item for item in summary["methods"] if item["method"] == "GetJobStatus")
+        self.assertGreater(get_status_entry["latency_ms"]["p50"], 0.0)
+        self.assertEqual(1, summary["job_terminal_throughput"]["unique_terminal_jobs"])
+        self.assertEqual(0.5, summary["job_terminal_throughput"]["throughput_rps"])
+
+    def test_precheck_health_targets_reports_unhealthy(self) -> None:
+        scenario = BenchmarkScenario.from_dict(
+            {
+                "scenario_id": "precheck_probe",
+                "design": "A_microservices",
+                "concurrency": 1,
+                "work_duration_ms": 10,
+                "request_mix_profile": "submit-only",
+                "request_mix_weights": {"SubmitJob": 1, "GetJobStatus": 0, "GetJobResult": 0, "CancelJob": 0, "ListJobs": 0},
+                "warmup_seconds": 0,
+                "measure_seconds": 1,
+                "cooldown_seconds": 0,
+                "repetitions": 1,
+                "run_seed": 1,
+                "total_worker_slots": 6,
+                "design_a_gateway_target": "127.0.0.1:1",
+            }
+        )
+        failures = validate_stack_health_targets(scenario, timeout_ms=100)
+        self.assertEqual(1, len(failures))
+        self.assertEqual("127.0.0.1:1", failures[0]["target"])
 
 
 if __name__ == "__main__":

@@ -1,0 +1,17 @@
+design,scenario_id,run_id,method,start_ts_ms,latency_ms,grpc_code,accepted,result_ready,already_terminal,job_terminal,job_id,concurrency,work_duration_ms,request_mix_profile,total_worker_slots
+A_microservices,design_a_live_smoke_short,design_a_live_smoke_short-r00-64f99fd582,GetJobResult,1771541228935,16.0,OK,,True,,True,efdd067d-34a7-4f5d-a294-f481778c45fe,2,120,balanced,6
+A_microservices,design_a_live_smoke_short,design_a_live_smoke_short-r00-64f99fd582,CancelJob,1771541228936,16.0,OK,True,,True,True,0091cc9f-f1cf-49e0-872d-7ae45aac28e1,2,120,balanced,6
+A_microservices,design_a_live_smoke_short,design_a_live_smoke_short-r00-64f99fd582,GetJobStatus,1771541229185,16.0,OK,,,,True,fcdaf1c6-eafb-45c7-b99a-9f56e40e6b46,2,120,balanced,6
+A_microservices,design_a_live_smoke_short,design_a_live_smoke_short-r00-64f99fd582,GetJobResult,1771541229195,0.001,OK,,True,,True,fcdaf1c6-eafb-45c7-b99a-9f56e40e6b46,2,120,balanced,6
+A_microservices,design_a_live_smoke_short,design_a_live_smoke_short-r00-64f99fd582,GetJobStatus,1771541229447,0.001,OK,,,,True,268d6f72-3a39-4c78-939b-746dc7a58c35,2,120,balanced,6
+A_microservices,design_a_live_smoke_short,design_a_live_smoke_short-r00-64f99fd582,SubmitJob,1771541229447,0.001,OK,True,,,,d70efe9a-c808-4523-879f-4d4507738ab9,2,120,balanced,6
+A_microservices,design_a_live_smoke_short,design_a_live_smoke_short-r00-64f99fd582,SubmitJob,1771541229695,0.001,OK,True,,,,49213bcd-5142-44b7-9eb6-052c3661aa0d,2,120,balanced,6
+A_microservices,design_a_live_smoke_short,design_a_live_smoke_short-r00-64f99fd582,SubmitJob,1771541229695,0.001,OK,True,,,,8625eb8b-4311-4daf-ac4a-e0dcec892cda,2,120,balanced,6
+A_microservices,design_a_live_smoke_short,design_a_live_smoke_short-r00-64f99fd582,GetJobResult,1771541229944,0.001,OK,,True,,True,efdd067d-34a7-4f5d-a294-f481778c45fe,2,120,balanced,6
+A_microservices,design_a_live_smoke_short,design_a_live_smoke_short-r00-64f99fd582,GetJobStatus,1771541229944,0.001,OK,,,,True,0091cc9f-f1cf-49e0-872d-7ae45aac28e1,2,120,balanced,6
+A_microservices,design_a_live_smoke_short,design_a_live_smoke_short-r00-64f99fd582,CancelJob,1771541230192,0.001,OK,True,,True,True,8625eb8b-4311-4daf-ac4a-e0dcec892cda,2,120,balanced,6
+A_microservices,design_a_live_smoke_short,design_a_live_smoke_short-r00-64f99fd582,GetJobStatus,1771541230192,0.001,OK,,,,True,49213bcd-5142-44b7-9eb6-052c3661aa0d,2,120,balanced,6
+A_microservices,design_a_live_smoke_short,design_a_live_smoke_short-r00-64f99fd582,GetJobResult,1771541230438,16.0,OK,,True,,True,49213bcd-5142-44b7-9eb6-052c3661aa0d,2,120,balanced,6
+A_microservices,design_a_live_smoke_short,design_a_live_smoke_short-r00-64f99fd582,SubmitJob,1771541230438,16.0,OK,True,,,,0d19990f-34a3-49eb-aec8-eb703f1fad13,2,120,balanced,6
+A_microservices,design_a_live_smoke_short,design_a_live_smoke_short-r00-64f99fd582,GetJobStatus,1771541230685,0.001,OK,,,,True,8625eb8b-4311-4daf-ac4a-e0dcec892cda,2,120,balanced,6
+A_microservices,design_a_live_smoke_short,design_a_live_smoke_short-r00-64f99fd582,SubmitJob,1771541230685,16.0,OK,True,,,,0bf6f205-aca4-423c-8c7e-9870da04dc02,2,120,balanced,6

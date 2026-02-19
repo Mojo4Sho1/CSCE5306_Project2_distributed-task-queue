@@ -48,7 +48,7 @@ Definition of done:
 ## 2) Benchmark Scenario Specification
 
 - [x] Add a scenario definition artifact (likely under `docs/spec/` and/or config file under `scripts/` or `tests/`).
-- [ ] Encode locked fairness controls from `docs/spec/fairness-evaluation.md`:
+- [x] Encode locked fairness controls from `docs/spec/fairness-evaluation.md`:
   - [x] identical total worker slots,
   - [x] consistent deadlines/retries,
   - [x] fixed warm-up/measurement windows,
@@ -67,19 +67,19 @@ Definition of done:
   - [x] start_ts_ms, latency_ms, grpc_code,
   - [x] accepted/result_ready/already_terminal where applicable,
   - [x] concurrency, work_duration_ms, request_mix_profile, total_worker_slots.
-- [ ] Define summary outputs:
+- [x] Define summary outputs:
   - [x] per-method throughput,
   - [x] p50/p95/p99 latency,
   - [x] error-rate by grpc code,
-  - [ ] job terminal throughput.
+  - [x] job terminal throughput.
 
 Definition of done:
 - One run produces parseable artifacts suitable for A/B comparison scripts.
 
 ## 4) Runner and Reproducibility
 
-- [ ] Add run wrapper that orchestrates:
-  - [ ] stack health precheck,
+- [x] Add run wrapper that orchestrates:
+  - [x] stack health precheck,
   - [x] warm-up traffic (not recorded),
   - [x] measurement window (recorded),
   - [x] cool-down handling,

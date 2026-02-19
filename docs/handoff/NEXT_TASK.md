@@ -5,25 +5,23 @@
 
 ## Task summary
 
-Harden loadgen benchmark execution for report-quality runs by adding pre-run stack health validation, method-level latency precision improvements, and job-terminal throughput aggregation.
+Prevent accidental benchmark artifact overwrite when rerunning identical `(scenario_id, run_seed, repeat_index)` tuples in the same output directory.
 
 ## Why this task is next
 
-- Live benchmark traffic execution is now implemented and verified:
-  - deterministic mix scheduler + concurrency pacing,
-  - parity-method RPC adapter (`SubmitJob`, `GetJobStatus`, `GetJobResult`, `CancelJob`) with locked retry/deadline controls,
-  - measure-window row capture,
-  - per-method summary artifacts (throughput, p50/p95/p99 latency, grpc-code rates).
-- Remaining gap for polished benchmark runs is operational guardrails and one missing summary metric from temporary readiness tracking (`job terminal throughput`).
+- Report-quality loadgen hardening is now complete:
+  - pre-run health precheck gate exists in CLI,
+  - summary artifacts include job-terminal throughput,
+  - latency summaries avoid degenerate all-zero behavior in short live runs.
+- Remaining operational gap is reproducibility safety:
+  - deterministic run IDs currently make reruns replace prior artifacts silently.
 
 ## Scope (in)
 
-- Add stack precheck option to benchmark CLI before run start:
-  - Design A: gateway target health validation,
-  - Design B: all ordered target health validation.
-- Add job terminal throughput aggregation to summary artifacts.
-- Improve latency precision handling to avoid all-zero latency artifacts in short/fast runs.
-- Update docs/spec + handoff artifacts with final benchmark runbook expectations.
+- Add explicit collision policy for run directory creation in benchmark runner/CLI.
+- Support a safe default that preserves existing run artifacts.
+- Add an explicit override path for intentional replacement (for example `--overwrite`).
+- Update docs/handoff/runbook to reflect new collision behavior and operator guidance.
 
 ## Scope (out)
 
@@ -38,16 +36,14 @@ Harden loadgen benchmark execution for report-quality runs by adding pre-run sta
 
 ## Acceptance criteria (definition of done)
 
-- CLI can fail fast on unhealthy stack state when precheck is enabled.
-- Summary artifacts include job-terminal throughput metric.
-- Latency summaries show non-degenerate values for short live smoke scenarios.
+- Re-running the same scenario tuple does not silently overwrite existing artifacts by default.
+- Overwrite behavior (if selected) is explicit and documented.
 - Existing baseline unit/integration suites remain green.
 
 ## Verification checklist
 
-- [ ] Implement benchmark precheck mode in loadgen CLI.
-- [ ] Add job-terminal throughput summary output.
-- [ ] Improve latency precision in row/summary path.
+- [ ] Implement run-dir collision handling in loadgen runner/CLI.
+- [ ] Add/extend deterministic tests for collision policy.
 - [ ] Re-run `tests/test_loadgen_contracts.py`.
 - [ ] Re-run `tests/test_worker_report_retry.py`.
 - [ ] Re-run `tests/test_coordinator_report_outcome_idempotency.py`.
@@ -59,5 +55,5 @@ Harden loadgen benchmark execution for report-quality runs by adding pre-run sta
 
 ## Risks / rollback notes
 
-- Precheck false positives may block runs if health probe assumptions differ from deployment shape.
-- Latency precision changes can alter comparability with previously generated artifacts; note this explicitly in handoff.
+- Changing run-dir policy can impact downstream scripts expecting exact deterministic path naming.
+- If suffix-based preservation is used, analysis scripts must handle multiple runs per base tuple.

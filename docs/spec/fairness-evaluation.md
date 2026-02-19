@@ -311,6 +311,7 @@ Summary artifacts should include:
 - percentile tables by method/design/scenario
 - throughput tables by method/design/scenario
 - error-rate tables by code/design/scenario
+- job-terminal throughput (`unique_terminal_jobs`, `throughput_rps`)
 
 Benchmark contract reference (live-capable implementation):
 - `common/loadgen_contracts.py`
@@ -318,8 +319,9 @@ Benchmark contract reference (live-capable implementation):
   - `BenchmarkRunner` + `LiveTrafficEngine` (warm-up -> measure -> cool-down -> repeat flow with optional live phase execution)
   - `GrpcPublicApiAdapter` (parity-method execution with locked deadline/retry policy)
   - `BenchmarkRow` + JSONL/CSV row writers
-- summary artifacts: `summary.json`, `summary.csv` (throughput/latency/error-rate tables by method)
-- `scripts/loadgen/run_benchmark_scaffold.py` (`--live-traffic` enables live request execution)
+- summary artifacts: `summary.json`, `summary.csv` (throughput/latency/error-rate tables by method + job-terminal throughput)
+- latency precision: summary percentiles preserve sub-millisecond values (with a minimum floor for observed calls)
+- `scripts/loadgen/run_benchmark_scaffold.py` (`--live-traffic` enables live request execution, `--precheck-health` enables fail-fast stack health gating)
 
 ---
 

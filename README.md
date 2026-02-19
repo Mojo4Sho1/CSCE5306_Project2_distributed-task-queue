@@ -234,7 +234,7 @@ conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario sc
 Run live traffic artifacts:
 
 ```bash
-conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_live_smoke_short.json --output-dir results/loadgen --live-traffic
+conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_live_smoke_short.json --output-dir results/loadgen --live-traffic --precheck-health
 ```
 
 Artifacts are written per run under:
@@ -243,6 +243,11 @@ Artifacts are written per run under:
 - `results/loadgen/<scenario_id>/<run_id>/summary.json`
 - `results/loadgen/<scenario_id>/<run_id>/summary.csv`
 - `results/loadgen/<scenario_id>/<run_id>/metadata.json`
+
+Live benchmark hardening notes:
+- optional fail-fast precheck gate: `--precheck-health` (`--precheck-timeout-ms` override),
+- summary now includes job-terminal throughput aggregation (`unique_terminal_jobs`, `throughput_rps`),
+- latency percentiles keep sub-millisecond precision with a `0.001 ms` floor for observed calls.
 
 ## Live Smoke Workflow (Design A)
 

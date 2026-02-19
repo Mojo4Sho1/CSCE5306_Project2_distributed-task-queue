@@ -91,6 +91,9 @@ Container health timing policy:
 - `retries: 12`
 - `start_period: 20s`
 
+Loadgen pre-run gate:
+- `scripts/loadgen/run_benchmark_scaffold.py --precheck-health` probes all configured `design_b_ordered_targets` and fails fast if any ingress target is unreachable.
+
 ## Bring-up commands
 
 ```bash
