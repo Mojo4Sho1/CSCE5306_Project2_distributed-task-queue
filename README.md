@@ -16,6 +16,9 @@ Read `docs/_INDEX.md` first for:
 - navigation order,
 - and update rules.
 
+Benchmark analysis notebook:
+- `notebooks/benchmark_analysis.ipynb` (loadgen artifact analysis + plot scaffold)
+
 ## Project Scope (v1 Snapshot)
 
 - Communication model: gRPC + protobuf

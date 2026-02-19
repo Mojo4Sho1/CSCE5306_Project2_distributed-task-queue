@@ -61,6 +61,8 @@ If two sources conflict, use this precedence:
   Navigation, governance, and authority model.
 - **`README.md`**  
   Project overview, quickstart, and links to authoritative docs (including the practical A/B evaluation execution plan).
+- **`notebooks/benchmark_analysis.ipynb`**  
+  Starter notebook for loading benchmark artifacts and generating A/B comparison plots.
 - **`tests/_TEST_INDEX.md`**  
   Test taxonomy and canonical validation command matrix.
 - **`scripts/_SCRIPT_INDEX.md`**  
