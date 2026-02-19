@@ -35,7 +35,7 @@ Centralize and standardize internal RPC deadline/retry defaults across Design A 
 - Prefer explicit command form:
   - `conda run -n grpc python <script.py>`
   - `conda run -n grpc pytest` (if/when pytest suites are added)
-- Run Design A services via `docker compose up --build -d` before live smokes.
+- Run Design A services via `docker compose -f docker/docker-compose.design-a.yml up --build -d` before live smokes.
 
 ## Implementation notes
 
@@ -56,7 +56,7 @@ Centralize and standardize internal RPC deadline/retry defaults across Design A 
 
 - [ ] Implement shared internal deadline/retry defaults in common configuration/constants.
 - [ ] Verify conda execution path using `conda run -n grpc python -c "import grpc,sys; print(sys.executable)"`.
-- [ ] Run `docker compose up --build -d` and confirm healthy services with `docker compose ps`.
+- [ ] Run `docker compose -f docker/docker-compose.design-a.yml up --build -d` and confirm healthy services with `docker compose -f docker/docker-compose.design-a.yml ps`.
 - [ ] Run `conda run -n grpc python scripts/smoke_live_stack.py`.
 - [ ] Run `conda run -n grpc python scripts/smoke_integration_terminal_path.py`.
 - [ ] Record command outputs and residual risk notes in `docs/handoff/CURRENT_STATUS.md`.

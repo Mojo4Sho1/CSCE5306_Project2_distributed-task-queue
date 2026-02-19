@@ -75,13 +75,32 @@ Optional interactive shell:
 conda activate grpc
 ```
 
+## Docker Compose Helpers
+
+Design A compose file path:
+
+- `docker/docker-compose.design-a.yml`
+
+Helper commands:
+
+```bash
+docker compose -f docker/docker-compose.design-a.yml up --build -d
+docker compose -f docker/docker-compose.design-a.yml ps
+docker compose -f docker/docker-compose.design-a.yml logs --tail=100 worker coordinator gateway job queue result
+docker compose -f docker/docker-compose.design-a.yml down --remove-orphans
+```
+
+Practical note:
+
+- Since there is no root-level default `docker-compose.yml` now, include `-f <compose-file>` on compose commands.
+- This is intentional so Design A and Design B can use parallel naming and isolated topology files under `docker/`.
+
 ## Repository Structure
 
 ```text
 distributed-task-queue/
 |-- .gitignore
 |-- README.md
-|-- docker-compose.yml
 |-- common/
 |   |-- __init__.py
 |   |-- config.py
@@ -89,7 +108,8 @@ distributed-task-queue/
 |   |-- logging.py
 |   `-- time_utils.py
 |-- docker/
-|   `-- .gitkeep
+|   |-- .gitkeep
+|   `-- docker-compose.design-a.yml
 |-- docs/
 |   |-- INDEX.md
 |   |-- handoff/

@@ -1,12 +1,12 @@
 services:
   gateway:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile.runtime
     working_dir: /app
     command: ["python", "-m", "services.gateway.main"]
     volumes:
-      - ./:/app
+      - ../:/app
     environment:
       PYTHONUNBUFFERED: "1"
       LOG_LEVEL: "INFO"
@@ -31,12 +31,12 @@ services:
 
   job:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile.runtime
     working_dir: /app
     command: ["python", "-m", "services.job.main"]
     volumes:
-      - ./:/app
+      - ../:/app
     environment:
       PYTHONUNBUFFERED: "1"
       LOG_LEVEL: "INFO"
@@ -54,12 +54,12 @@ services:
 
   queue:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile.runtime
     working_dir: /app
     command: ["python", "-m", "services.queue.main"]
     volumes:
-      - ./:/app
+      - ../:/app
     environment:
       PYTHONUNBUFFERED: "1"
       LOG_LEVEL: "INFO"
@@ -77,12 +77,12 @@ services:
 
   coordinator:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile.runtime
     working_dir: /app
     command: ["python", "-m", "services.coordinator.main"]
     volumes:
-      - ./:/app
+      - ../:/app
     environment:
       PYTHONUNBUFFERED: "1"
       LOG_LEVEL: "INFO"
@@ -109,12 +109,12 @@ services:
 
   result:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile.runtime
     working_dir: /app
     command: ["python", "-m", "services.result.main"]
     volumes:
-      - ./:/app
+      - ../:/app
     environment:
       PYTHONUNBUFFERED: "1"
       LOG_LEVEL: "INFO"
@@ -132,12 +132,12 @@ services:
 
   worker:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile.runtime
     working_dir: /app
     command: ["python", "-m", "services.worker.main"]
     volumes:
-      - ./:/app
+      - ../:/app
     environment:
       PYTHONUNBUFFERED: "1"
       LOG_LEVEL: "INFO"

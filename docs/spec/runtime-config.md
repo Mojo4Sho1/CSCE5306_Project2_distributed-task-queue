@@ -9,6 +9,7 @@ This document defines the runtime wiring, environment configuration, startup/rea
   - runtime startup contract lock
   - healthcheck strategy lock
 - Design B (monolith-per-node) uses its own deployment topology; this file focuses on the six microservice functional nodes and their runtime behavior.
+- Design A compose file location: `docker/docker-compose.design-a.yml`.
 
 ---
 

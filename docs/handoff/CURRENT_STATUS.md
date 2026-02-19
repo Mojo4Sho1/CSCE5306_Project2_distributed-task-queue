@@ -27,8 +27,8 @@ Design A worker-runtime execution path terminalization through the real worker p
 ## Passing checks
 
 - `conda run -n grpc python -c "import grpc,sys; print(sys.executable)"`: PASS (`D:\Programming\anaconda3\envs\grpc\python.exe`)
-- `docker compose up --build -d`: PASS
-- `docker compose ps`: PASS
+- `docker compose -f docker/docker-compose.design-a.yml up --build -d`: PASS
+- `docker compose -f docker/docker-compose.design-a.yml ps`: PASS
   - `gateway`, `job`, `queue`, `coordinator`, `result`, `worker` all `Up (... healthy)`.
 - `conda run -n grpc python -m py_compile services/worker/worker.py scripts/smoke_integration_terminal_path.py`: PASS
 - `conda run -n grpc python scripts/smoke_live_stack.py`: PASS
@@ -47,7 +47,7 @@ Design A worker-runtime execution path terminalization through the real worker p
   - `gateway.GetJobStatus.terminal`: PASS (`DONE`)
   - `gateway.GetJobResult.terminal_ready`: PASS (`DONE` + checksum match)
   - `gateway.GetJobResult.worker_signature`: PASS
-- `docker compose logs worker | Select-String -Pattern "worker.execute.begin|worker.report.response|worker.execute.complete"`: PASS
+- `docker compose -f docker/docker-compose.design-a.yml logs worker | Select-String -Pattern "worker.execute.begin|worker.report.response|worker.execute.complete"`: PASS
   - execution + accepted outcome report observed for live submitted jobs.
 
 ## Known gaps/blockers
@@ -57,7 +57,7 @@ Design A worker-runtime execution path terminalization through the real worker p
 
 ## Timing/race observations
 
-- From `docker compose logs worker | Select-String -Pattern "worker.execute.begin|worker.report.response|worker.execute.complete"`:
+- From `docker compose -f docker/docker-compose.design-a.yml logs worker | Select-String -Pattern "worker.execute.begin|worker.report.response|worker.execute.complete"`:
   - `job_id=91278825-6b4e-4392-a85f-95e053d52add`: `worker.execute.begin` at `1771512969879`, `worker.report.response accepted=true` at `1771512970004` (~125ms end-to-end simulated execution + report).
   - `job_id=35d97f7a-1dc1-4600-9464-3b17a507a3a4`: same sequence completed on first report attempt.
 - In this run, no duplicate terminal outcome reports and no terminal-race rejection were observed in worker log sample.
