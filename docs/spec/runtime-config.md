@@ -54,6 +54,7 @@ This document defines the runtime wiring, environment configuration, startup/rea
 | `JOB_SERVICE_ADDR` | Yes | none | Upstream Job service address. |
 | `QUEUE_SERVICE_ADDR` | Yes | none | Upstream Queue service address. |
 | `RESULT_SERVICE_ADDR` | Yes | none | Upstream Result service address. |
+| `INTERNAL_RPC_TIMEOUT_MS` | No | `1000` | Default unary timeout for Gateway -> Job/Queue/Result internal RPCs. |
 
 ## Job
 
@@ -78,6 +79,7 @@ This document defines the runtime wiring, environment configuration, startup/rea
 | `RESULT_SERVICE_ADDR` | Yes | none | Upstream Result service address. |
 | `HEARTBEAT_INTERVAL_MS` | No | `1000` | Worker heartbeat cadence hint/expectation. |
 | `WORKER_TIMEOUT_MS` | No | `4000` | Liveness timeout threshold for worker unavailability. |
+| `INTERNAL_RPC_TIMEOUT_MS` | No | `1000` | Default unary timeout for Coordinator -> Job/Queue/Result internal RPCs. |
 
 ## Result
 
@@ -93,6 +95,13 @@ This document defines the runtime wiring, environment configuration, startup/rea
 | `COORDINATOR_ADDR` | Yes | none | Upstream Coordinator address. |
 | `WORKER_ID` | No | container hostname fallback | Stable worker identity for process lifetime. |
 | `HEARTBEAT_INTERVAL_MS` | No | `1000` | Worker heartbeat emit interval. |
+| `INTERNAL_RPC_TIMEOUT_MS` | No | `1000` | Default unary timeout for worker internal calls (for example `ReportWorkOutcome`). |
+| `FETCH_WORK_RPC_TIMEOUT_MS` | No | `1500` | Dedicated timeout for worker `FetchWork` calls. |
+| `WORKER_HEARTBEAT_RPC_TIMEOUT_MS` | No | `1000` | Dedicated timeout for worker `WorkerHeartbeat` calls. |
+| `REPORT_RETRY_INITIAL_DELAY_MS` | No | `100` | Initial backoff delay for worker outcome report retries. |
+| `REPORT_RETRY_MULTIPLIER` | No | `2.0` | Exponential multiplier for worker outcome report retry backoff. |
+| `REPORT_RETRY_MAX_DELAY_MS` | No | `1000` | Max backoff delay for worker outcome report retries. |
+| `REPORT_RETRY_MAX_ATTEMPTS` | No | `4` | Total attempts (initial + retries) for worker outcome report submission. |
 
 ---
 

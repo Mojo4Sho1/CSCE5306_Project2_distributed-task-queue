@@ -24,6 +24,15 @@ from pathlib import Path
 from typing import Any, Optional
 
 import grpc
+from common.rpc_defaults import (
+    FETCH_WORK_RPC_TIMEOUT_MS,
+    INTERNAL_UNARY_RPC_TIMEOUT_MS,
+    RETRY_INITIAL_DELAY_MS,
+    RETRY_MAX_ATTEMPTS,
+    RETRY_MAX_DELAY_MS,
+    RETRY_MULTIPLIER,
+    WORKER_HEARTBEAT_RPC_TIMEOUT_MS,
+)
 
 
 # -----------------------------------------------------------------------------
@@ -115,7 +124,13 @@ def _resolve_worker_config() -> Any:
         worker_id = ""
         heartbeat_interval_ms = 1000
         fetch_idle_sleep_ms = 200
-        rpc_timeout_ms = 1000
+        internal_rpc_timeout_ms = INTERNAL_UNARY_RPC_TIMEOUT_MS
+        fetch_work_timeout_ms = FETCH_WORK_RPC_TIMEOUT_MS
+        worker_heartbeat_timeout_ms = WORKER_HEARTBEAT_RPC_TIMEOUT_MS
+        report_retry_initial_backoff_ms = RETRY_INITIAL_DELAY_MS
+        report_retry_multiplier = RETRY_MULTIPLIER
+        report_retry_max_backoff_ms = RETRY_MAX_DELAY_MS
+        report_retry_max_attempts = RETRY_MAX_ATTEMPTS
 
     return _FallbackConfig()
 
@@ -202,10 +217,46 @@ class WorkerRuntime:
         self._worker_id = _resolve_worker_id(config)
         self._heartbeat_interval_ms = _coerce_int(getattr(config, "heartbeat_interval_ms", 1000), 1000)
         self._fetch_idle_sleep_ms = _coerce_int(getattr(config, "fetch_idle_sleep_ms", 200), 200)
-        self._rpc_timeout_s = max(_coerce_int(getattr(config, "rpc_timeout_ms", 1000), 1000), 1) / 1000.0
-        self._report_max_attempts = 4
-        self._report_initial_backoff_ms = 100
-        self._report_max_backoff_ms = 1000
+        self._internal_rpc_timeout_s = (
+            max(_coerce_int(getattr(config, "internal_rpc_timeout_ms", INTERNAL_UNARY_RPC_TIMEOUT_MS), INTERNAL_UNARY_RPC_TIMEOUT_MS), 1)
+            / 1000.0
+        )
+        self._fetch_work_timeout_s = (
+            max(_coerce_int(getattr(config, "fetch_work_timeout_ms", FETCH_WORK_RPC_TIMEOUT_MS), FETCH_WORK_RPC_TIMEOUT_MS), 1)
+            / 1000.0
+        )
+        self._heartbeat_timeout_s = (
+            max(
+                _coerce_int(
+                    getattr(config, "worker_heartbeat_timeout_ms", WORKER_HEARTBEAT_RPC_TIMEOUT_MS),
+                    WORKER_HEARTBEAT_RPC_TIMEOUT_MS,
+                ),
+                1,
+            )
+            / 1000.0
+        )
+        self._report_max_attempts = max(
+            _coerce_int(getattr(config, "report_retry_max_attempts", RETRY_MAX_ATTEMPTS), RETRY_MAX_ATTEMPTS),
+            1,
+        )
+        self._report_initial_backoff_ms = max(
+            _coerce_int(
+                getattr(config, "report_retry_initial_backoff_ms", RETRY_INITIAL_DELAY_MS),
+                RETRY_INITIAL_DELAY_MS,
+            ),
+            1,
+        )
+        self._report_max_backoff_ms = max(
+            _coerce_int(
+                getattr(config, "report_retry_max_backoff_ms", RETRY_MAX_DELAY_MS),
+                RETRY_MAX_DELAY_MS,
+            ),
+            self._report_initial_backoff_ms,
+        )
+        self._report_retry_multiplier = max(
+            float(getattr(config, "report_retry_multiplier", RETRY_MULTIPLIER)),
+            1.0,
+        )
 
         if self._heartbeat_interval_ms < 1:
             self._heartbeat_interval_ms = 1000
@@ -278,7 +329,7 @@ class WorkerRuntime:
                     heartbeat_at_ms=heartbeat_at_ms,
                     capacity_hint=1,
                 ),
-                timeout=self._rpc_timeout_s,
+                timeout=self._heartbeat_timeout_s,
             )
             _emit(
                 self._logger,
@@ -315,7 +366,7 @@ class WorkerRuntime:
         try:
             response = self._stub.FetchWork(
                 pb2.FetchWorkRequest(worker_id=self._worker_id),
-                timeout=self._rpc_timeout_s,
+                timeout=self._fetch_work_timeout_s,
             )
             assigned = bool(getattr(response, "assigned", False))
             retry_after_ms = int(getattr(response, "retry_after_ms", 0))
@@ -424,7 +475,7 @@ class WorkerRuntime:
                 attempt=attempt,
             )
             try:
-                response = self._stub.ReportWorkOutcome(request, timeout=self._rpc_timeout_s)
+                response = self._stub.ReportWorkOutcome(request, timeout=self._internal_rpc_timeout_s)
                 accepted = bool(getattr(response, "accepted", False))
                 _emit(
                     self._logger,
@@ -463,7 +514,10 @@ class WorkerRuntime:
                 self._stop_event.wait(wait_ms / 1000.0)
                 if self._stop_event.is_set():
                     return False
-                backoff_ms = min(backoff_ms * 2, self._report_max_backoff_ms)
+                backoff_ms = min(
+                    int(backoff_ms * self._report_retry_multiplier),
+                    self._report_max_backoff_ms,
+                )
 
         return False
 

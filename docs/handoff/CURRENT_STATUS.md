@@ -5,32 +5,43 @@
 
 ## Current focus
 
-Design A worker-runtime execution path terminalization through the real worker process.
+Design A internal RPC deadline/retry default centralization across Gateway/Coordinator/Worker.
 
 ## Completed in current focus
 
-- Implemented real assignment handling in `services/worker/worker.py`:
-  - deterministic runtime simulation for assigned jobs,
-  - deterministic output envelope generation,
-  - checksum generation (`sha256(output_bytes)`),
-  - `ReportWorkOutcome` submission to Coordinator,
-  - bounded report retry with exponential backoff (`100ms`, `200ms`, `400ms`, cap `1000ms`, max `4` attempts).
-- Preserved worker heartbeat/fetch control loop and integrated execution/reporting into the same deterministic loop.
-- Updated `scripts/smoke_integration_terminal_path.py` to validate terminalization through the actual worker process:
-  - submit via Gateway only,
-  - observe `RUNNING` state at least once,
-  - observe terminal state,
-  - verify `GetJobResult` readiness and checksum correctness,
-  - verify worker signature appears in terminal `output_summary`.
-- Retained and re-ran `scripts/smoke_live_stack.py` for baseline API/internal reachability coverage.
+- Added shared RPC default authority in `common/rpc_defaults.py`:
+  - internal unary deadline default (`1000 ms`),
+  - worker `FetchWork` deadline default (`1500 ms`),
+  - worker `WorkerHeartbeat` deadline default (`1000 ms`),
+  - locked retry profile defaults (`100 ms`, `2.0`, cap `1000 ms`, max attempts `4`),
+  - shared `FetchWork` retry-after bounds (`200/50/1000 ms`).
+- Extended typed config in `common/config.py`:
+  - `GatewayConfig.internal_rpc_timeout_ms`,
+  - `CoordinatorConfig.internal_rpc_timeout_ms`,
+  - `WorkerConfig` timeout/retry fields:
+    - `internal_rpc_timeout_ms`,
+    - `fetch_work_timeout_ms`,
+    - `worker_heartbeat_timeout_ms`,
+    - `report_retry_initial_backoff_ms`,
+    - `report_retry_multiplier`,
+    - `report_retry_max_backoff_ms`,
+    - `report_retry_max_attempts`.
+- Replaced call-site timeout literals and missing deadlines:
+  - `services/gateway/servicer.py` now uses config-backed shared downstream timeout for all Job/Queue/Result calls.
+  - `services/coordinator/servicer.py` now applies shared timeout to all downstream unary calls (Queue/Job/Result).
+  - `services/worker/worker.py` now uses dedicated per-method timeouts (`heartbeat`, `fetch`, `report`) and shared retry defaults with configurable multiplier/caps.
+- Updated spec docs for new config surface:
+  - `docs/spec/runtime-config.md`
+  - `docs/spec/constants.md`
 
 ## Passing checks
 
+- Run timestamp anchor: `2026-02-19 10:15:18 -06:00` (local host clock).
 - `conda run -n grpc python -c "import grpc,sys; print(sys.executable)"`: PASS (`D:\Programming\anaconda3\envs\grpc\python.exe`)
+- `conda run -n grpc python -m py_compile common/rpc_defaults.py common/config.py common/__init__.py services/gateway/servicer.py services/coordinator/servicer.py services/worker/worker.py`: PASS
 - `docker compose -f docker/docker-compose.design-a.yml up --build -d`: PASS
 - `docker compose -f docker/docker-compose.design-a.yml ps`: PASS
   - `gateway`, `job`, `queue`, `coordinator`, `result`, `worker` all `Up (... healthy)`.
-- `conda run -n grpc python -m py_compile services/worker/worker.py scripts/smoke_integration_terminal_path.py`: PASS
 - `conda run -n grpc python scripts/smoke_live_stack.py`: PASS
   - `gateway.SubmitJob`: PASS
   - `gateway.GetJobStatus`: PASS
@@ -47,28 +58,24 @@ Design A worker-runtime execution path terminalization through the real worker p
   - `gateway.GetJobStatus.terminal`: PASS (`DONE`)
   - `gateway.GetJobResult.terminal_ready`: PASS (`DONE` + checksum match)
   - `gateway.GetJobResult.worker_signature`: PASS
-- `docker compose -f docker/docker-compose.design-a.yml logs worker | Select-String -Pattern "worker.execute.begin|worker.report.response|worker.execute.complete"`: PASS
-  - execution + accepted outcome report observed for live submitted jobs.
 
 ## Known gaps/blockers
 
-- Gateway/Coordinator/Worker unary deadlines and retry knobs remain partially hard-coded at call sites and are not yet centralized in shared constants/config.
-- No dedicated failure-path smoke for worker-reported `FAILED` outcome yet; current live smoke validates deterministic success path terminalization.
+- No dedicated failure-path smoke exists yet for worker-reported `FAILED` outcomes; current integration validation still exercises deterministic success-path terminalization.
+- Worker retry implementation remains deterministic exponential backoff without explicit jitter injection (locked defaults are preserved for initial/multiplier/cap/attempts, but jitter behavior is not yet modeled).
 
 ## Timing/race observations
 
-- From `docker compose -f docker/docker-compose.design-a.yml logs worker | Select-String -Pattern "worker.execute.begin|worker.report.response|worker.execute.complete"`:
-  - `job_id=91278825-6b4e-4392-a85f-95e053d52add`: `worker.execute.begin` at `1771512969879`, `worker.report.response accepted=true` at `1771512970004` (~125ms end-to-end simulated execution + report).
-  - `job_id=35d97f7a-1dc1-4600-9464-3b17a507a3a4`: same sequence completed on first report attempt.
-- In this run, no duplicate terminal outcome reports and no terminal-race rejection were observed in worker log sample.
+- Integration smoke terminal path remained stable after timeout centralization; both submitted jobs observed `RUNNING` and then terminalized, with checksum validation passing on first sampled terminal result.
+- No downstream deadline-related regressions surfaced in live stack smoke or integration terminal-path smoke in this run.
 
 ## Next task (single target)
 
-Centralize internal RPC deadline/retry defaults and apply them consistently across Gateway/Coordinator/Worker call sites.
+Add and validate a worker failure-path integration smoke that drives `RUNNING -> FAILED` terminalization and verifies `GetJobResult` failure envelope semantics.
 
 ## Definition of done for next task
 
-- Shared constants/config own default unary deadlines and retry profile values used by Gateway/Coordinator/Worker internal clients.
-- Service call sites use shared defaults (with clear override points) instead of scattered literals.
-- Live smokes still pass with no behavioral regression.
-- Handoff/spec/runtime docs reflect any config-surface changes.
+- A dedicated smoke test (or extension of existing integration smoke) covers worker outcome `FAILED`.
+- Validation includes canonical status terminalization to `FAILED`, result envelope readiness, and deterministic failure-reason propagation.
+- Existing success-path smokes continue to pass.
+- Handoff docs updated with exact command evidence and residual risks.

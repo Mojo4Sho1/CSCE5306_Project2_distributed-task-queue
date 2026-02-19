@@ -4,6 +4,7 @@ import logging
 from typing import Any, Optional
 
 import grpc
+from common.rpc_defaults import INTERNAL_UNARY_RPC_TIMEOUT_MS
 
 try:
     # Preferred when PYTHONPATH includes ./generated
@@ -33,7 +34,6 @@ _TERMINAL_STATUSES = {
     pb2.CANCELED,
 }
 
-_DOWNSTREAM_RPC_TIMEOUT_S = 1.0
 _CANCEL_RESULT_SUMMARY_DEFAULT = "canceled_by_user"
 
 
@@ -56,6 +56,8 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         self._job_client = job_client
         self._queue_client = queue_client
         self._result_client = result_client
+        timeout_ms = int(getattr(config, "internal_rpc_timeout_ms", INTERNAL_UNARY_RPC_TIMEOUT_MS))
+        self._downstream_rpc_timeout_s = max(timeout_ms, 1) / 1000.0
         self._init_clients()
 
     def _init_clients(self) -> None:
@@ -157,7 +159,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         try:
             return self._job_client.GetJobRecord(  # type: ignore[union-attr]
                 internal_pb2.GetJobRecordRequest(job_id=job_id),
-                timeout=_DOWNSTREAM_RPC_TIMEOUT_S,
+                timeout=self._downstream_rpc_timeout_s,
             )
         except grpc.RpcError as exc:
             self._map_downstream_error(context, operation=operation, exc=exc, job_id=job_id)
@@ -180,7 +182,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
                     output_bytes=b"",
                     checksum="",
                 ),
-                timeout=_DOWNSTREAM_RPC_TIMEOUT_S,
+                timeout=self._downstream_rpc_timeout_s,
             )
         except grpc.RpcError as exc:
             self._map_downstream_error(context, operation="Result.StoreResult", exc=exc, job_id=job_id)
@@ -204,7 +206,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
                     cancel_requested=True,
                     reason=reason,
                 ),
-                timeout=_DOWNSTREAM_RPC_TIMEOUT_S,
+                timeout=self._downstream_rpc_timeout_s,
             )
         except grpc.RpcError as exc:
             self._map_downstream_error(context, operation="Job.SetCancelRequested", exc=exc, job_id=job_id)
@@ -219,7 +221,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
                     job_id=job_id,
                     expected_status=pb2.QUEUED,
                 ),
-                timeout=_DOWNSTREAM_RPC_TIMEOUT_S,
+                timeout=self._downstream_rpc_timeout_s,
             )
             if not resp.deleted:
                 self._logger.error(
@@ -250,7 +252,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
                     spec=request.spec,
                     client_request_id=request.client_request_id,
                 ),
-                timeout=_DOWNSTREAM_RPC_TIMEOUT_S,
+                timeout=self._downstream_rpc_timeout_s,
             )
         except grpc.RpcError as exc:
             self._map_downstream_error(context, operation="Job.CreateJob", exc=exc)
@@ -269,7 +271,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
                         job_id=job_id,
                         enqueued_at_ms=now_ms(),
                     ),
-                    timeout=_DOWNSTREAM_RPC_TIMEOUT_S,
+                    timeout=self._downstream_rpc_timeout_s,
                 )
             except grpc.RpcError:
                 self._attempt_submit_compensation(job_id)
@@ -341,7 +343,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         try:
             result = self._result_client.GetResult(  # type: ignore[union-attr]
                 internal_pb2.GetResultRequest(job_id=job_id),
-                timeout=_DOWNSTREAM_RPC_TIMEOUT_S,
+                timeout=self._downstream_rpc_timeout_s,
             )
         except grpc.RpcError as exc:
             self._map_downstream_error(context, operation="Result.GetResult", exc=exc, job_id=job_id)
@@ -408,7 +410,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
             try:
                 rm = self._queue_client.RemoveJobIfPresent(  # type: ignore[union-attr]
                     internal_pb2.RemoveJobIfPresentRequest(job_id=job_id),
-                    timeout=_DOWNSTREAM_RPC_TIMEOUT_S,
+                    timeout=self._downstream_rpc_timeout_s,
                 )
             except grpc.RpcError as exc:
                 self._map_downstream_error(context, operation="Queue.RemoveJobIfPresent", exc=exc, job_id=job_id)
@@ -427,7 +429,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
                             actor="gateway",
                             reason=reason,
                         ),
-                        timeout=_DOWNSTREAM_RPC_TIMEOUT_S,
+                        timeout=self._downstream_rpc_timeout_s,
                     )
                 except grpc.RpcError as exc:
                     self._map_downstream_error(context, operation="Job.TransitionJobStatus", exc=exc, job_id=job_id)
@@ -494,7 +496,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
                     page=request.page,
                     sort=request.sort,
                 ),
-                timeout=_DOWNSTREAM_RPC_TIMEOUT_S,
+                timeout=self._downstream_rpc_timeout_s,
             )
         except grpc.RpcError as exc:
             self._map_downstream_error(context, operation="Job.ListJobRecords", exc=exc)

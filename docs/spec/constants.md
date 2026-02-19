@@ -223,6 +223,13 @@ Recommended fields:
 | `LOG_LEVEL` | `INFO` |
 | `PYTHONUNBUFFERED` | `1` |
 | `WORKER_ID` | Container hostname fallback when unset |
+| `INTERNAL_RPC_TIMEOUT_MS` | `1000` |
+| `FETCH_WORK_RPC_TIMEOUT_MS` | `1500` |
+| `WORKER_HEARTBEAT_RPC_TIMEOUT_MS` | `1000` |
+| `REPORT_RETRY_INITIAL_DELAY_MS` | `100` |
+| `REPORT_RETRY_MULTIPLIER` | `2.0` |
+| `REPORT_RETRY_MAX_DELAY_MS` | `1000` |
+| `REPORT_RETRY_MAX_ATTEMPTS` | `4` |
 
 ---
 

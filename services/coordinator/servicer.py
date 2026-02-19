@@ -5,6 +5,12 @@ import threading
 from typing import Optional
 
 import grpc
+from common.rpc_defaults import (
+    FETCHWORK_RETRY_AFTER_DEFAULT_MS,
+    FETCHWORK_RETRY_AFTER_MAX_MS,
+    FETCHWORK_RETRY_AFTER_MIN_MS,
+    INTERNAL_UNARY_RPC_TIMEOUT_MS,
+)
 
 try:
     # Preferred when PYTHONPATH includes ./generated
@@ -26,10 +32,6 @@ except Exception:  # pragma: no cover
     def now_ms() -> int:
         return int(time.time() * 1000)
 
-
-_FETCHWORK_RETRY_AFTER_DEFAULT_MS = 200
-_FETCHWORK_RETRY_AFTER_MIN_MS = 50
-_FETCHWORK_RETRY_AFTER_MAX_MS = 1000
 
 _OUTCOME_TO_TERMINAL_STATUS = {
     public_pb2.JOB_OUTCOME_SUCCEEDED: public_pb2.DONE,
@@ -68,7 +70,9 @@ class CoordinatorServicer(pb2_grpc.CoordinatorInternalServiceServicer):
         self._logger = logger or logging.getLogger("coordinator.servicer")
         self._heartbeat_interval_ms = int(getattr(config, "heartbeat_interval_ms", 1000))
         self._worker_timeout_ms = int(getattr(config, "worker_timeout_ms", 4000))
-        self._retry_after_ms = self._clamp_retry_after(_FETCHWORK_RETRY_AFTER_DEFAULT_MS)
+        self._retry_after_ms = self._clamp_retry_after(FETCHWORK_RETRY_AFTER_DEFAULT_MS)
+        timeout_ms = int(getattr(config, "internal_rpc_timeout_ms", INTERNAL_UNARY_RPC_TIMEOUT_MS))
+        self._internal_rpc_timeout_s = max(timeout_ms, 1) / 1000.0
 
         self._lock = threading.RLock()
         self._workers: dict[str, _WorkerState] = {}
@@ -106,7 +110,7 @@ class CoordinatorServicer(pb2_grpc.CoordinatorInternalServiceServicer):
         context.set_details(detail)
 
     def _clamp_retry_after(self, value: int) -> int:
-        return max(_FETCHWORK_RETRY_AFTER_MIN_MS, min(int(value), _FETCHWORK_RETRY_AFTER_MAX_MS))
+        return max(FETCHWORK_RETRY_AFTER_MIN_MS, min(int(value), FETCHWORK_RETRY_AFTER_MAX_MS))
 
     def _prune_expired_workers_locked(self, now_ts_ms: int) -> None:
         expired = [
@@ -171,7 +175,10 @@ class CoordinatorServicer(pb2_grpc.CoordinatorInternalServiceServicer):
             return pb2.FetchWorkResponse(assigned=False, job_id="", retry_after_ms=self._retry_after_ms)
 
         try:
-            dequeued = self._queue_client.DequeueJob(pb2.DequeueJobRequest(worker_id=worker_id))
+            dequeued = self._queue_client.DequeueJob(
+                pb2.DequeueJobRequest(worker_id=worker_id),
+                timeout=self._internal_rpc_timeout_s,
+            )
         except grpc.RpcError as exc:
             self._set_error(context, grpc.StatusCode.UNAVAILABLE, f"queue dequeue failed: {exc.code().name}")
             return pb2.FetchWorkResponse(assigned=False, job_id="", retry_after_ms=self._retry_after_ms)
@@ -188,7 +195,8 @@ class CoordinatorServicer(pb2_grpc.CoordinatorInternalServiceServicer):
                     to_status=public_pb2.RUNNING,
                     actor="coordinator",
                     reason="dispatch",
-                )
+                ),
+                timeout=self._internal_rpc_timeout_s,
             )
         except grpc.RpcError as exc:
             self._set_error(context, grpc.StatusCode.UNAVAILABLE, f"job transition failed: {exc.code().name}")
@@ -196,10 +204,14 @@ class CoordinatorServicer(pb2_grpc.CoordinatorInternalServiceServicer):
 
         if not transitioned.applied:
             try:
-                record = self._job_client.GetJobRecord(pb2.GetJobRecordRequest(job_id=job_id))
+                record = self._job_client.GetJobRecord(
+                    pb2.GetJobRecordRequest(job_id=job_id),
+                    timeout=self._internal_rpc_timeout_s,
+                )
                 if record.summary.status == public_pb2.QUEUED:
                     self._queue_client.EnqueueJob(
-                        pb2.EnqueueJobRequest(job_id=job_id, enqueued_at_ms=now_ms())
+                        pb2.EnqueueJobRequest(job_id=job_id, enqueued_at_ms=now_ms()),
+                        timeout=self._internal_rpc_timeout_s,
                     )
             except grpc.RpcError:
                 # Rescue path is best effort; avoid surfacing additional hard error here.
@@ -207,7 +219,10 @@ class CoordinatorServicer(pb2_grpc.CoordinatorInternalServiceServicer):
             return pb2.FetchWorkResponse(assigned=False, job_id="", retry_after_ms=self._retry_after_ms)
 
         try:
-            record = self._job_client.GetJobRecord(pb2.GetJobRecordRequest(job_id=job_id))
+            record = self._job_client.GetJobRecord(
+                pb2.GetJobRecordRequest(job_id=job_id),
+                timeout=self._internal_rpc_timeout_s,
+            )
         except grpc.RpcError as exc:
             self._set_error(context, grpc.StatusCode.UNAVAILABLE, f"job read failed: {exc.code().name}")
             return pb2.FetchWorkResponse(assigned=False, job_id="", retry_after_ms=self._retry_after_ms)
@@ -258,7 +273,8 @@ class CoordinatorServicer(pb2_grpc.CoordinatorInternalServiceServicer):
                     output_summary=request.output_summary,
                     output_bytes=request.output_bytes,
                     checksum=request.checksum,
-                )
+                ),
+                timeout=self._internal_rpc_timeout_s,
             )
         except grpc.RpcError as exc:
             self._set_error(context, grpc.StatusCode.UNAVAILABLE, f"result store failed: {exc.code().name}")
@@ -273,7 +289,8 @@ class CoordinatorServicer(pb2_grpc.CoordinatorInternalServiceServicer):
                     to_status=terminal_status,
                     actor="coordinator",
                     reason=transition_reason,
-                )
+                ),
+                timeout=self._internal_rpc_timeout_s,
             )
         except grpc.RpcError as exc:
             self._set_error(context, grpc.StatusCode.UNAVAILABLE, f"job transition failed: {exc.code().name}")

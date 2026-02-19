@@ -13,6 +13,16 @@ import os
 from dataclasses import dataclass
 from typing import Optional, Union
 
+from .rpc_defaults import (
+    FETCH_WORK_RPC_TIMEOUT_MS,
+    INTERNAL_UNARY_RPC_TIMEOUT_MS,
+    RETRY_INITIAL_DELAY_MS,
+    RETRY_MAX_ATTEMPTS,
+    RETRY_MAX_DELAY_MS,
+    RETRY_MULTIPLIER,
+    WORKER_HEARTBEAT_RPC_TIMEOUT_MS,
+)
+
 
 # ---------------------------------------------------------------------------
 # Public exception
@@ -42,6 +52,7 @@ class GatewayConfig(BaseServiceConfig):
     job_addr: str
     queue_addr: str
     result_addr: str
+    internal_rpc_timeout_ms: int
 
 
 @dataclass(frozen=True)
@@ -61,6 +72,7 @@ class CoordinatorConfig(BaseServiceConfig):
     result_addr: str
     heartbeat_interval_ms: int
     worker_timeout_ms: int
+    internal_rpc_timeout_ms: int
 
 
 @dataclass(frozen=True)
@@ -69,6 +81,13 @@ class WorkerConfig(BaseServiceConfig):
     worker_id: str
     heartbeat_interval_ms: int
     fetch_idle_sleep_ms: int
+    internal_rpc_timeout_ms: int
+    fetch_work_timeout_ms: int
+    worker_heartbeat_timeout_ms: int
+    report_retry_initial_backoff_ms: int
+    report_retry_multiplier: float
+    report_retry_max_backoff_ms: int
+    report_retry_max_attempts: int
 
 
 @dataclass(frozen=True)
@@ -205,12 +224,14 @@ def load_service_config(service_name: Optional[str] = None) -> ServiceConfig:
     gateway_job_addr: Optional[str] = None
     gateway_queue_addr: Optional[str] = None
     gateway_result_addr: Optional[str] = None
+    gateway_internal_rpc_timeout_ms: Optional[int] = None
 
     coordinator_job_addr: Optional[str] = None
     coordinator_queue_addr: Optional[str] = None
     coordinator_result_addr: Optional[str] = None
     heartbeat_interval_ms: Optional[int] = None
     worker_timeout_ms: Optional[int] = None
+    coordinator_internal_rpc_timeout_ms: Optional[int] = None
 
     max_dedup_keys: Optional[int] = None
 
@@ -218,6 +239,13 @@ def load_service_config(service_name: Optional[str] = None) -> ServiceConfig:
     worker_id: str = ""
     worker_heartbeat_interval_ms: Optional[int] = None
     fetch_idle_sleep_ms: Optional[int] = None
+    worker_internal_rpc_timeout_ms: Optional[int] = None
+    worker_fetch_work_timeout_ms: Optional[int] = None
+    worker_heartbeat_rpc_timeout_ms: Optional[int] = None
+    worker_report_retry_initial_backoff_ms: Optional[int] = None
+    worker_report_retry_multiplier: Optional[float] = None
+    worker_report_retry_max_backoff_ms: Optional[int] = None
+    worker_report_retry_max_attempts: Optional[int] = None
     max_output_bytes: Optional[int] = None
 
     if resolved_name == "gateway":
@@ -231,6 +259,13 @@ def load_service_config(service_name: Optional[str] = None) -> ServiceConfig:
         gateway_job_addr = _get_required_addr("JOB_SERVICE_ADDR", errors)
         gateway_queue_addr = _get_required_addr("QUEUE_SERVICE_ADDR", errors)
         gateway_result_addr = _get_required_addr("RESULT_SERVICE_ADDR", errors)
+        gateway_internal_rpc_timeout_ms = _get_optional_int(
+            "INTERNAL_RPC_TIMEOUT_MS",
+            default=INTERNAL_UNARY_RPC_TIMEOUT_MS,
+            errors=errors,
+            min_value=1,
+            max_value=None,
+        )
 
     elif resolved_name == "coordinator":
         port = _get_optional_int(
@@ -258,6 +293,13 @@ def load_service_config(service_name: Optional[str] = None) -> ServiceConfig:
             min_value=1,
             max_value=None,
         )
+        coordinator_internal_rpc_timeout_ms = _get_optional_int(
+            "INTERNAL_RPC_TIMEOUT_MS",
+            default=INTERNAL_UNARY_RPC_TIMEOUT_MS,
+            errors=errors,
+            min_value=1,
+            max_value=None,
+        )
 
     elif resolved_name == "worker":
         # Worker has no inbound business RPC in v1; keep base port as n/a sentinel.
@@ -274,6 +316,55 @@ def load_service_config(service_name: Optional[str] = None) -> ServiceConfig:
         fetch_idle_sleep_ms = _get_optional_int(
             "FETCH_IDLE_SLEEP_MS",
             default=200,
+            errors=errors,
+            min_value=1,
+            max_value=None,
+        )
+        worker_internal_rpc_timeout_ms = _get_optional_int(
+            "INTERNAL_RPC_TIMEOUT_MS",
+            default=INTERNAL_UNARY_RPC_TIMEOUT_MS,
+            errors=errors,
+            min_value=1,
+            max_value=None,
+        )
+        worker_fetch_work_timeout_ms = _get_optional_int(
+            "FETCH_WORK_RPC_TIMEOUT_MS",
+            default=FETCH_WORK_RPC_TIMEOUT_MS,
+            errors=errors,
+            min_value=1,
+            max_value=None,
+        )
+        worker_heartbeat_rpc_timeout_ms = _get_optional_int(
+            "WORKER_HEARTBEAT_RPC_TIMEOUT_MS",
+            default=WORKER_HEARTBEAT_RPC_TIMEOUT_MS,
+            errors=errors,
+            min_value=1,
+            max_value=None,
+        )
+        worker_report_retry_initial_backoff_ms = _get_optional_int(
+            "REPORT_RETRY_INITIAL_DELAY_MS",
+            default=RETRY_INITIAL_DELAY_MS,
+            errors=errors,
+            min_value=1,
+            max_value=None,
+        )
+        worker_report_retry_multiplier = _get_optional_float(
+            "REPORT_RETRY_MULTIPLIER",
+            default=RETRY_MULTIPLIER,
+            errors=errors,
+            min_value=1.0,
+            max_value=None,
+        )
+        worker_report_retry_max_backoff_ms = _get_optional_int(
+            "REPORT_RETRY_MAX_DELAY_MS",
+            default=RETRY_MAX_DELAY_MS,
+            errors=errors,
+            min_value=1,
+            max_value=None,
+        )
+        worker_report_retry_max_attempts = _get_optional_int(
+            "REPORT_RETRY_MAX_ATTEMPTS",
+            default=RETRY_MAX_ATTEMPTS,
             errors=errors,
             min_value=1,
             max_value=None,
@@ -341,11 +432,13 @@ def load_service_config(service_name: Optional[str] = None) -> ServiceConfig:
         assert gateway_job_addr is not None
         assert gateway_queue_addr is not None
         assert gateway_result_addr is not None
+        assert gateway_internal_rpc_timeout_ms is not None
         return GatewayConfig(
             **base_kwargs,
             job_addr=gateway_job_addr,
             queue_addr=gateway_queue_addr,
             result_addr=gateway_result_addr,
+            internal_rpc_timeout_ms=gateway_internal_rpc_timeout_ms,
         )
 
     if resolved_name == "job":
@@ -361,6 +454,7 @@ def load_service_config(service_name: Optional[str] = None) -> ServiceConfig:
         assert coordinator_result_addr is not None
         assert heartbeat_interval_ms is not None
         assert worker_timeout_ms is not None
+        assert coordinator_internal_rpc_timeout_ms is not None
         return CoordinatorConfig(
             **base_kwargs,
             job_addr=coordinator_job_addr,
@@ -368,18 +462,33 @@ def load_service_config(service_name: Optional[str] = None) -> ServiceConfig:
             result_addr=coordinator_result_addr,
             heartbeat_interval_ms=heartbeat_interval_ms,
             worker_timeout_ms=worker_timeout_ms,
+            internal_rpc_timeout_ms=coordinator_internal_rpc_timeout_ms,
         )
 
     if resolved_name == "worker":
         assert worker_coordinator_addr is not None
         assert worker_heartbeat_interval_ms is not None
         assert fetch_idle_sleep_ms is not None
+        assert worker_internal_rpc_timeout_ms is not None
+        assert worker_fetch_work_timeout_ms is not None
+        assert worker_heartbeat_rpc_timeout_ms is not None
+        assert worker_report_retry_initial_backoff_ms is not None
+        assert worker_report_retry_multiplier is not None
+        assert worker_report_retry_max_backoff_ms is not None
+        assert worker_report_retry_max_attempts is not None
         return WorkerConfig(
             **base_kwargs,
             coordinator_addr=worker_coordinator_addr,
             worker_id=worker_id,
             heartbeat_interval_ms=worker_heartbeat_interval_ms,
             fetch_idle_sleep_ms=fetch_idle_sleep_ms,
+            internal_rpc_timeout_ms=worker_internal_rpc_timeout_ms,
+            fetch_work_timeout_ms=worker_fetch_work_timeout_ms,
+            worker_heartbeat_timeout_ms=worker_heartbeat_rpc_timeout_ms,
+            report_retry_initial_backoff_ms=worker_report_retry_initial_backoff_ms,
+            report_retry_multiplier=worker_report_retry_multiplier,
+            report_retry_max_backoff_ms=worker_report_retry_max_backoff_ms,
+            report_retry_max_attempts=worker_report_retry_max_attempts,
         )
 
     if resolved_name == "result":
@@ -482,12 +591,47 @@ def _get_optional_int(
     return value
 
 
+def _get_optional_float(
+    name: str,
+    default: float,
+    errors: list[str],
+    min_value: Optional[float] = None,
+    max_value: Optional[float] = None,
+) -> float:
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        value = default
+    else:
+        raw_str = raw.strip()
+        try:
+            value = float(raw_str)
+        except ValueError:
+            errors.append(f"{name}={raw_str!r} must be a float")
+            return default
+
+    _validate_float_range(name, value, errors, min_value=min_value, max_value=max_value)
+    return value
+
+
 def _validate_int_range(
     name: str,
     value: int,
     errors: list[str],
     min_value: Optional[int] = None,
     max_value: Optional[int] = None,
+) -> None:
+    if min_value is not None and value < min_value:
+        errors.append(f"{name}={value} must be >= {min_value}")
+    if max_value is not None and value > max_value:
+        errors.append(f"{name}={value} must be <= {max_value}")
+
+
+def _validate_float_range(
+    name: str,
+    value: float,
+    errors: list[str],
+    min_value: Optional[float] = None,
+    max_value: Optional[float] = None,
 ) -> None:
     if min_value is not None and value < min_value:
         errors.append(f"{name}={value} must be >= {min_value}")

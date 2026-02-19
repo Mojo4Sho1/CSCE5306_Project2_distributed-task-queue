@@ -5,21 +5,21 @@
 
 ## Task summary
 
-Centralize and standardize internal RPC deadline/retry defaults across Design A services.
+Add a failure-path integration smoke for worker-reported `FAILED` outcomes and validate terminal/result semantics end-to-end.
 
 ## Why this task is next
 
-- Live-stack Gateway/control-plane integration smoke coverage now passes.
-- Real worker execution/reporting terminalization now passes in live stack.
-- The highest remaining reliability gap is drift-prone hard-coded deadline/retry literals in internal client call paths.
+- Internal RPC deadline/retry defaults are now centralized and wired through shared config/constants.
+- Live-stack and terminal-path success smokes pass after centralization.
+- The main remaining behavior coverage gap is missing end-to-end validation for the `RUNNING -> FAILED` path.
 
 ## Scope (in)
 
-- Identify all internal unary RPC call paths in Gateway/Coordinator/Worker using literal timeout values.
-- Introduce shared deadline/retry defaults via common config/constants without changing proto contracts.
-- Apply shared defaults consistently at call sites while preserving current behavior.
-- Validate no regression via existing live smokes.
-- Document resulting config surface and residual risks.
+- Add a deterministic way to exercise a worker failure outcome in integration testing (without proto changes).
+- Validate `RUNNING -> FAILED` canonical terminalization through Gateway APIs.
+- Validate `GetJobResult` returns terminal envelope with failure-consistent summary/reason fields.
+- Re-run existing success-path live smokes to ensure no regression.
+- Record exact evidence and residual risks in handoff docs.
 
 ## Scope (out)
 
@@ -41,28 +41,30 @@ Centralize and standardize internal RPC deadline/retry defaults across Design A 
 
 - Treat `docs/spec/state-machine.md` and `docs/spec/error-idempotency.md` as primary lock references for integration drift triage.
 - Preserve canonical-status-first logic for result readiness in all integration checks.
-- Keep retry profile aligned to locked defaults (`100ms`, `2.0`, cap `1000ms`, max `4` attempts).
-- Keep behavior changes non-breaking for existing compose/env defaults.
+- Keep behavior non-breaking for existing compose/env defaults.
+- Failure-path validation should assert terminal/result consistency invariants, not just gRPC reachability.
 
 ## Acceptance criteria (definition of done)
 
-- Internal timeout/retry literals are removed or minimized in Gateway/Coordinator/Worker in favor of shared defaults.
+- Dedicated failure-path smoke evidence exists for worker-reported `FAILED`.
 - `conda run -n grpc python scripts/smoke_live_stack.py` passes.
 - `conda run -n grpc python scripts/smoke_integration_terminal_path.py` passes.
+- New/updated failure-path smoke passes.
 - Any failures are documented with exact commands, timestamps, and root-cause hypothesis in `CURRENT_STATUS.md`.
 - Handoff/runtime docs updated with concrete pass/fail evidence and residual risks.
 
 ## Verification checklist
 
-- [ ] Implement shared internal deadline/retry defaults in common configuration/constants.
+- [ ] Implement deterministic failure-path integration smoke coverage for worker outcome `FAILED`.
 - [ ] Verify conda execution path using `conda run -n grpc python -c "import grpc,sys; print(sys.executable)"`.
 - [ ] Run `docker compose -f docker/docker-compose.design-a.yml up --build -d` and confirm healthy services with `docker compose -f docker/docker-compose.design-a.yml ps`.
 - [ ] Run `conda run -n grpc python scripts/smoke_live_stack.py`.
 - [ ] Run `conda run -n grpc python scripts/smoke_integration_terminal_path.py`.
+- [ ] Run new/updated failure-path smoke command.
 - [ ] Record command outputs and residual risk notes in `docs/handoff/CURRENT_STATUS.md`.
 
 ## Risks / rollback notes
 
-- Timeout centralization can unintentionally widen/narrow call behavior if defaults are misapplied; verify by service path.
-- Short RPC deadlines may create false-negative `UNAVAILABLE` outcomes under container jitter.
-- Retry expansion must avoid violating idempotency constraints on non-idempotent paths.
+- Failure-path triggering approach may accidentally perturb success-path determinism if not isolated.
+- Assertion design must distinguish expected business `FAILED` terminalization from transport-level transient failures.
+- Additional smoke runtime may increase CI/local flake surface if polling windows are too tight.

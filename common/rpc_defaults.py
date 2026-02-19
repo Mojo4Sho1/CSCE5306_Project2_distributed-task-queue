@@ -1,0 +1,34 @@
+"""
+Shared RPC deadline and retry defaults for Design A internal clients.
+"""
+
+from __future__ import annotations
+
+# Internal deadline defaults (milliseconds)
+INTERNAL_UNARY_RPC_TIMEOUT_MS = 1000
+FETCH_WORK_RPC_TIMEOUT_MS = 1500
+WORKER_HEARTBEAT_RPC_TIMEOUT_MS = 1000
+
+# Locked retry/backoff profile defaults
+RETRY_INITIAL_DELAY_MS = 100
+RETRY_MULTIPLIER = 2.0
+RETRY_MAX_DELAY_MS = 1000
+RETRY_MAX_ATTEMPTS = 4
+
+# Coordinator FetchWork idle guidance bounds
+FETCHWORK_RETRY_AFTER_DEFAULT_MS = 200
+FETCHWORK_RETRY_AFTER_MIN_MS = 50
+FETCHWORK_RETRY_AFTER_MAX_MS = 1000
+
+__all__ = [
+    "INTERNAL_UNARY_RPC_TIMEOUT_MS",
+    "FETCH_WORK_RPC_TIMEOUT_MS",
+    "WORKER_HEARTBEAT_RPC_TIMEOUT_MS",
+    "RETRY_INITIAL_DELAY_MS",
+    "RETRY_MULTIPLIER",
+    "RETRY_MAX_DELAY_MS",
+    "RETRY_MAX_ATTEMPTS",
+    "FETCHWORK_RETRY_AFTER_DEFAULT_MS",
+    "FETCHWORK_RETRY_AFTER_MIN_MS",
+    "FETCHWORK_RETRY_AFTER_MAX_MS",
+]
