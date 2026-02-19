@@ -5,6 +5,7 @@ channels:
 dependencies:
   - python=3.10
   - pip
+  - ipykernel
   - grpcio>=1.76.0,<2
   - protobuf>=6.31.1,<7
   - grpcio-tools>=1.76.0,<2
