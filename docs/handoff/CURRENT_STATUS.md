@@ -17,7 +17,8 @@ Deterministic coordinator terminal-write idempotency coverage for `ReportWorkOut
 - Kept coordinator runtime behavior unchanged (`services/coordinator/servicer.py` untouched).
 - Updated command/docs references for the new unit module:
   - `README.md`,
-  - `scripts/SMOKE_INDEX.md`.
+  - `scripts/_SCRIPT_INDEX.md`,
+  - `tests/_TEST_INDEX.md`.
 
 ## Passing checks
 

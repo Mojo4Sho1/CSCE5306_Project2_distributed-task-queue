@@ -15,7 +15,7 @@ Use this index to quickly locate:
 
 When starting a new work session, read in this order:
 
-1. **`docs/INDEX.md`**  
+1. **`docs/_INDEX.md`**  
    Documentation governance, authority hierarchy, and navigation.
 2. **`README.md`**  
    Project overview, quickstart, and repo map.
@@ -32,7 +32,7 @@ When starting a new work session, read in this order:
 
 ## Documentation Governance
 
-1. This file (`docs/INDEX.md`) controls documentation navigation and authority interpretation.
+1. This file (`docs/_INDEX.md`) controls documentation navigation and authority interpretation.
 2. If behavior/contracts/config change, docs must be updated in the same change set.
 3. If docs and code diverge, record and reconcile explicitly as documentation/code drift.
 4. Do not silently reinterpret locked semantics.
@@ -57,12 +57,14 @@ If two sources conflict, use this precedence:
 ## Docs Map
 
 ## Core
-- **`docs/INDEX.md`** *(this file)*  
+- **`docs/_INDEX.md`** *(this file)*  
   Navigation, governance, and authority model.
 - **`README.md`**  
   Project overview, quickstart, and links to authoritative docs (including the practical A/B evaluation execution plan).
-- **`scripts/SMOKE_INDEX.md`**  
-  Script taxonomy and purpose map (smoke probes vs manual/dev utilities).
+- **`tests/_TEST_INDEX.md`**  
+  Test taxonomy and canonical validation command matrix.
+- **`scripts/_SCRIPT_INDEX.md`**  
+  Script taxonomy and purpose map (manual/dev utilities plus compatibility wrappers).
 
 ## Handoff
 - **`docs/handoff/CURRENT_STATUS.md`**  

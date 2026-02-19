@@ -9,9 +9,9 @@ The project compares:
 ## Documentation Entry Point
 
 The controlling documentation file is:
-- `docs/INDEX.md`
+- `docs/_INDEX.md`
 
-Read `docs/INDEX.md` first for:
+Read `docs/_INDEX.md` first for:
 - authority hierarchy,
 - navigation order,
 - and update rules.
@@ -150,8 +150,9 @@ This repo uses two complementary test layers:
   - validate wiring and cross-service behavior (submit/status/result/cancel paths),
   - slower and environment-dependent by design.
 
-Script catalog and purpose map:
-- `scripts/SMOKE_INDEX.md`
+Indexes:
+- Test catalog and validation commands: `tests/_TEST_INDEX.md`
+- Script catalog and wrappers: `scripts/_SCRIPT_INDEX.md`
 
 Naming convention (navigation standard):
 - `tests/integration/smoke_*`: canonical live probe scripts.
@@ -253,7 +254,7 @@ distributed-task-queue/
 |   `-- jobs/
 |       `-- hello_distributed.json
 |-- docs/
-|   |-- INDEX.md
+|   |-- _INDEX.md
 |   |-- handoff/
 |   |   |-- CURRENT_STATUS.md
 |   |   `-- NEXT_TASK.md
@@ -278,7 +279,7 @@ distributed-task-queue/
 |-- results/
 |   `-- .gitkeep
 |-- scripts/
-|   |-- SMOKE_INDEX.md
+|   |-- _SCRIPT_INDEX.md
 |   |-- healthcheck.py                  # compatibility wrapper -> scripts/dev/healthcheck.py
 |   |-- manual_gateway_client.py        # compatibility wrapper -> scripts/manual/manual_gateway_client.py
 |   |-- smoke_live_stack.py             # compatibility wrapper -> tests/integration/smoke_live_stack.py
@@ -301,6 +302,7 @@ distributed-task-queue/
 |       |-- smoke_result_skeleton.py
 |       `-- smoke_worker_skeleton.py
 |-- tests/
+|   |-- _TEST_INDEX.md
 |   |-- test_worker_report_retry.py
 |   |-- test_coordinator_report_outcome_idempotency.py
 |   `-- integration/
