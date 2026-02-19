@@ -95,6 +95,57 @@ Practical note:
 - Since there is no root-level default `docker-compose.yml` now, include `-f <compose-file>` on compose commands.
 - This is intentional so Design A and Design B can use parallel naming and isolated topology files under `docker/`.
 
+## User Demo Workflow (Design A)
+
+This is a manual, presentation-friendly flow using the public Gateway API.
+
+Start Design A services:
+
+```bash
+docker compose -f docker/docker-compose.design-a.yml up --build -d
+docker compose -f docker/docker-compose.design-a.yml ps
+```
+
+Submit a job from a JSON spec file:
+
+```bash
+conda run -n grpc python scripts/manual_gateway_client.py submit --spec-file examples/jobs/hello_distributed.json
+```
+
+The response prints a `job_id`. Use that `job_id` for follow-up calls:
+
+```bash
+conda run -n grpc python scripts/manual_gateway_client.py status --job-id <JOB_ID>
+conda run -n grpc python scripts/manual_gateway_client.py result --job-id <JOB_ID>
+```
+
+Optional operations:
+
+```bash
+conda run -n grpc python scripts/manual_gateway_client.py cancel --job-id <JOB_ID> --reason "presentation_cancel"
+conda run -n grpc python scripts/manual_gateway_client.py list --page-size 10
+```
+
+Manual submit without a spec file:
+
+```bash
+conda run -n grpc python scripts/manual_gateway_client.py submit --job-type "manual-demo" --work-duration-ms 250 --payload-size-bytes 24 --label demo=true
+```
+
+Expected lifecycle:
+- `QUEUED -> RUNNING -> DONE` for normal completion.
+- `QUEUED -> CANCELED` for queued cancel wins.
+- `RUNNING -> CANCELED` is best-effort/non-preemptive in v1.
+
+## Demo UX TODO (Post-Core Milestones)
+
+After completing Design A remaining tasks, Design B, and load-generator implementation, add a lightweight alias workflow to reduce manual demo friction:
+
+- Add local alias map file for manual client (for example `.manual_gateway_aliases.json`).
+- Support `submit --alias <name>` to bind alias -> returned `job_id`.
+- Support `status/result/cancel --alias <name>` so presenters do not need to type/copy UUID job IDs.
+- Keep alias mapping client-local only (no proto/backend contract changes required).
+
 ## Repository Structure
 
 ```text
@@ -110,6 +161,9 @@ distributed-task-queue/
 |-- docker/
 |   |-- .gitkeep
 |   `-- docker-compose.design-a.yml
+|-- examples/
+|   `-- jobs/
+|       `-- hello_distributed.json
 |-- docs/
 |   |-- INDEX.md
 |   |-- handoff/
@@ -137,6 +191,7 @@ distributed-task-queue/
 |   `-- .gitkeep
 |-- scripts/
 |   |-- healthcheck.py
+|   |-- manual_gateway_client.py
 |   |-- smoke_job_behavior.py
 |   |-- smoke_queue_behavior.py
 |   |-- smoke_coordinator_behavior.py

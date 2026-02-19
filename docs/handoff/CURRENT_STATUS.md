@@ -33,6 +33,10 @@ Design A internal RPC deadline/retry default centralization across Gateway/Coord
 - Updated spec docs for new config surface:
   - `docs/spec/runtime-config.md`
   - `docs/spec/constants.md`
+- Added lightweight manual demo tooling for user-facing Gateway interaction:
+  - `scripts/manual_gateway_client.py` (`submit/status/result/cancel/list`),
+  - `examples/jobs/hello_distributed.json` sample JobSpec payload,
+  - README user workflow section for presentation-friendly manual operation.
 
 ## Passing checks
 

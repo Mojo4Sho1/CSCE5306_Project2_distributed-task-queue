@@ -1,0 +1,10 @@
+{
+  "job_type": "hello-distributed-systems",
+  "work_duration_ms": 350,
+  "payload_size_bytes": 32,
+  "labels": {
+    "demo": "presentation",
+    "course": "distributed-systems",
+    "note": "hello from six services"
+  }
+}
