@@ -166,6 +166,7 @@ Use this matrix to choose the right verification level:
 | Intent | Command(s) | Requires Docker stack |
 |---|---|---|
 | Fast logic regression check | `conda run -n grpc python -m unittest tests/test_worker_report_retry.py` | No |
+| Coordinator terminal idempotency check | `conda run -n grpc python -m unittest tests/test_coordinator_report_outcome_idempotency.py` | No |
 | Live API + service wiring sanity | `conda run -n grpc python tests/integration/smoke_live_stack.py` | Yes |
 | Live success lifecycle (`QUEUED -> RUNNING -> DONE`) | `conda run -n grpc python tests/integration/smoke_integration_terminal_path.py` | Yes |
 | Live failure lifecycle (`QUEUED -> RUNNING -> FAILED`) | `conda run -n grpc python tests/integration/smoke_integration_failure_path.py` | Yes |
@@ -176,6 +177,7 @@ After services are healthy, run:
 
 ```bash
 conda run -n grpc python -m unittest tests/test_worker_report_retry.py
+conda run -n grpc python -m unittest tests/test_coordinator_report_outcome_idempotency.py
 conda run -n grpc python tests/integration/smoke_live_stack.py
 conda run -n grpc python tests/integration/smoke_integration_terminal_path.py
 conda run -n grpc python tests/integration/smoke_integration_failure_path.py
@@ -183,6 +185,9 @@ conda run -n grpc python tests/integration/smoke_integration_failure_path.py
 
 Retry-coverage note:
 - `tests/test_worker_report_retry.py` provides deterministic automated checks for worker `ReportWorkOutcome` retry semantics, including bounded exponential backoff windows, full-jitter bounds, attempt-count behavior, stop-event early exit, and transient `grpc.RpcError` retry flow.
+
+Coordinator idempotency note:
+- `tests/test_coordinator_report_outcome_idempotency.py` provides deterministic automated checks for coordinator `ReportWorkOutcome` terminal-write behavior: first terminal write persistence (`DONE`/`FAILED`), duplicate-equivalent idempotency, and conflicting repeated-report non-corruption.
 
 Failure-path note:
 - `tests/integration/smoke_integration_failure_path.py` submits a job whose `job_type` contains `force-fail`.
@@ -297,6 +302,7 @@ distributed-task-queue/
 |       `-- smoke_worker_skeleton.py
 |-- tests/
 |   |-- test_worker_report_retry.py
+|   |-- test_coordinator_report_outcome_idempotency.py
 |   `-- integration/
 |       |-- smoke_live_stack.py
 |       |-- smoke_integration_terminal_path.py

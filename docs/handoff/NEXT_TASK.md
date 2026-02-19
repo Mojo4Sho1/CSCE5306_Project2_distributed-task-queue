@@ -5,22 +5,23 @@
 
 ## Task summary
 
-Add deterministic automated coverage for coordinator `ReportWorkOutcome` terminal-write idempotency behavior (first valid terminal write wins; repeated/conflicting reports stay stable), while keeping current worker retry tests and live integration checks green.
+Kick off Design B implementation baseline by adding runnable Design B skeleton runtime topology (compose + monolith node entrypoint wiring) while preserving frozen v1 external contracts and keeping Design A validation green.
 
 ## Why this task is next
 
-- Worker-side retry coverage now includes timing + control-flow safety paths.
-- Next high-value correctness gap is coordinator-side terminal-write idempotency under repeated outcome reports.
-- Deterministic tests here reduce risk of terminal-state corruption without changing runtime contracts.
+- Design A now has deterministic worker retry and coordinator terminal idempotency unit coverage with live non-regression evidence.
+- The next project milestone is beginning Design B implementation (monolith-per-node architecture) under the same v1 semantics.
+- Establishing a runnable baseline topology early reduces downstream integration risk and clarifies implementation boundaries.
 
 ## Scope (in)
 
-- Add deterministic tests for coordinator `ReportWorkOutcome` behavior on repeated calls for the same `job_id`:
-  - first terminal write (`DONE`/`FAILED`) is accepted and persisted,
-  - duplicate-equivalent terminal report is stable/idempotent,
-  - conflicting repeated terminal report does not corrupt stored terminal state.
-- Keep runtime semantics/config/constants unchanged.
-- Validate non-regression across:
+- Add Design B runtime scaffold with clear, runnable entrypoints:
+  - Design B compose file under `docker/` (parallel to Design A naming style),
+  - monolith node service module/entrypoint wiring for process startup and health visibility.
+- Preserve frozen v1 API/proto/state semantics (no contract drift).
+- Keep Design A non-regression checks operational:
+  - `tests/test_worker_report_retry.py`
+  - `tests/test_coordinator_report_outcome_idempotency.py`
   - `tests/integration/smoke_live_stack.py`
   - `tests/integration/smoke_integration_terminal_path.py`
   - `tests/integration/smoke_integration_failure_path.py`
@@ -28,7 +29,7 @@ Add deterministic automated coverage for coordinator `ReportWorkOutcome` termina
 
 ## Scope (out)
 
-- Design B implementation changes.
+- Design B fairness benchmarking/tuning.
 - Proto/schema/contract changes.
 - Fairness benchmark report generation.
 - Durability/lease/ack redesigns.
@@ -44,17 +45,17 @@ Add deterministic automated coverage for coordinator `ReportWorkOutcome` termina
 
 ## Implementation notes
 
-- Treat `docs/spec/error-idempotency.md`, `docs/spec/state-machine.md`, and `docs/spec/constants.md` as primary lock references.
-- Keep runtime semantics unchanged; this task is coverage-focused.
-- Prefer deterministic control of persistence/service stubs to avoid flaky tests.
-- Do not alter terminal transition guards or soft-outcome contracts.
+- Treat `docs/spec/architecture.md`, `docs/spec/state-machine.md`, `docs/spec/fairness-evaluation.md`, and `docs/spec/constants.md` as lock references.
+- Keep behavior parity with Design A external semantics; this task is scaffold/bring-up focused.
+- Avoid introducing speculative Design B optimizations before baseline runtime is stable.
+- Do not alter existing Design A service contracts or test harness expectations.
 
 ## Acceptance criteria (definition of done)
 
-- Automated coverage verifies first-write-wins terminal idempotency behavior for repeated `ReportWorkOutcome`.
-- Locked constants/defaults and env controls remain unchanged.
+- Design B scaffold is runnable via explicit compose command and starts expected containers/processes.
+- Locked constants/defaults and env controls remain unchanged unless explicitly documented.
 - `conda run -n grpc python -m unittest tests/test_worker_report_retry.py` passes.
-- Any new coordinator-targeted unit module passes.
+- `conda run -n grpc python -m unittest tests/test_coordinator_report_outcome_idempotency.py` passes.
 - `conda run -n grpc python tests/integration/smoke_live_stack.py` passes.
 - `conda run -n grpc python tests/integration/smoke_integration_terminal_path.py` passes.
 - `conda run -n grpc python tests/integration/smoke_integration_failure_path.py` passes.
@@ -63,9 +64,10 @@ Add deterministic automated coverage for coordinator `ReportWorkOutcome` termina
 
 ## Verification checklist
 
-- [ ] Add deterministic tests for coordinator `ReportWorkOutcome` repeated terminal-report idempotency.
+- [ ] Add Design B runtime scaffold files (compose + monolith node entrypoints/wiring).
+- [ ] Verify Design B stack bring-up command and container health visibility.
 - [ ] Re-run existing deterministic worker retry test module (`tests/test_worker_report_retry.py`).
-- [ ] Run any new coordinator-targeted unit test module.
+- [ ] Re-run coordinator idempotency unit module (`tests/test_coordinator_report_outcome_idempotency.py`).
 - [ ] Verify conda execution path using `conda run -n grpc python -c "import grpc,sys; print(sys.executable)"`.
 - [ ] Run `docker compose -f docker/docker-compose.design-a.yml up --build -d` and confirm healthy services with `docker compose -f docker/docker-compose.design-a.yml ps`.
 - [ ] Run `conda run -n grpc python tests/integration/smoke_live_stack.py`.
@@ -75,6 +77,6 @@ Add deterministic automated coverage for coordinator `ReportWorkOutcome` termina
 
 ## Risks / rollback notes
 
-- Tests can overfit internal call sequencing if assertions target implementation details instead of behavior contracts.
-- Idempotency tests that bypass realistic data-store transitions can miss integration race edges.
-- Rollback path is low risk: remove/adjust tests without touching runtime behavior if coverage design proves unstable.
+- Scaffold-only Design B startup can give false confidence before functional parity is implemented.
+- Parallel Design A/Design B compose maintenance can drift without strict command/document updates.
+- Rollback path is low risk: isolate/remove Design B scaffold files if baseline bring-up proves unstable.

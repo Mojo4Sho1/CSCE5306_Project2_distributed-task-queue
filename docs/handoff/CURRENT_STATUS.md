@@ -5,25 +5,28 @@
 
 ## Current focus
 
-Deterministic worker retry control-flow coverage (`_report_with_retry` stop-event interruption and transient RPC retry handling) with live non-regression validation.
+Deterministic coordinator terminal-write idempotency coverage for `ReportWorkOutcome` (first-write-wins, duplicate stability, and conflicting-repeat non-corruption) with live non-regression validation.
 
 ## Completed in current focus
 
-- Added deterministic unit coverage in `tests/test_worker_report_retry.py` for:
-  - full-jitter bounds and bounded exponential retry-window progression,
-  - max-attempt behavior (4 total attempts) and no-wait first-attempt success,
-  - stop-event interruption after retry wait causing early `False` return,
-  - transient `grpc.RpcError` retry continuation to eventual success,
-  - transient `grpc.RpcError` retry continuation until max-attempt exhaustion.
-- Kept worker runtime semantics unchanged (`services/worker/worker.py` untouched for behavior).
-- Updated retry-coverage documentation language in `README.md`.
+- Added deterministic coordinator coverage in `tests/test_coordinator_report_outcome_idempotency.py` for:
+  - first terminal write acceptance/persistence for both `DONE` and `FAILED`,
+  - duplicate-equivalent repeated reports remaining idempotent/stable,
+  - conflicting repeated reports after terminalization not corrupting terminal status/result envelope.
+- Implemented test adapters around in-process `JobServicer` and `ResultServicer` to validate behavior contracts without changing runtime semantics.
+- Kept coordinator runtime behavior unchanged (`services/coordinator/servicer.py` untouched).
+- Updated command/docs references for the new unit module:
+  - `README.md`,
+  - `scripts/SMOKE_INDEX.md`.
 
 ## Passing checks
 
-- Run timestamp anchor: `2026-02-19 12:09:24 -06:00` (local host clock).
+- Run timestamp anchor: `2026-02-19 12:23:00 -06:00` (local host clock).
 - `conda run -n grpc python -c "import grpc,sys; print(sys.executable)"`: PASS (`D:\Programming\anaconda3\envs\grpc\python.exe`)
 - `conda run -n grpc python -m unittest tests/test_worker_report_retry.py`: PASS
   - `Ran 6 tests ... OK`
+- `conda run -n grpc python -m unittest tests/test_coordinator_report_outcome_idempotency.py`: PASS
+  - `Ran 3 tests ... OK`
 - `docker compose -f docker/docker-compose.design-a.yml up --build -d`: PASS
 - `docker compose -f docker/docker-compose.design-a.yml ps`: PASS
   - `gateway`, `job`, `queue`, `coordinator`, `result`, `worker` all `Up (... healthy)`.
@@ -50,28 +53,25 @@ Deterministic worker retry control-flow coverage (`_report_with_retry` stop-even
   - `gateway.GetJobStatus.failure_reason`: PASS (`simulated_failure force-fail ...`)
   - `gateway.GetJobResult.failed_ready`: PASS (`FAILED` + checksum match)
   - `gateway.GetJobResult.failure_summary`: PASS
-- `conda run -n grpc python scripts/smoke_live_stack.py`: PASS (wrapper compatibility)
 
 ## Known gaps/blockers
 
 - No functional blockers identified for this coverage milestone.
-- Residual risk: new unit tests validate retry control-flow contracts, but they use mocked stubs/events and do not emulate transport-layer timing variability under sustained live failure.
+- Residual risk: coordinator idempotency unit tests run in-process adapters and deterministic state transitions; they do not capture all live multi-worker concurrency interleavings under heavy churn.
 
 ## Timing/race observations
 
-- All three live smokes passed with no observed regressions in terminal/result consistency after adding retry control-flow tests.
+- All three live smokes passed with no observed regressions in terminal/result consistency after adding coordinator idempotency coverage.
 - Success path still showed `RUNNING` before terminal `DONE`; failure path still showed `RUNNING` before terminal `FAILED`.
-- Retry waits in worker remain non-deterministic by design (full jitter), while bounded by locked backoff window caps; deterministic tests controlled jitter via patching.
+- Repeated/late outcome-report semantics remained first-write-wins per locked state-machine/error-idempotency contracts in deterministic unit coverage.
 
 ## Next task (single target)
 
-Add deterministic unit coverage for coordinator-side terminal-write idempotency in `ReportWorkOutcome` (first valid terminal outcome wins; duplicates/conflicts remain stable and non-corrupting), without changing runtime semantics.
+Kick off Design B implementation baseline by adding runnable Design B skeleton runtime topology (compose + monolith node entrypoint wiring) that preserves frozen v1 external contracts and does not regress Design A.
 
 ## Definition of done for next task
 
-- Add focused automated test(s) for coordinator handling of repeated `ReportWorkOutcome` calls on the same `job_id` covering:
-  - duplicate-equivalent terminal reports,
-  - conflicting repeated reports after terminalization.
-- Keep locked idempotency/error semantics unchanged per `docs/spec/error-idempotency.md` and `docs/spec/state-machine.md`.
-- Keep existing worker retry tests and integration smokes green.
-- Update handoff docs with command evidence and residual risk notes.
+- Add Design B runtime scaffold files (compose + node process entrypoint/module structure) with no proto/schema changes.
+- Keep Design A command matrix operational and non-regressed.
+- Add/update docs for Design B bring-up commands and boundaries.
+- Record command evidence and residual risk notes in handoff docs.
