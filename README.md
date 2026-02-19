@@ -142,10 +142,14 @@ Expected lifecycle:
 After services are healthy, run:
 
 ```bash
+conda run -n grpc python -m unittest tests/test_worker_report_retry.py
 conda run -n grpc python scripts/smoke_live_stack.py
 conda run -n grpc python scripts/smoke_integration_terminal_path.py
 conda run -n grpc python scripts/smoke_integration_failure_path.py
 ```
+
+Retry-coverage note:
+- `tests/test_worker_report_retry.py` provides deterministic automated checks for worker `ReportWorkOutcome` retry wait semantics (bounded exponential window + full jitter bounds + attempt-count behavior).
 
 Failure-path note:
 - `scripts/smoke_integration_failure_path.py` submits a job whose `job_type` contains `force-fail`.
