@@ -5,24 +5,21 @@
 
 ## Task summary
 
-Add deterministic automated coverage for worker `_report_with_retry` interrupt/error handling paths (stop-event early exit and transient RPC failures), while keeping current retry timing coverage and live integration checks green.
+Add deterministic automated coverage for coordinator `ReportWorkOutcome` terminal-write idempotency behavior (first valid terminal write wins; repeated/conflicting reports stay stable), while keeping current worker retry tests and live integration checks green.
 
 ## Why this task is next
 
-- Retry wait-selection behavior now has deterministic unit coverage.
-- Remaining uncovered retry behavior is control-flow safety: interruption and transient error handling.
-- Deterministic coverage for these paths reduces regression risk without changing runtime contracts.
+- Worker-side retry coverage now includes timing + control-flow safety paths.
+- Next high-value correctness gap is coordinator-side terminal-write idempotency under repeated outcome reports.
+- Deterministic tests here reduce risk of terminal-state corruption without changing runtime contracts.
 
 ## Scope (in)
 
-- Add automated test(s) for `_report_with_retry` control-flow behavior:
-  - if stop event is set after a retry wait, loop exits early and returns `False`,
-  - transient `grpc.RpcError` retries continue until success or max attempts.
-- Keep existing retry timing test coverage passing:
-  - full jitter draws in `[0, backoff_window_ms]`,
-  - bounded exponential window progression respects locked `initial/multiplier/max`,
-  - attempt count behavior remains unchanged.
-- Keep worker config surface and defaults unchanged.
+- Add deterministic tests for coordinator `ReportWorkOutcome` behavior on repeated calls for the same `job_id`:
+  - first terminal write (`DONE`/`FAILED`) is accepted and persisted,
+  - duplicate-equivalent terminal report is stable/idempotent,
+  - conflicting repeated terminal report does not corrupt stored terminal state.
+- Keep runtime semantics/config/constants unchanged.
 - Validate non-regression across:
   - `tests/integration/smoke_live_stack.py`
   - `tests/integration/smoke_integration_terminal_path.py`
@@ -47,16 +44,17 @@ Add deterministic automated coverage for worker `_report_with_retry` interrupt/e
 
 ## Implementation notes
 
-- Treat `docs/spec/error-idempotency.md` and `docs/spec/constants.md` as primary lock references for retry/jitter semantics.
+- Treat `docs/spec/error-idempotency.md`, `docs/spec/state-machine.md`, and `docs/spec/constants.md` as primary lock references.
 - Keep runtime semantics unchanged; this task is coverage-focused.
-- Prefer deterministic test control (for example, patching RNG calls) to avoid flaky tests.
-- Do not alter retryable control-flow semantics or attempt-count behavior.
+- Prefer deterministic control of persistence/service stubs to avoid flaky tests.
+- Do not alter terminal transition guards or soft-outcome contracts.
 
 ## Acceptance criteria (definition of done)
 
-- Automated test coverage verifies stop-event interruption and transient RPC retry handling for `_report_with_retry`.
-- Locked retry defaults and env controls remain unchanged.
+- Automated coverage verifies first-write-wins terminal idempotency behavior for repeated `ReportWorkOutcome`.
+- Locked constants/defaults and env controls remain unchanged.
 - `conda run -n grpc python -m unittest tests/test_worker_report_retry.py` passes.
+- Any new coordinator-targeted unit module passes.
 - `conda run -n grpc python tests/integration/smoke_live_stack.py` passes.
 - `conda run -n grpc python tests/integration/smoke_integration_terminal_path.py` passes.
 - `conda run -n grpc python tests/integration/smoke_integration_failure_path.py` passes.
@@ -65,8 +63,9 @@ Add deterministic automated coverage for worker `_report_with_retry` interrupt/e
 
 ## Verification checklist
 
-- [ ] Add deterministic tests for stop-event early-exit and transient RPC retry handling in worker report-retry path.
-- [ ] Re-run existing deterministic retry timing test module (`tests/test_worker_report_retry.py`).
+- [ ] Add deterministic tests for coordinator `ReportWorkOutcome` repeated terminal-report idempotency.
+- [ ] Re-run existing deterministic worker retry test module (`tests/test_worker_report_retry.py`).
+- [ ] Run any new coordinator-targeted unit test module.
 - [ ] Verify conda execution path using `conda run -n grpc python -c "import grpc,sys; print(sys.executable)"`.
 - [ ] Run `docker compose -f docker/docker-compose.design-a.yml up --build -d` and confirm healthy services with `docker compose -f docker/docker-compose.design-a.yml ps`.
 - [ ] Run `conda run -n grpc python tests/integration/smoke_live_stack.py`.
@@ -76,6 +75,6 @@ Add deterministic automated coverage for worker `_report_with_retry` interrupt/e
 
 ## Risks / rollback notes
 
-- Tests that patch RPC/stop-event paths can overfit implementation details if assertions target internals instead of behavior contracts.
-- Timing-sensitive assertions can become flaky if tests rely on real sleeping or wall-clock timing.
+- Tests can overfit internal call sequencing if assertions target implementation details instead of behavior contracts.
+- Idempotency tests that bypass realistic data-store transitions can miss integration race edges.
 - Rollback path is low risk: remove/adjust tests without touching runtime behavior if coverage design proves unstable.

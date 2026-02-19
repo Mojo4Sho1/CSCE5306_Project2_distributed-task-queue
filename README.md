@@ -182,7 +182,7 @@ conda run -n grpc python tests/integration/smoke_integration_failure_path.py
 ```
 
 Retry-coverage note:
-- `tests/test_worker_report_retry.py` provides deterministic automated checks for worker `ReportWorkOutcome` retry wait semantics (bounded exponential window + full jitter bounds + attempt-count behavior).
+- `tests/test_worker_report_retry.py` provides deterministic automated checks for worker `ReportWorkOutcome` retry semantics, including bounded exponential backoff windows, full-jitter bounds, attempt-count behavior, stop-event early exit, and transient `grpc.RpcError` retry flow.
 
 Failure-path note:
 - `tests/integration/smoke_integration_failure_path.py` submits a job whose `job_type` contains `force-fail`.
