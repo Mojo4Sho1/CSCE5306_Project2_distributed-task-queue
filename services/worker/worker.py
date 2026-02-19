@@ -15,6 +15,7 @@ import json
 import hashlib
 import logging
 import os
+import random
 import signal
 import socket
 import sys
@@ -536,7 +537,19 @@ class WorkerRuntime:
                 )
 
             if attempt < self._report_max_attempts:
-                wait_ms = max(50, min(backoff_ms, self._report_max_backoff_ms))
+                backoff_window_ms = max(50, min(backoff_ms, self._report_max_backoff_ms))
+                wait_ms = random.randint(0, backoff_window_ms)
+                _emit(
+                    self._logger,
+                    "worker.report.retry_wait",
+                    worker_id=self._worker_id,
+                    job_id=request.job_id,
+                    attempt=attempt,
+                    next_attempt=attempt + 1,
+                    jitter_mode="full",
+                    backoff_window_ms=backoff_window_ms,
+                    wait_ms=wait_ms,
+                )
                 self._stop_event.wait(wait_ms / 1000.0)
                 if self._stop_event.is_set():
                     return False

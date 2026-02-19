@@ -5,24 +5,22 @@
 
 ## Current focus
 
-Design A worker failure-path integration coverage (`RUNNING -> FAILED`) and terminal/result consistency validation.
+Design A worker `ReportWorkOutcome` retry behavior alignment to locked full-jitter semantics, with live-smoke non-regression validation.
 
 ## Completed in current focus
 
-- Added deterministic worker-side failure trigger in `services/worker/worker.py`:
-  - when `job_type` contains `force-fail`, worker reports `JOB_OUTCOME_FAILED`,
-  - includes deterministic `failure_reason`, `output_summary`, `output_bytes`, and checksum.
-- Added dedicated failure-path integration smoke:
-  - `scripts/smoke_integration_failure_path.py`,
-  - validates `RUNNING -> FAILED`, `GetJobStatus.failure_reason`, and `GetJobResult` terminal-envelope consistency.
-- Updated `README.md`:
-  - added live smoke workflow section including the new failure-path smoke command,
-  - documented deterministic `force-fail` marker behavior for integration testing,
-  - updated repo structure list with new smoke script.
+- Updated worker retry wait behavior in `services/worker/worker.py`:
+  - `ReportWorkOutcome` retry now uses full jitter (`random.randint(0, backoff_window_ms)`),
+  - exponential bounded window remains unchanged (`initial/multiplier/max` locked defaults preserved),
+  - retry attempt limit behavior remains unchanged (`max attempts` preserved).
+- Added retry wait observability in worker logs:
+  - new event `worker.report.retry_wait`,
+  - includes `attempt`, `next_attempt`, `jitter_mode`, `backoff_window_ms`, and selected `wait_ms`.
+- Updated `README.md` to document that worker outcome-report retries follow bounded exponential backoff with full jitter.
 
 ## Passing checks
 
-- Run timestamp anchor: `2026-02-19 11:02:40 -06:00` (local host clock).
+- Run timestamp anchor: `2026-02-19 11:14:38 -06:00` (local host clock).
 - `conda run -n grpc python -c "import grpc,sys; print(sys.executable)"`: PASS (`D:\Programming\anaconda3\envs\grpc\python.exe`)
 - `conda run -n grpc python -m py_compile services/worker/worker.py scripts/smoke_integration_failure_path.py`: PASS
 - `docker compose -f docker/docker-compose.design-a.yml up --build -d`: PASS
@@ -54,20 +52,22 @@ Design A worker failure-path integration coverage (`RUNNING -> FAILED`) and term
 
 ## Known gaps/blockers
 
-- Worker retry implementation remains deterministic exponential backoff without explicit jitter injection (locked defaults are preserved for initial/multiplier/cap/attempts, but jitter behavior is not yet modeled).
+- No functional blockers identified for Design A jitter semantics.
+- Residual risk: jitter intentionally introduces retry timing variance, which can surface intermittent timing sensitivity under host load.
 
 ## Timing/race observations
 
-- Success-path terminal smoke remained stable after adding failure trigger; sampled terminal status was `DONE` with checksum match.
-- Failure-path smoke consistently observed `RUNNING` before terminal `FAILED`, and both `failure_reason` and result summary carried the deterministic marker.
+- All three live smokes passed after jitter adoption with no observed regressions in terminal/result consistency.
+- Success path still showed `RUNNING` before terminal `DONE`; failure path still showed `RUNNING` before terminal `FAILED`.
+- Retry waits in worker are now non-deterministic by design (full jitter), while bounded by locked backoff window caps.
 
 ## Next task (single target)
 
-Add full-jitter behavior to worker `ReportWorkOutcome` retry waits while preserving locked retry defaults (initial/multiplier/cap/attempts), then validate non-regression via live smokes.
+Add deterministic test coverage for worker retry timing math (bounded exponential window + full jitter bounds) so jitter semantics are validated without relying only on live integration smokes.
 
 ## Definition of done for next task
 
-- Worker report-retry waits include full jitter derived from bounded exponential backoff window.
-- Existing timeout/retry config defaults and env controls remain unchanged.
-- `smoke_live_stack.py`, `smoke_integration_terminal_path.py`, and `smoke_integration_failure_path.py` pass after jitter change.
-- Handoff docs updated with command evidence and any flake/risk notes.
+- Add focused automated test(s) for `_report_with_retry` wait-selection behavior and bounds.
+- Verify locked retry defaults/config surface remain unchanged.
+- Keep existing live smokes green after adding tests.
+- Update handoff docs with command evidence and any flake notes.

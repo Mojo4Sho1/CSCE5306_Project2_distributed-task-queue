@@ -5,23 +5,26 @@
 
 ## Task summary
 
-Add full-jitter behavior to worker outcome-report retries while preserving locked retry defaults and non-regressing integration coverage.
+Add deterministic automated coverage for worker `ReportWorkOutcome` retry wait semantics (bounded exponential window + full jitter), while keeping live integration checks green.
 
 ## Why this task is next
 
-- Failure-path integration coverage for worker-reported `FAILED` is now implemented and passing.
-- Remaining known gap is retry jitter behavior: backoff timing is deterministic exponential today.
-- Specs lock retry constants/profile and jitter mode; implementation should align without changing public/internal contracts.
+- Full-jitter behavior is now implemented and validated with live smokes.
+- Current validation is integration-heavy; there is no focused automated check that retry wait selection remains spec-aligned under future edits.
+- A deterministic test harness will reduce regression risk in jitter/backoff logic without changing runtime contracts.
 
 ## Scope (in)
 
-- Implement full-jitter wait selection for worker `ReportWorkOutcome` retry path.
-- Keep locked defaults and config surface unchanged (`initial`, `multiplier`, `max`, `attempts`).
-- Validate no behavior regression across:
+- Add automated test(s) for worker retry wait behavior:
+  - full jitter draws in `[0, backoff_window_ms]`,
+  - bounded exponential window progression respects locked `initial/multiplier/max`,
+  - attempt count behavior remains unchanged.
+- Keep worker config surface and defaults unchanged.
+- Validate non-regression across:
   - `scripts/smoke_live_stack.py`
   - `scripts/smoke_integration_terminal_path.py`
   - `scripts/smoke_integration_failure_path.py`
-- Record exact command evidence, timestamps, and residual flake risk in handoff docs.
+- Record exact command evidence, timestamps, and residual risk notes in handoff docs.
 
 ## Scope (out)
 
@@ -42,13 +45,14 @@ Add full-jitter behavior to worker outcome-report retries while preserving locke
 ## Implementation notes
 
 - Treat `docs/spec/error-idempotency.md` and `docs/spec/constants.md` as primary lock references for retry/jitter semantics.
-- Apply jitter only to retry wait duration calculation; do not alter retryable-code selection or attempt count behavior.
-- Keep behavior non-breaking for existing compose/env defaults.
-- Ensure logging still provides enough context to diagnose retry attempt timing.
+- Keep runtime semantics unchanged; this task is coverage-focused.
+- Prefer deterministic test control (for example, patching RNG calls) to avoid flaky tests.
+- Do not alter retryable-code selection or attempt-count behavior.
 
 ## Acceptance criteria (definition of done)
 
-- Worker retry waits use full jitter under bounded exponential backoff windows.
+- Automated test coverage verifies full-jitter bounds and bounded exponential window progression.
+- Locked retry defaults and env controls remain unchanged.
 - `conda run -n grpc python scripts/smoke_live_stack.py` passes.
 - `conda run -n grpc python scripts/smoke_integration_terminal_path.py` passes.
 - `conda run -n grpc python scripts/smoke_integration_failure_path.py` passes.
@@ -57,7 +61,7 @@ Add full-jitter behavior to worker outcome-report retries while preserving locke
 
 ## Verification checklist
 
-- [ ] Implement full-jitter retry wait behavior in worker outcome-report path.
+- [ ] Add automated tests for retry wait bounds/window progression in worker report-retry path.
 - [ ] Verify conda execution path using `conda run -n grpc python -c "import grpc,sys; print(sys.executable)"`.
 - [ ] Run `docker compose -f docker/docker-compose.design-a.yml up --build -d` and confirm healthy services with `docker compose -f docker/docker-compose.design-a.yml ps`.
 - [ ] Run `conda run -n grpc python scripts/smoke_live_stack.py`.
@@ -67,6 +71,6 @@ Add full-jitter behavior to worker outcome-report retries while preserving locke
 
 ## Risks / rollback notes
 
-- Jitter can increase execution-time variance and expose latent polling-window flakiness in smokes.
-- Overly large jitter window could delay completion and raise timeout risk under loaded hosts.
-- Misapplied jitter logic could reduce effective retry attempts if sleep behavior is not bounded correctly.
+- Test harness that patches randomness can overfit implementation details if not scoped to behavior contracts.
+- Timing-sensitive assertions can become flaky if tests rely on real sleeping or wall-clock timing.
+- Rollback path is low risk: remove/adjust tests without touching runtime behavior if coverage design proves unstable.

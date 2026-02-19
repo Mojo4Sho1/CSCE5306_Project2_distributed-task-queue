@@ -151,6 +151,9 @@ Failure-path note:
 - `scripts/smoke_integration_failure_path.py` submits a job whose `job_type` contains `force-fail`.
 - Worker runtime treats this marker as a deterministic test trigger and reports `JOB_OUTCOME_FAILED`.
 
+Retry semantics note:
+- Worker `ReportWorkOutcome` retries use bounded exponential backoff with full jitter (per locked v1 constants/spec).
+
 ## Demo UX TODO (Post-Core Milestones)
 
 After completing Design A remaining tasks, Design B, and load-generator implementation, add a lightweight alias workflow to reduce manual demo friction:
