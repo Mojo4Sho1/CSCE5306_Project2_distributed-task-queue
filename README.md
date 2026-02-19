@@ -200,35 +200,45 @@ Use this matrix to choose the right verification level:
 | Coordinator terminal idempotency check | `conda run -n grpc python -m unittest tests/test_coordinator_report_outcome_idempotency.py` | No |
 | Owner-routing formula check | `conda run -n grpc python -m unittest tests/test_owner_routing.py` | No |
 | Design B client-routing policy check (round-robin + deterministic owner) | `conda run -n grpc python -m unittest tests/test_design_b_client_routing.py` | No |
-| Loadgen contract scaffold check (scenario parse + artifact serialization) | `conda run -n grpc python -m unittest tests/test_loadgen_contracts.py` | No |
+| Loadgen contract/live-engine checks (scheduler + mocked adapter + serialization) | `conda run -n grpc python -m unittest tests/test_loadgen_contracts.py` | No |
+| Short live loadgen execution (rows + summary artifacts) | `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_live_smoke_short.json --output-dir results/loadgen --live-traffic` | Yes |
 | Live API + service wiring sanity | `conda run -n grpc python tests/integration/smoke_live_stack.py` | Yes |
 | Live success lifecycle (`QUEUED -> RUNNING -> DONE`) | `conda run -n grpc python tests/integration/smoke_integration_terminal_path.py` | Yes |
 | Live failure lifecycle (`QUEUED -> RUNNING -> FAILED`) | `conda run -n grpc python tests/integration/smoke_integration_failure_path.py` | Yes |
 | Design B client-routing parity (`SubmitJob` empty-key round-robin + non-empty key owner routing + job-scoped routing) | `conda run -n grpc python tests/integration/smoke_design_b_owner_routing.py` | Yes (Design B) |
 
-## Loadgen Contract Scaffold (Pre-Traffic)
+## Loadgen Execution (Live + Scaffold)
 
-The benchmark contract scaffold now exists for pre-loadgen reproducibility:
+The benchmark contract now supports both scaffold-only and live traffic execution:
 
 - Scenario schema + loader: `common/loadgen_contracts.py` (`BenchmarkScenario`, `load_scenario_config`)
-- Runner skeleton: `common/loadgen_contracts.py` (`BenchmarkRunner`)
+- Runner + phase engine hooks: `common/loadgen_contracts.py` (`BenchmarkRunner`, `LiveTrafficEngine`)
 - Row schema + writers: `common/loadgen_contracts.py` (`BenchmarkRow`, JSONL/CSV writers)
+- Live RPC adapter with locked retry/deadline semantics: `common/loadgen_contracts.py` (`GrpcPublicApiAdapter`)
 - CLI entrypoint: `scripts/loadgen/run_benchmark_scaffold.py`
 - Example scenario: `scripts/loadgen/scenarios/design_b_balanced_baseline.json`
 
-Design B ingress in the scaffold is wired through the shared routing utility:
+Design B ingress in live mode remains wired through the shared routing utility:
 - `common/design_b_routing.py` (`DesignBClientRouter`)
 - Scenario contract requires explicit `design_b_ordered_targets` list.
 
-Run scaffold artifacts:
+Run scaffold-only artifacts (no traffic):
 
 ```bash
 conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_b_balanced_baseline.json --output-dir results/loadgen
 ```
 
+Run live traffic artifacts:
+
+```bash
+conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_live_smoke_short.json --output-dir results/loadgen --live-traffic
+```
+
 Artifacts are written per run under:
 - `results/loadgen/<scenario_id>/<run_id>/rows.jsonl`
 - `results/loadgen/<scenario_id>/<run_id>/rows.csv`
+- `results/loadgen/<scenario_id>/<run_id>/summary.json`
+- `results/loadgen/<scenario_id>/<run_id>/summary.csv`
 - `results/loadgen/<scenario_id>/<run_id>/metadata.json`
 
 ## Live Smoke Workflow (Design A)
@@ -366,6 +376,7 @@ distributed-task-queue/
 |   |-- loadgen/
 |   |   |-- run_benchmark_scaffold.py
 |   |   `-- scenarios/
+|   |       |-- design_a_live_smoke_short.json
 |   |       `-- design_b_balanced_baseline.json
 |   `-- legacy_smoke/
 |       |-- smoke_coordinator_behavior.py

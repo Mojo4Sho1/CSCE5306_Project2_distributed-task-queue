@@ -312,12 +312,14 @@ Summary artifacts should include:
 - throughput tables by method/design/scenario
 - error-rate tables by code/design/scenario
 
-Scaffold contract reference (pre-traffic implementation):
+Benchmark contract reference (live-capable implementation):
 - `common/loadgen_contracts.py`
   - `BenchmarkScenario` (machine-readable scenario schema/validation)
-  - `BenchmarkRunner` (warm-up -> measure -> cool-down -> repeat flow)
+  - `BenchmarkRunner` + `LiveTrafficEngine` (warm-up -> measure -> cool-down -> repeat flow with optional live phase execution)
+  - `GrpcPublicApiAdapter` (parity-method execution with locked deadline/retry policy)
   - `BenchmarkRow` + JSONL/CSV row writers
-- `scripts/loadgen/run_benchmark_scaffold.py` (artifact writer entrypoint)
+- summary artifacts: `summary.json`, `summary.csv` (throughput/latency/error-rate tables by method)
+- `scripts/loadgen/run_benchmark_scaffold.py` (`--live-traffic` enables live request execution)
 
 ---
 

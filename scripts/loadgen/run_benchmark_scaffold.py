@@ -9,7 +9,12 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from common.loadgen_contracts import BenchmarkRunner, load_scenario_config
+from common.loadgen_contracts import (
+    BenchmarkRunner,
+    GrpcPublicApiAdapter,
+    LiveTrafficEngine,
+    load_scenario_config,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -26,6 +31,17 @@ def parse_args() -> argparse.Namespace:
         default="results/loadgen",
         help="Artifact output root directory (default: results/loadgen)",
     )
+    parser.add_argument(
+        "--live-traffic",
+        action="store_true",
+        help="Execute live RPC traffic for warmup/measure/cooldown phases.",
+    )
+    parser.add_argument(
+        "--request-rate-rps",
+        type=float,
+        default=None,
+        help="Optional global request-rate override (RPS). If omitted, scenario value is used.",
+    )
     return parser.parse_args()
 
 
@@ -36,7 +52,21 @@ def main() -> int:
 
     scenario = load_scenario_config(scenario_path)
     runner = BenchmarkRunner(scenario=scenario, output_root=output_dir)
-    artifacts = runner.run()
+    adapter = None
+    try:
+        if args.live_traffic:
+            adapter = GrpcPublicApiAdapter(scenario=scenario)
+            phase_engine = LiveTrafficEngine(
+                scenario=scenario,
+                adapter=adapter,
+                request_rate_rps=args.request_rate_rps,
+            )
+            artifacts = runner.run(phase_engine=phase_engine)
+        else:
+            artifacts = runner.run()
+    finally:
+        if adapter is not None:
+            adapter.close()
 
     summary = [
         {
@@ -45,6 +75,8 @@ def main() -> int:
             "row_count": item.row_count,
             "rows_jsonl": str(item.rows_jsonl_path),
             "rows_csv": str(item.rows_csv_path),
+            "summary_json": str(item.summary_json_path),
+            "summary_csv": str(item.summary_csv_path),
             "metadata_json": str(item.metadata_path),
         }
         for item in artifacts

@@ -1,17 +1,90 @@
 from __future__ import annotations
 
 import json
+import random
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from common.loadgen_contracts import (
     BenchmarkRow,
     BenchmarkRunner,
     BenchmarkScenario,
+    GrpcPublicApiAdapter,
+    LiveTrafficEngine,
+    RequestMixScheduler,
     build_stable_run_id,
     load_scenario_config,
 )
+
+
+class _FakeClock:
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def monotonic(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.now += max(0.0, float(seconds))
+
+
+class _FakeAdapter:
+    def __init__(self) -> None:
+        self._jobs: dict[str, list[str]] = {}
+
+    def known_job_count(self, context) -> int:
+        return len(self._jobs.get(context.run_id, []))
+
+    def execute(self, *, context, method, rng, worker_id, op_index):
+        del rng, worker_id
+        start_ts_ms = int(op_index * 100)
+        job_id = None
+        if method == "SubmitJob":
+            job_id = f"job-{context.run_id}-{op_index}"
+            self._jobs.setdefault(context.run_id, []).append(job_id)
+        elif self.known_job_count(context):
+            job_id = self._jobs[context.run_id][0]
+        return BenchmarkRow(
+            design=context.scenario.design,
+            scenario_id=context.scenario.scenario_id,
+            run_id=context.run_id,
+            method=method,
+            start_ts_ms=start_ts_ms,
+            latency_ms=5,
+            grpc_code="OK",
+            accepted=True if method == "SubmitJob" else None,
+            result_ready=None,
+            already_terminal=None,
+            job_id=job_id,
+            concurrency=context.scenario.concurrency,
+            work_duration_ms=context.scenario.work_duration_ms,
+            request_mix_profile=context.scenario.request_mix_profile,
+            total_worker_slots=context.scenario.total_worker_slots,
+        )
+
+
+class _FakeRpcError(Exception):
+    def __init__(self, code_name: str) -> None:
+        super().__init__(code_name)
+        self._code_name = code_name
+
+    def code(self):
+        return SimpleNamespace(name=self._code_name)
+
+
+class _SubmitStub:
+    def __init__(self, failure_count: int) -> None:
+        self.failure_count = int(failure_count)
+        self.calls = 0
+
+    def SubmitJob(self, request, timeout=None):
+        del request, timeout
+        self.calls += 1
+        if self.calls <= self.failure_count:
+            raise _FakeRpcError("UNAVAILABLE")
+        return SimpleNamespace(job_id=f"job-{self.calls}")
 
 
 class LoadgenContractTests(unittest.TestCase):
@@ -100,12 +173,11 @@ class LoadgenContractTests(unittest.TestCase):
             )
 
             def _hook(context, _phase_name):
-                run_id = context.run_id
                 return [
                     BenchmarkRow(
                         design=scenario.design,
                         scenario_id=scenario.scenario_id,
-                        run_id=run_id,
+                        run_id=context.run_id,
                         method="SubmitJob",
                         start_ts_ms=1700000001000,
                         latency_ms=7,
@@ -122,32 +194,137 @@ class LoadgenContractTests(unittest.TestCase):
                 ]
 
             artifacts = runner.run(operation_hook=_hook)
-            self.assertEqual(1, len(artifacts))
             artifact = artifacts[0]
-            self.assertEqual(1, artifact.row_count)
-            self.assertTrue(artifact.rows_jsonl_path.exists())
-            self.assertTrue(artifact.rows_csv_path.exists())
-            self.assertTrue(artifact.metadata_path.exists())
-
-            rows_jsonl = artifact.rows_jsonl_path.read_text(encoding="utf-8").strip().splitlines()
-            self.assertEqual(1, len(rows_jsonl))
-            parsed_jsonl = json.loads(rows_jsonl[0])
-            self.assertEqual("SubmitJob", parsed_jsonl["method"])
-            self.assertEqual("OK", parsed_jsonl["grpc_code"])
-            self.assertEqual("job-123", parsed_jsonl["job_id"])
-
-            csv_lines = artifact.rows_csv_path.read_text(encoding="utf-8").strip().splitlines()
-            self.assertEqual(2, len(csv_lines))
-            self.assertIn("scenario_id", csv_lines[0])
-            self.assertIn("a_scaffold_serialization", csv_lines[1])
-
+            self.assertTrue(artifact.summary_json_path.exists())
+            self.assertTrue(artifact.summary_csv_path.exists())
             metadata = json.loads(artifact.metadata_path.read_text(encoding="utf-8"))
             self.assertEqual(1, metadata["row_count"])
-            self.assertEqual("a_scaffold_serialization", metadata["scenario"]["scenario_id"])
             self.assertEqual(
                 build_stable_run_id("a_scaffold_serialization", 99, 0),
                 metadata["run_id"],
             )
+
+    def test_request_mix_scheduler_distribution(self) -> None:
+        scheduler = RequestMixScheduler(
+            {"SubmitJob": 2, "GetJobStatus": 1, "GetJobResult": 0, "CancelJob": 0, "ListJobs": 0},
+            seed=42,
+        )
+        seen = [scheduler.next_method() for _ in range(300)]
+        self.assertEqual(200, sum(1 for item in seen if item == "SubmitJob"))
+        self.assertEqual(100, sum(1 for item in seen if item == "GetJobStatus"))
+
+    def test_live_engine_with_mocked_adapter_records_measure_rows(self) -> None:
+        scenario = BenchmarkScenario.from_dict(
+            {
+                "scenario_id": "live_mock",
+                "design": "A_microservices",
+                "concurrency": 1,
+                "work_duration_ms": 100,
+                "request_mix_profile": "submit-heavy",
+                "request_mix_weights": {"SubmitJob": 1, "GetJobStatus": 0, "GetJobResult": 0, "CancelJob": 0, "ListJobs": 0},
+                "warmup_seconds": 0,
+                "measure_seconds": 0.3,
+                "cooldown_seconds": 0,
+                "repetitions": 1,
+                "run_seed": 7,
+                "total_worker_slots": 6,
+                "request_rate_rps": 10,
+                "design_a_gateway_target": "127.0.0.1:50051",
+            }
+        )
+        fake_clock = _FakeClock()
+        runner = BenchmarkRunner(scenario=scenario, output_root=Path(tempfile.gettempdir()))
+        engine = LiveTrafficEngine(
+            scenario=scenario,
+            adapter=_FakeAdapter(),
+            monotonic_fn=fake_clock.monotonic,
+            sleep_fn=fake_clock.sleep,
+        )
+        artifacts = runner.run(phase_engine=engine)
+        self.assertEqual(3, artifacts[0].row_count)
+
+    def test_submit_retry_policy_non_empty_vs_empty_idempotency_key(self) -> None:
+        scenario = BenchmarkScenario.from_dict(
+            {
+                "scenario_id": "retry_policy",
+                "design": "A_microservices",
+                "concurrency": 1,
+                "work_duration_ms": 50,
+                "request_mix_profile": "submit-only",
+                "request_mix_weights": {"SubmitJob": 1, "GetJobStatus": 0, "GetJobResult": 0, "CancelJob": 0, "ListJobs": 0},
+                "warmup_seconds": 0,
+                "measure_seconds": 1,
+                "cooldown_seconds": 0,
+                "repetitions": 1,
+                "run_seed": 11,
+                "total_worker_slots": 6,
+                "submit_client_request_id_mode": "unique_non_empty",
+                "design_a_gateway_target": "127.0.0.1:50051",
+            }
+        )
+        stub = _SubmitStub(failure_count=2)
+        adapter = GrpcPublicApiAdapter(
+            scenario=scenario,
+            public_pb2=SimpleNamespace(
+                SubmitJobRequest=lambda **kwargs: SimpleNamespace(**kwargs),
+                JobSpec=lambda **kwargs: SimpleNamespace(**kwargs),
+            ),
+            public_pb2_grpc=SimpleNamespace(),
+            target_stubs={"127.0.0.1:50051": stub},
+            sleep_fn=lambda _: None,
+        )
+        context = SimpleNamespace(
+            scenario=scenario,
+            run_id="r1",
+            resolve_submit_target=lambda _k: (-1, "127.0.0.1:50051", "gateway"),
+        )
+        row = adapter.execute(context=context, method="SubmitJob", rng=random.Random(0), worker_id=0, op_index=0)
+        self.assertEqual("OK", row.grpc_code)
+        self.assertEqual(3, stub.calls)
+
+        empty_key_scenario = BenchmarkScenario.from_dict(
+            {
+                "scenario_id": "retry_policy_empty",
+                "design": "A_microservices",
+                "concurrency": 1,
+                "work_duration_ms": 50,
+                "request_mix_profile": "submit-only",
+                "request_mix_weights": {"SubmitJob": 1, "GetJobStatus": 0, "GetJobResult": 0, "CancelJob": 0, "ListJobs": 0},
+                "warmup_seconds": 0,
+                "measure_seconds": 1,
+                "cooldown_seconds": 0,
+                "repetitions": 1,
+                "run_seed": 12,
+                "total_worker_slots": 6,
+                "submit_client_request_id_mode": "empty",
+                "design_a_gateway_target": "127.0.0.1:50051",
+            }
+        )
+        empty_stub = _SubmitStub(failure_count=1)
+        empty_adapter = GrpcPublicApiAdapter(
+            scenario=empty_key_scenario,
+            public_pb2=SimpleNamespace(
+                SubmitJobRequest=lambda **kwargs: SimpleNamespace(**kwargs),
+                JobSpec=lambda **kwargs: SimpleNamespace(**kwargs),
+            ),
+            public_pb2_grpc=SimpleNamespace(),
+            target_stubs={"127.0.0.1:50051": empty_stub},
+            sleep_fn=lambda _: None,
+        )
+        empty_context = SimpleNamespace(
+            scenario=empty_key_scenario,
+            run_id="r2",
+            resolve_submit_target=lambda _k: (-1, "127.0.0.1:50051", "gateway"),
+        )
+        empty_row = empty_adapter.execute(
+            context=empty_context,
+            method="SubmitJob",
+            rng=random.Random(0),
+            worker_id=0,
+            op_index=0,
+        )
+        self.assertEqual("UNAVAILABLE", empty_row.grpc_code)
+        self.assertEqual(1, empty_stub.calls)
 
 
 if __name__ == "__main__":

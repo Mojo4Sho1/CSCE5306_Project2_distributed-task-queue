@@ -45,6 +45,13 @@ For script-only utilities and wrappers, see:
    - `conda run -n grpc python -m unittest tests/test_design_b_client_routing.py`
    - `conda run -n grpc python tests/integration/smoke_design_b_owner_routing.py`
 
+## Loadgen Validation Workflow
+
+1. Run deterministic contract/scheduler tests:
+   - `conda run -n grpc python -m unittest tests/test_loadgen_contracts.py`
+2. Run short live smoke to produce measurement + summary artifacts:
+   - `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_live_smoke_short.json --output-dir results/loadgen --live-traffic`
+
 ## Naming Standard for New Tests
 
 - New deterministic unit tests: `tests/test_<scope>.py`

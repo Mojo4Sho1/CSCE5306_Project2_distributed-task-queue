@@ -50,7 +50,7 @@ Definition of done:
 - [x] Add a scenario definition artifact (likely under `docs/spec/` and/or config file under `scripts/` or `tests/`).
 - [ ] Encode locked fairness controls from `docs/spec/fairness-evaluation.md`:
   - [x] identical total worker slots,
-  - [ ] consistent deadlines/retries,
+  - [x] consistent deadlines/retries,
   - [x] fixed warm-up/measurement windows,
   - [x] same request mix and pacing model.
 - [x] Define minimum scenario matrix:
@@ -68,9 +68,9 @@ Definition of done:
   - [x] accepted/result_ready/already_terminal where applicable,
   - [x] concurrency, work_duration_ms, request_mix_profile, total_worker_slots.
 - [ ] Define summary outputs:
-  - [ ] per-method throughput,
-  - [ ] p50/p95/p99 latency,
-  - [ ] error-rate by grpc code,
+  - [x] per-method throughput,
+  - [x] p50/p95/p99 latency,
+  - [x] error-rate by grpc code,
   - [ ] job terminal throughput.
 
 Definition of done:
@@ -86,7 +86,7 @@ Definition of done:
   - [x] repeated runs with stable naming.
 - [ ] Add reproducibility controls:
   - [x] explicit random seed,
-  - [ ] fixed timeout/deadline defaults,
+  - [x] fixed timeout/deadline defaults,
   - [x] run metadata capture.
 
 Definition of done:
