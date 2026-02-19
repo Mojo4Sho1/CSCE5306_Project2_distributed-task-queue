@@ -87,16 +87,29 @@ Loadgen report-quality hardening (pre-run health gate + terminal-throughput summ
 - Re-running the same scenario/repetition in the same output directory still overwrites prior artifacts because run IDs are deterministic by `(scenario_id, run_seed, repeat_index)`.
 - Precheck is connectivity-level (`TCP host:port`) and not deep service semantic health.
 
+## Decision notes for next session
+
+- Project-scope decision: keep benchmark reproducibility features lightweight (class-project complexity target).
+- Clarification: run-output collision handling is not equivalent to scientific reproducibility controls.
+  - reproducibility controls already present: fixed seed in scenario, locked timeout/retry defaults, metadata capture.
+  - collision handling is operational safety to avoid accidental artifact loss on rerun.
+- Benchmarking guidance: final report runs should use multiple seeds and repeated trials; same-seed reruns remain useful for debugging/audit.
+- Agreed minimal next implementation:
+  - default fail when deterministic run directory already exists,
+  - explicit `--overwrite` flag for intentional replacement,
+  - avoid higher-complexity run naming/registry features.
+
 ## Timing/race observations
 
 - Running scaffold mode and live mode with identical scenario/run tuple in the same output directory still reuses the deterministic run ID and replaces prior files.
 
 ## Next task (single target)
 
-Harden artifact reproducibility by preventing accidental overwrite on repeated identical scenario/repetition executions.
+Add minimal run-output overwrite protection (`fail-if-exists` by default + explicit `--overwrite`).
 
 ## Definition of done for next task
 
-- Runner/CLI can preserve prior artifacts when deterministic run ID collisions occur (for example suffixing or explicit `--overwrite` policy).
-- Collision behavior is explicit and documented.
+- Runner/CLI fails fast when deterministic run directory already exists (default behavior).
+- CLI supports explicit override flag (`--overwrite`) for intentional replacement.
+- Collision behavior and rationale are documented as operational safety (not fairness/semantics).
 - Existing unit/integration baseline remains green.

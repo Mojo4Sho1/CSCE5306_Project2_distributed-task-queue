@@ -5,7 +5,7 @@
 
 ## Task summary
 
-Prevent accidental benchmark artifact overwrite when rerunning identical `(scenario_id, run_seed, repeat_index)` tuples in the same output directory.
+Add minimal output-collision safety to loadgen runs: fail if run directory exists by default, with explicit `--overwrite` for intentional replacement.
 
 ## Why this task is next
 
@@ -13,21 +13,26 @@ Prevent accidental benchmark artifact overwrite when rerunning identical `(scena
   - pre-run health precheck gate exists in CLI,
   - summary artifacts include job-terminal throughput,
   - latency summaries avoid degenerate all-zero behavior in short live runs.
-- Remaining operational gap is reproducibility safety:
+- Remaining operational gap is artifact safety:
   - deterministic run IDs currently make reruns replace prior artifacts silently.
+- Scope-control decision for class-project simplicity:
+  - keep this change minimal and avoid advanced reproducibility framework work.
+  - final benchmark/report runs are expected to use multiple seeds; this task is about preventing accidental overwrite, not changing fairness methodology.
 
 ## Scope (in)
 
-- Add explicit collision policy for run directory creation in benchmark runner/CLI.
-- Support a safe default that preserves existing run artifacts.
-- Add an explicit override path for intentional replacement (for example `--overwrite`).
-- Update docs/handoff/runbook to reflect new collision behavior and operator guidance.
+- Add run-dir existence guard before artifact write.
+- Default behavior: fail fast if deterministic run directory already exists.
+- Add explicit `--overwrite` path for intentional replacement.
+- Add deterministic tests for both default and overwrite behaviors.
+- Update docs/handoff/runbook with operator guidance.
 
 ## Scope (out)
 
 - Proto/schema changes.
 - Service runtime behavior changes.
 - Fairness lock modifications.
+- Advanced run management features (run registry, auto-suffix naming, retention policies).
 
 ## Dependencies / prerequisites
 
@@ -36,14 +41,15 @@ Prevent accidental benchmark artifact overwrite when rerunning identical `(scena
 
 ## Acceptance criteria (definition of done)
 
-- Re-running the same scenario tuple does not silently overwrite existing artifacts by default.
-- Overwrite behavior (if selected) is explicit and documented.
+- Re-running the same scenario tuple fails by default when output path already exists.
+- `--overwrite` allows explicit replacement of existing artifacts.
+- Behavior is documented as operational safety and kept intentionally low-complexity.
 - Existing baseline unit/integration suites remain green.
 
 ## Verification checklist
 
 - [ ] Implement run-dir collision handling in loadgen runner/CLI.
-- [ ] Add/extend deterministic tests for collision policy.
+- [ ] Add/extend deterministic tests for fail-if-exists and `--overwrite`.
 - [ ] Re-run `tests/test_loadgen_contracts.py`.
 - [ ] Re-run `tests/test_worker_report_retry.py`.
 - [ ] Re-run `tests/test_coordinator_report_outcome_idempotency.py`.
@@ -56,4 +62,4 @@ Prevent accidental benchmark artifact overwrite when rerunning identical `(scena
 ## Risks / rollback notes
 
 - Changing run-dir policy can impact downstream scripts expecting exact deterministic path naming.
-- If suffix-based preservation is used, analysis scripts must handle multiple runs per base tuple.
+- Mitigation: keep deterministic naming unchanged and use explicit `--overwrite` only when intended.
