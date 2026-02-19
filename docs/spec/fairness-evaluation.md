@@ -77,7 +77,22 @@ In v1, the client/load generator performs deterministic owner routing for job-sc
 
 Monolith nodes do not forward job-scoped requests to each other in v1.
 
-## 4.4 Measurement parity
+## 4.4 Determinism Model (Design A vs Design B)
+
+- Design A does not require owner routing:
+  - client traffic enters through Gateway,
+  - canonical mutation authorities are centralized by service role (`job`, `queue`, `result`, `coordinator`),
+  - determinism comes from single-owner state + locked CAS/idempotency rules.
+- Design B requires owner routing:
+  - state is distributed across six monolith nodes with per-node in-memory stores,
+  - deterministic routing by key is required to preserve submit idempotency and job-scoped read/cancel coherence,
+  - this is why Section 5 is correctness-critical in Design B, not just a load-balancing choice.
+
+Operational interpretation for new users/agents:
+- If comparing fairness/performance only, follow capacity and workload parity rules.
+- If validating semantic parity in Design B, routing correctness is a first-order prerequisite.
+
+## 4.5 Measurement parity
 Both designs must use:
 - same hardware
 - same workload matrix

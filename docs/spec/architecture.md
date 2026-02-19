@@ -202,6 +202,9 @@ Internal RPC topologies may differ by design, but client-visible behavior remain
 Detailed routing and evaluation constraints are defined in:
 - `docs/spec/fairness-evaluation.md`
 
+Determinism clarification for new readers:
+- See `docs/spec/fairness-evaluation.md` Section `4.4 Determinism Model (Design A vs Design B)` for why Design A does not require owner routing while Design B does.
+
 ---
 
 ## 10) Design Assumptions and Out-of-Scope (v1)
