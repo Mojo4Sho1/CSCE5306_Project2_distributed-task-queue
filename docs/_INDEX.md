@@ -76,6 +76,11 @@ If two sources conflict, use this precedence:
 - **`docs/handoff/NEXT_TASK.md`**  
   Exact next implementation task and acceptance criteria.
 
+## Temporary Planning
+- **`docs/temp/`**  
+  Temporary planning/checklist artifacts used during active implementation transitions (for example pre-loadgen readiness tracking).  
+  Files in this directory are non-authoritative and should be removed once their trigger conditions are satisfied.
+
 ## Spec (authoritative v1 semantics)
 - **`docs/spec/architecture.md`**  
   Service boundaries, ownership, mutation authority, and invariants.
