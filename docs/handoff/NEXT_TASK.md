@@ -5,32 +5,29 @@
 
 ## Task summary
 
-Implement a reusable Design B client-routing utility that covers both locked ingress modes (round-robin for empty submit key, deterministic owner for non-empty key/job-scoped operations) and validate it with focused tests.
+Implement the pre-loadgen benchmark contract scaffold: scenario configuration schema, runner skeleton, and output artifact schema, with Design B ingress wired through the shared client-routing utility.
 
 ## Why this task is next
 
-- Deterministic owner routing is now implemented and smoke-validated for non-empty submit keys and job-scoped operations.
-- Remaining parity gap from fairness lock is explicit empty-key `SubmitJob` round-robin behavior for Design B client path.
-- Routing logic is currently spread across script-local assumptions; centralizing ingress policy reduces drift risk before load-generator integration.
+- Design B client routing parity is now implemented and validated for both locked ingress modes.
+- Remaining blocker before full benchmark implementation is a reproducible scenario + output contract.
+- Locking scenario/output structure now reduces rework when full load traffic generation is added.
 
 ## Scope (in)
 
-- Add reusable Design B client-routing utility/module for:
-  - `SubmitJob` with empty `client_request_id`: round-robin across fixed ordered node list,
-  - `SubmitJob` with non-empty `client_request_id`: deterministic owner by locked hash formula,
-  - `GetJobStatus`/`GetJobResult`/`CancelJob`: deterministic owner by `job_id`.
-- Add tests/smokes to verify:
-  - round-robin progression for empty-key submits,
-  - deterministic repeatability for non-empty submit keys and job-scoped routing.
-- Keep Design A non-regression command matrix operational and documented.
-- Record exact command evidence, timestamps, and residual risks in handoff docs.
+- Add machine-readable scenario config artifact and loader for benchmark runs.
+- Add runner scaffold implementing warm-up -> measure -> cool-down -> repeat control flow.
+- Add output row schema/writer aligned with fairness spec required fields.
+- Ensure Design B path uses shared routing utility (`common/design_b_routing.py`) and explicit ordered target list.
+- Add deterministic tests for scenario parsing/validation and output serialization.
+- Update docs and handoff with commands/evidence.
 
 ## Scope (out)
 
-- Cross-node forwarding implementation inside monolith services.
-- Fairness benchmark/tuning runs.
+- Full high-throughput load-generation engine implementation.
+- Benchmark result interpretation/plotting.
 - Proto/schema/contract changes.
-- Durability/lease/ack redesign.
+- Inter-node forwarding or storage durability redesign.
 - New external dependencies.
 
 ## Dependencies / prerequisites
@@ -38,11 +35,9 @@ Implement a reusable Design B client-routing utility that covers both locked ing
 - Use conda environment `grpc` for all code/tests:
   - `conda run -n grpc python <script.py>`
   - `conda run -n grpc python -m unittest <test_path.py>`
-- Bring up Design B baseline:
-  - `docker compose -f docker/docker-compose.design-b.yml up --build -d`
-  - `docker compose -f docker/docker-compose.design-b.yml ps`
-- Keep Design A bring-up available for non-regression:
+- Keep both runtime stacks available for smoke/non-regression:
   - `docker compose -f docker/docker-compose.design-a.yml up --build -d`
+  - `docker compose -f docker/docker-compose.design-b.yml up --build -d`
 
 ## Implementation notes
 
@@ -51,40 +46,44 @@ Implement a reusable Design B client-routing utility that covers both locked ing
   - `docs/spec/constants.md`
   - `docs/spec/error-idempotency.md`
   - `docs/spec/state-machine.md`
+- Reuse shared Design B routing utility:
+  - `common/design_b_routing.py`
 - Keep contracts frozen: no proto/schema changes.
-- Prefer additive utilities/scripts over invasive service rewrites for this routing milestone.
+- Keep scaffolding additive and separable from core service runtime.
 
 ## Acceptance criteria (definition of done)
 
-- Reusable client-routing utility exists with explicit node-order input and deterministic behavior.
-- Utility behavior demonstrates:
-  - empty-key `SubmitJob` round-robin progression,
-  - non-empty-key `SubmitJob` deterministic owner routing,
-  - deterministic job-scoped routing by `job_id`.
-- Design B smoke/test evidence covers both routing modes (round-robin + deterministic owner).
-- `conda run -n grpc python -m unittest tests/test_worker_report_retry.py` passes.
-- `conda run -n grpc python -m unittest tests/test_coordinator_report_outcome_idempotency.py` passes.
-- `conda run -n grpc python tests/integration/smoke_live_stack.py` passes.
-- `conda run -n grpc python tests/integration/smoke_integration_terminal_path.py` passes.
-- `conda run -n grpc python tests/integration/smoke_integration_failure_path.py` passes.
+- Scenario config schema exists with validation for workload/fairness controls.
+- Runner scaffold exists for warm-up/measure/cool-down/repeat flow and stable run IDs.
+- Output row schema includes required fairness fields and writes parseable artifacts.
+- Design B scaffold path resolves targets and routing through shared helper.
+- Deterministic tests for config parse/validation and output serialization pass.
+- Existing baseline checks remain green:
+  - `conda run -n grpc python -m unittest tests/test_worker_report_retry.py`
+  - `conda run -n grpc python -m unittest tests/test_coordinator_report_outcome_idempotency.py`
+  - `conda run -n grpc python tests/integration/smoke_live_stack.py`
+  - `conda run -n grpc python tests/integration/smoke_integration_terminal_path.py`
+  - `conda run -n grpc python tests/integration/smoke_integration_failure_path.py`
+  - `conda run -n grpc python tests/integration/smoke_design_b_owner_routing.py`
 - Any failures are documented with exact commands, timestamps, and root-cause hypothesis in `docs/handoff/CURRENT_STATUS.md`.
-- Documentation updated for any new Design B routing scripts/commands.
 
 ## Verification checklist
 
-- [ ] Add reusable Design B client-routing utility for empty-key round-robin + non-empty deterministic routing.
-- [ ] Add/update tests/smokes for round-robin + deterministic routing behavior.
-- [ ] Bring up Design B stack and confirm monolith health via compose `ps`.
-- [ ] Verify conda execution path (`conda run -n grpc python -c "import grpc,sys; print(sys.executable)"`).
+- [ ] Add scenario config schema + loader.
+- [ ] Add runner scaffold for warm-up/measure/cool-down/repeat.
+- [ ] Add output row schema/writer for benchmark artifacts.
+- [ ] Add deterministic tests for scenario parsing and artifact serialization.
+- [ ] Ensure Design B runner path uses `common/design_b_routing.py`.
 - [ ] Re-run `tests/test_worker_report_retry.py`.
 - [ ] Re-run `tests/test_coordinator_report_outcome_idempotency.py`.
 - [ ] Re-run `tests/integration/smoke_live_stack.py`.
 - [ ] Re-run `tests/integration/smoke_integration_terminal_path.py`.
 - [ ] Re-run `tests/integration/smoke_integration_failure_path.py`.
+- [ ] Re-run `tests/integration/smoke_design_b_owner_routing.py`.
 - [ ] Record command outputs/timestamps/residual risks in `docs/handoff/CURRENT_STATUS.md`.
 
 ## Risks / rollback notes
 
-- Without centralized ingress logic, empty-key submit traffic can drift from locked fairness assumptions.
-- Duplicated routing-order definitions across scripts/runtime remain a drift vector.
-- Rollback path is low risk: keep routing utility additive and keep existing runtime contract unchanged.
+- Scenario/output drift without a fixed schema can invalidate A/B comparability.
+- If runner control-flow semantics drift from fairness spec (timing windows, seeds), benchmark reproducibility degrades.
+- Rollback path is low risk: scaffolding is additive and can be isolated from service runtime.

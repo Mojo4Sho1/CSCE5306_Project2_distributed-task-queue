@@ -5,32 +5,38 @@
 
 ## Current focus
 
-Design B deterministic owner-routing client path + coherence validation, with Design A non-regression matrix.
+Design B client-routing parity utility (empty-key round-robin + deterministic owner routing) and non-regression validation.
 
 ## Completed in current focus
 
-- Added deterministic routing utility:
-  - `common/owner_routing.py`
-  - locked algorithm: `uint64_be(first_8_bytes(sha256(key_utf8))) % N`.
-- Added owner-routing automated checks:
-  - `tests/test_owner_routing.py` (formula + node-order behavior + argument validation),
-  - `tests/integration/smoke_design_b_owner_routing.py` (routed submit/status/result/cancel evidence).
-- Implemented Design B runtime coherence fix:
-  - `services/job/servicer.py` now supports owner-affine `job_id` generation when owner-routing config is present,
-  - `services/monolith/node.py` now provides node-order/index config to `JobServicer` using `MONOLITH_NODE_ORDER` + `MONOLITH_NODE_ID`.
-- Preserved frozen v1 contracts:
-  - no proto/schema changes (`proto/*` unchanged),
-  - no public API service/method signature changes.
-- Updated docs for routing utilities/tests and runtime behavior:
+- Added reusable Design B client-routing module:
+  - `common/design_b_routing.py`
+  - provides `DesignBClientRouter` and `build_ordered_targets` for one shared ingress policy surface.
+- Added focused unit coverage for client-routing behaviors:
+  - `tests/test_design_b_client_routing.py`
+  - verifies empty-key round-robin progression/wrap,
+  - verifies non-empty submit-key deterministic owner routing,
+  - verifies job-scoped routing by `job_id`,
+  - verifies invalid-argument guards.
+- Extended Design B live smoke to cover both locked ingress modes using shared helper:
+  - `tests/integration/smoke_design_b_owner_routing.py`
+  - now validates:
+    - empty-key round-robin submit progression,
+    - empty-key non-idempotent distinct `job_id` behavior,
+    - empty-key submit-to-job-owner coherence,
+    - existing non-empty key owner-routing/idempotency checks,
+    - existing job-scoped owner-routing checks (`GetJobStatus`/`GetJobResult`/`CancelJob`).
+- Updated docs for new utility and verification matrix:
   - `README.md`,
   - `tests/_TEST_INDEX.md`,
   - `docs/spec/runtime-config-design-b.md`.
 
 ## Passing checks
 
-- Run timestamp anchor: `2026-02-19 14:21:18 -06:00` (local host clock start), `2026-02-19 14:25:03 -06:00` (end).
-- `conda run -n grpc python -m py_compile common/owner_routing.py tests/test_owner_routing.py tests/integration/smoke_design_b_owner_routing.py`: PASS
-- `conda run -n grpc python -m py_compile services/job/servicer.py services/monolith/node.py`: PASS
+- Run timestamp anchor: `2026-02-19 14:44:31 -06:00` (start), `2026-02-19 14:47:39 -06:00` (end).
+- `conda run -n grpc python -m py_compile common/design_b_routing.py tests/test_design_b_client_routing.py tests/integration/smoke_design_b_owner_routing.py`: PASS
+- `conda run -n grpc python -m unittest tests/test_design_b_client_routing.py`: PASS
+  - `Ran 6 tests ... OK`
 - `conda run -n grpc python -m unittest tests/test_owner_routing.py`: PASS
   - `Ran 3 tests ... OK`
 - `conda run -n grpc python -m unittest tests/test_worker_report_retry.py`: PASS
@@ -42,46 +48,38 @@ Design B deterministic owner-routing client path + coherence validation, with De
   - `monolith-1..monolith-6` all `Up (... healthy)` during verification window.
 - `conda run -n grpc python -c "import grpc,sys; print(sys.executable)"`: PASS (`D:\Programming\anaconda3\envs\grpc\python.exe`)
 - `conda run -n grpc python tests/integration/smoke_design_b_owner_routing.py`: PASS
-  - all checks `PASS`, final `RESULT: PASS`,
-  - evidence includes:
-    - submit owner selection by `client_request_id`,
-    - idempotent same-key submit returns same `job_id`,
-    - same-key/different-payload returns `FAILED_PRECONDITION`,
-    - `GetJobStatus`/`GetJobResult`/`CancelJob` non-owner calls return `NOT_FOUND`,
-    - owner-routed job-scoped calls succeed.
-- `docker compose -f docker/docker-compose.design-a.yml up --build -d`: PASS
+  - all probe lines `PASS`, final `RESULT: PASS`,
+  - includes explicit empty-key round-robin and non-empty deterministic owner evidence.
+- `docker compose -f docker/docker-compose.design-a.yml up --build -d`: PASS (services started healthy; one tool invocation timed out at 12s but subsequent `ps` was healthy).
 - `docker compose -f docker/docker-compose.design-a.yml ps`: PASS
   - `gateway`, `job`, `queue`, `coordinator`, `result`, `worker` all `Up (... healthy)`.
 - `conda run -n grpc python tests/integration/smoke_live_stack.py`: PASS
-  - all probe lines reported `PASS` and final `RESULT: PASS`.
+  - final `RESULT: PASS`.
 - `conda run -n grpc python tests/integration/smoke_integration_terminal_path.py`: PASS
-  - all probe lines reported `PASS` and final `RESULT: PASS`.
+  - final `RESULT: PASS`.
 - `conda run -n grpc python tests/integration/smoke_integration_failure_path.py`: PASS
-  - all probe lines reported `PASS` and final `RESULT: PASS`.
+  - final `RESULT: PASS`.
 
 ## Known gaps/blockers
 
 - No functional blockers for this routing milestone.
-- Residual risk: `MONOLITH_NODE_ORDER` is currently configured implicitly by default ordering in runtime (`monolith-1..monolith-6`) and mirrored by client/script target ordering; drift across environments can still cause routing mismatch if ordering is changed inconsistently.
-- Operational note: running both compose files concurrently under the same compose project name shows cross-file containers as orphans in compose warnings; this is expected in current local workflow.
+- Residual risk: round-robin cursor is process-local to the client/router instance; multi-process load generators must share or partition submit streams intentionally for globally balanced distribution.
+- Operational note: running both compose files concurrently under one compose project still produces orphan warnings; expected in current local workflow.
 
 ## Timing/race observations
 
-- Initial Design B routing smoke attempt failed before runtime fix: `GetJobStatus` on `job_id`-owner returned `NOT_FOUND` due to random UUID placement mismatch.
-- After owner-affine `job_id` generation was added for monolith runtime, Design B routing smoke passed end-to-end.
-- Design A unit + integration smoke matrix remained green after routing changes.
+- Initial smoke run after refactor failed with script unpacking bug (`submit_target` returns three values); fixed and re-verified in same session.
+- Empty-key submits validated as non-idempotent and distributed in configured round-robin order.
 
 ## Next task (single target)
 
-Implement Design B client utility for locked ingress behavior parity:
-- round-robin `SubmitJob` when `client_request_id` is empty,
-- deterministic owner routing when `client_request_id` is non-empty,
-- reusable shared node-order config surface to reduce routing-order drift across scripts/load-generator.
+Define and implement load-generator scenario/output contract scaffold (config schema + runner skeleton + artifact schema) that consumes `common/design_b_routing.py` for Design B ingress policy.
 
 ## Definition of done for next task
 
-- Add a Design B client helper/module that implements both empty-key round-robin and non-empty-key deterministic routing in one place.
-- Ensure helper consumes explicit ordered node list config and can be reused by future load-generator code.
-- Add/extend tests proving empty-key round-robin behavior and non-empty-key deterministic owner behavior.
-- Keep current required Design A and Design B smoke commands green.
-- Update docs/handoff with command evidence, exact timestamps, and residual-risk notes.
+- Add machine-readable scenario config format covering locked fairness controls (concurrency, request mix, warm-up/measure/cool-down windows, run seed).
+- Add loadgen runner scaffold that can execute warm-up -> measure -> cool-down -> repeat and write per-run artifacts.
+- Add benchmark row schema/output writer aligned with `docs/spec/fairness-evaluation.md` Section 10 fields.
+- Wire Design B path to shared `DesignBClientRouter` and explicit ordered targets config.
+- Add at least one deterministic non-live unit test for scenario parsing and output row serialization.
+- Update docs/spec + handoff docs with commands, assumptions, and residual risk notes.

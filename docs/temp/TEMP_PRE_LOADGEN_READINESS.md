@@ -20,12 +20,12 @@ Track remaining prerequisites between current Design B routing correctness and f
 
 ## Exit Criteria (Ready to Build Load Generator)
 
-- [ ] A reusable client-routing library exists for Design B and is used by integration/benchmark client code.
-- [ ] Routing behavior is fully covered:
-  - [ ] `SubmitJob` with empty `client_request_id` uses round-robin.
-  - [ ] `SubmitJob` with non-empty `client_request_id` uses deterministic owner routing.
-  - [ ] `GetJobStatus` / `GetJobResult` / `CancelJob` route by `job_id` owner.
-- [ ] Routing node-order source is explicit and shared (single config surface; no duplicate hardcoded order lists).
+- [x] A reusable client-routing library exists for Design B and is used by integration/benchmark client code.
+- [x] Routing behavior is fully covered:
+  - [x] `SubmitJob` with empty `client_request_id` uses round-robin.
+  - [x] `SubmitJob` with non-empty `client_request_id` uses deterministic owner routing.
+  - [x] `GetJobStatus` / `GetJobResult` / `CancelJob` route by `job_id` owner.
+- [x] Routing node-order source is explicit and shared (single config surface; no duplicate hardcoded order lists).
 - [ ] Scenario config format exists for workload matrix (concurrency, mix, durations, run windows, seeds).
 - [ ] Benchmark output schema is defined and machine-readable.
 - [ ] A runner workflow exists for warm-up -> measure -> cool-down -> repeat.
@@ -35,12 +35,12 @@ Track remaining prerequisites between current Design B routing correctness and f
 
 ## 1) Client Routing Library (Design B)
 
-- [ ] Create importable module in `common/` for client-side routing policy.
-- [ ] Keep deterministic hash implementation centralized (reuse existing owner-routing helper).
-- [ ] Add unit tests for:
-  - [ ] deterministic owner mapping repeatability,
-  - [ ] round-robin progression behavior,
-  - [ ] edge conditions (node list changes, empty key handling).
+- [x] Create importable module in `common/` for client-side routing policy.
+- [x] Keep deterministic hash implementation centralized (reuse existing owner-routing helper).
+- [x] Add unit tests for:
+  - [x] deterministic owner mapping repeatability,
+  - [x] round-robin progression behavior,
+  - [x] edge conditions (node list changes, empty key handling).
 
 Definition of done:
 - All Design B client-facing scripts/tests that need routing import this module instead of re-implementing logic.
@@ -94,8 +94,8 @@ Definition of done:
 
 ## 5) Pre-Benchmark Gate
 
-- [ ] Confirm required unit and smoke tests pass for current baseline.
-- [ ] Confirm Design B routing smoke passes with deterministic evidence.
+- [x] Confirm required unit and smoke tests pass for current baseline.
+- [x] Confirm Design B routing smoke passes with deterministic evidence.
 - [ ] Confirm documentation includes benchmark run commands and artifact locations.
 
 Definition of done:
@@ -115,4 +115,3 @@ Cleanup checklist:
 - [ ] Verify no canonical docs reference legacy smoke paths.
 - [ ] Verify no CI/local validation commands depend on legacy smoke scripts.
 - [ ] Remove legacy files in one focused cleanup change set with doc index updates.
-

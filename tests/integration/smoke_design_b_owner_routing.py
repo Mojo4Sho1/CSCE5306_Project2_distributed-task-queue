@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Design B smoke probe for deterministic owner routing.
+Design B smoke probe for locked client routing behavior.
 
 Validates:
+- SubmitJob with empty client_request_id uses round-robin progression.
 - SubmitJob with non-empty client_request_id routes deterministically to owner node.
 - Repeated SubmitJob with same key/spec returns the same job_id (idempotency).
 - GetJobStatus/GetJobResult/CancelJob routed by job_id to owner node.
@@ -15,7 +16,7 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, List, Sequence, Tuple
+from typing import Callable, List, Sequence
 
 import grpc
 
@@ -48,15 +49,14 @@ def _status_name(public_pb2, status_value: int) -> str:
 
 
 def _print_summary(checks: List[CheckResult]) -> int:
-    print("\n=== Design B Owner Routing Smoke Summary ===")
-    max_name = max((len(c.name) for c in checks), default=10)
+    print("\n=== Design B Client Routing Smoke Summary ===")
     all_passed = True
     for c in checks:
         status = "PASS" if c.passed else "FAIL"
-        print(f"{status:<5}  {c.name:<42}  {c.detail}")
+        print(f"{status:<5}  {c.name:<46}  {c.detail}")
         if not c.passed:
             all_passed = False
-    print("============================================")
+    print("=============================================")
     if all_passed:
         print("RESULT: PASS")
         return 0
@@ -81,11 +81,7 @@ def _expect_rpc_error(
 
 
 def _build_stubs(public_pb2_grpc, targets: Sequence[str]) -> List[object]:
-    stubs = []
-    for target in targets:
-        channel = grpc.insecure_channel(target)
-        stubs.append(public_pb2_grpc.TaskQueuePublicServiceStub(channel))
-    return stubs
+    return [public_pb2_grpc.TaskQueuePublicServiceStub(grpc.insecure_channel(target)) for target in targets]
 
 
 def _other_index(owner_index: int, node_count: int) -> int:
@@ -95,7 +91,7 @@ def _other_index(owner_index: int, node_count: int) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Smoke probe for Design B deterministic owner routing")
+    parser = argparse.ArgumentParser(description="Smoke probe for Design B client routing policy")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--ports", default="51051,52051,53051,54051,55051,56051")
     parser.add_argument("--rpc-timeout", type=float, default=2.0)
@@ -106,30 +102,104 @@ def main() -> int:
     _ensure_import_paths()
     import taskqueue_public_pb2 as public_pb2
     import taskqueue_public_pb2_grpc as public_pb2_grpc
-    from common.owner_routing import owner_for_key, owner_index_for_key
+    from common.design_b_routing import DesignBClientRouter, build_ordered_targets
 
     ports = [int(p.strip()) for p in args.ports.split(",") if p.strip()]
     if not ports:
         print("No ports provided")
         return 1
-    targets = [f"{args.host}:{p}" for p in ports]
+
+    targets = build_ordered_targets(args.host, ports)
+    stubs = _build_stubs(public_pb2_grpc, targets)
+    router = DesignBClientRouter(ordered_nodes=targets)
 
     checks: List[CheckResult] = []
-    stubs = _build_stubs(public_pb2_grpc, targets)
+
+    rr_idx_1, rr_target_1, rr_mode_1 = router.submit_target("")
+    rr_idx_2, rr_target_2, rr_mode_2 = router.submit_target("")
+    checks.append(
+        CheckResult(
+            "routing.submit_empty_round_robin_step1",
+            rr_mode_1 == "round_robin" and rr_idx_1 == 0 and rr_target_1 == targets[0],
+            f"mode={rr_mode_1}, idx={rr_idx_1}, target={rr_target_1}",
+        )
+    )
+    checks.append(
+        CheckResult(
+            "routing.submit_empty_round_robin_step2",
+            rr_mode_2 == "round_robin" and rr_idx_2 == 1 and rr_target_2 == targets[1],
+            f"mode={rr_mode_2}, idx={rr_idx_2}, target={rr_target_2}",
+        )
+    )
+
+    rr_submit_spec = public_pb2.JobSpec(
+        job_type="design-b-routing-smoke-empty-key",
+        work_duration_ms=150,
+        payload_size_bytes=8,
+        labels={"suite": "smoke_design_b_owner_routing", "mode": "round_robin"},
+    )
+
+    rr_submit_1 = stubs[rr_idx_1].SubmitJob(
+        public_pb2.SubmitJobRequest(spec=rr_submit_spec, client_request_id=""),
+        timeout=args.rpc_timeout,
+    )
+    rr_submit_2 = stubs[rr_idx_2].SubmitJob(
+        public_pb2.SubmitJobRequest(spec=rr_submit_spec, client_request_id=""),
+        timeout=args.rpc_timeout,
+    )
+    checks.append(
+        CheckResult(
+            "submit.empty_key_1_accepted",
+            bool(rr_submit_1.job_id) and rr_submit_1.initial_status == public_pb2.QUEUED,
+            f"job_id={rr_submit_1.job_id}, status={_status_name(public_pb2, rr_submit_1.initial_status)}, target={rr_target_1}",
+        )
+    )
+    checks.append(
+        CheckResult(
+            "submit.empty_key_2_accepted",
+            bool(rr_submit_2.job_id) and rr_submit_2.initial_status == public_pb2.QUEUED,
+            f"job_id={rr_submit_2.job_id}, status={_status_name(public_pb2, rr_submit_2.initial_status)}, target={rr_target_2}",
+        )
+    )
+    checks.append(
+        CheckResult(
+            "submit.empty_key_non_idempotent_distinct_jobs",
+            bool(rr_submit_1.job_id) and bool(rr_submit_2.job_id) and rr_submit_1.job_id != rr_submit_2.job_id,
+            f"job_id_1={rr_submit_1.job_id}, job_id_2={rr_submit_2.job_id}",
+        )
+    )
+
+    if rr_submit_1.job_id:
+        rr_job_owner_idx_1, rr_job_owner_target_1 = router.job_target(rr_submit_1.job_id)
+        checks.append(
+            CheckResult(
+                "routing.empty_key_job1_owner_coherent",
+                rr_job_owner_idx_1 == rr_idx_1 and rr_job_owner_target_1 == rr_target_1,
+                f"submit_idx={rr_idx_1}, owner_idx={rr_job_owner_idx_1}, owner_target={rr_job_owner_target_1}",
+            )
+        )
+    if rr_submit_2.job_id:
+        rr_job_owner_idx_2, rr_job_owner_target_2 = router.job_target(rr_submit_2.job_id)
+        checks.append(
+            CheckResult(
+                "routing.empty_key_job2_owner_coherent",
+                rr_job_owner_idx_2 == rr_idx_2 and rr_job_owner_target_2 == rr_target_2,
+                f"submit_idx={rr_idx_2}, owner_idx={rr_job_owner_idx_2}, owner_target={rr_job_owner_target_2}",
+            )
+        )
 
     client_request_id = f"design-b-routing-{int(time.time() * 1000)}"
     submit_spec = public_pb2.JobSpec(
         job_type="design-b-routing-smoke",
         work_duration_ms=5000,
         payload_size_bytes=16,
-        labels={"suite": "smoke_design_b_owner_routing"},
+        labels={"suite": "smoke_design_b_owner_routing", "mode": "owner"},
     )
 
-    owner_idx_by_key = owner_index_for_key(client_request_id, len(targets))
-    owner_target = owner_for_key(client_request_id, targets)
+    owner_idx_by_key, owner_target, _owner_mode = router.submit_target(client_request_id)
     checks.append(
         CheckResult(
-            "routing.submit_owner_index",
+            "routing.submit_non_empty_owner",
             owner_target == targets[owner_idx_by_key],
             f"owner_index={owner_idx_by_key}, owner_target={owner_target}",
         )
@@ -141,7 +211,7 @@ def main() -> int:
     )
     checks.append(
         CheckResult(
-            "submit.first",
+            "submit.non_empty_first",
             bool(submit_1.job_id) and submit_1.initial_status == public_pb2.QUEUED,
             f"job_id={submit_1.job_id}, status={_status_name(public_pb2, submit_1.initial_status)}, owner={owner_target}",
         )
@@ -156,7 +226,7 @@ def main() -> int:
     )
     checks.append(
         CheckResult(
-            "submit.idempotent_same_key_same_payload",
+            "submit.non_empty_idempotent_same_payload",
             submit_2.job_id == job_id,
             f"job_id_first={job_id}, job_id_second={submit_2.job_id}",
         )
@@ -166,11 +236,11 @@ def main() -> int:
         job_type="design-b-routing-smoke-mutated",
         work_duration_ms=submit_spec.work_duration_ms,
         payload_size_bytes=submit_spec.payload_size_bytes,
-        labels={"suite": "smoke_design_b_owner_routing"},
+        labels={"suite": "smoke_design_b_owner_routing", "mode": "owner"},
     )
     checks.append(
         _expect_rpc_error(
-            "submit.idempotent_same_key_different_payload",
+            "submit.non_empty_same_key_different_payload",
             lambda: stubs[owner_idx_by_key].SubmitJob(
                 public_pb2.SubmitJobRequest(spec=mutated_spec, client_request_id=client_request_id),
                 timeout=args.rpc_timeout,
@@ -179,8 +249,7 @@ def main() -> int:
         )
     )
 
-    owner_idx_by_job = owner_index_for_key(job_id, len(targets))
-    job_owner_target = owner_for_key(job_id, targets)
+    owner_idx_by_job, job_owner_target = router.job_target(job_id)
     checks.append(
         CheckResult(
             "routing.job_owner_index",

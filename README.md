@@ -121,6 +121,7 @@ Practical note:
 Design B v1 parity boundary reminder:
 - Public request/response contracts remain frozen.
 - Design B owner routing for job-scoped operations remains a client/load-generator responsibility per `docs/spec/fairness-evaluation.md`.
+- Shared client-routing helper for Design B parity is available at `common/design_b_routing.py` (`DesignBClientRouter` + `build_ordered_targets`) for empty-key round-robin and key/job deterministic owner routing.
 - Monolith job creation enforces owner-affine `job_id` generation so `job_id`-based routing is coherent across submit/status/result/cancel paths.
 
 ## User Demo Workflow (Design A)
@@ -197,10 +198,11 @@ Use this matrix to choose the right verification level:
 | Fast logic regression check | `conda run -n grpc python -m unittest tests/test_worker_report_retry.py` | No |
 | Coordinator terminal idempotency check | `conda run -n grpc python -m unittest tests/test_coordinator_report_outcome_idempotency.py` | No |
 | Owner-routing formula check | `conda run -n grpc python -m unittest tests/test_owner_routing.py` | No |
+| Design B client-routing policy check (round-robin + deterministic owner) | `conda run -n grpc python -m unittest tests/test_design_b_client_routing.py` | No |
 | Live API + service wiring sanity | `conda run -n grpc python tests/integration/smoke_live_stack.py` | Yes |
 | Live success lifecycle (`QUEUED -> RUNNING -> DONE`) | `conda run -n grpc python tests/integration/smoke_integration_terminal_path.py` | Yes |
 | Live failure lifecycle (`QUEUED -> RUNNING -> FAILED`) | `conda run -n grpc python tests/integration/smoke_integration_failure_path.py` | Yes |
-| Design B deterministic owner routing (`SubmitJob` key + job-scoped routing) | `conda run -n grpc python tests/integration/smoke_design_b_owner_routing.py` | Yes (Design B) |
+| Design B client-routing parity (`SubmitJob` empty-key round-robin + non-empty key owner routing + job-scoped routing) | `conda run -n grpc python tests/integration/smoke_design_b_owner_routing.py` | Yes (Design B) |
 
 ## Live Smoke Workflow (Design A)
 
@@ -218,6 +220,7 @@ Design B routing-validation path:
 
 ```bash
 conda run -n grpc python -m unittest tests/test_owner_routing.py
+conda run -n grpc python -m unittest tests/test_design_b_client_routing.py
 conda run -n grpc python tests/integration/smoke_design_b_owner_routing.py
 ```
 
@@ -383,3 +386,4 @@ distributed-task-queue/
         |-- main.py
         `-- worker.py
 ```
+

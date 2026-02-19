@@ -64,9 +64,13 @@ Runtime defaults remain aligned with locked v1 constants for:
 
 ## Deterministic routing coherence (v1)
 
-- The client/load-generator still performs deterministic owner routing per fairness spec:
-  - `SubmitJob` (`client_request_id` when non-empty),
-  - `GetJobStatus`, `GetJobResult`, `CancelJob` (`job_id`).
+- The client/load-generator performs locked ingress routing policy:
+  - `SubmitJob` with empty `client_request_id`: round-robin over ordered node targets,
+  - `SubmitJob` with non-empty `client_request_id`: deterministic owner routing by key,
+  - `GetJobStatus`/`GetJobResult`/`CancelJob`: deterministic owner routing by `job_id`.
+- Shared client utility module for this policy:
+  - `common/design_b_routing.py`
+  - `DesignBClientRouter` (policy), `build_ordered_targets` (ordered target config surface).
 - Monolith node job creation enforces owner-affine `job_id` generation based on configured node order, so `job_id`-routed follow-up calls map back to the creating owner node without inter-node forwarding.
 
 ## Health visibility
