@@ -5,24 +5,23 @@
 
 ## Task summary
 
-Implement deterministic Design B owner-routing client path and smoke validation so job-scoped operations consistently target the correct monolith owner node under frozen v1 rules.
+Implement a reusable Design B client-routing utility that covers both locked ingress modes (round-robin for empty submit key, deterministic owner for non-empty key/job-scoped operations) and validate it with focused tests.
 
 ## Why this task is next
 
-- Design B baseline scaffold runtime is now runnable (`docker-compose.design-b.yml`) with healthy monolith nodes.
-- The next correctness risk is routing coherence across six independent in-memory nodes.
-- Locked specs require deterministic owner routing for idempotency and job-scoped consistency in Design B v1.
+- Deterministic owner routing is now implemented and smoke-validated for non-empty submit keys and job-scoped operations.
+- Remaining parity gap from fairness lock is explicit empty-key `SubmitJob` round-robin behavior for Design B client path.
+- Routing logic is currently spread across script-local assumptions; centralizing ingress policy reduces drift risk before load-generator integration.
 
 ## Scope (in)
 
-- Add deterministic owner-routing helper logic per locked algorithm:
-  - hash: `SHA-256`,
-  - owner index: `uint64_be(first_8_bytes(sha256(key))) % N`,
-  - node-order-driven owner selection.
-- Apply routing rules for Design B client path:
-  - `SubmitJob` with non-empty `client_request_id` routes by `client_request_id`,
-  - `GetJobStatus`, `GetJobResult`, `CancelJob` route by `job_id`.
-- Add/extend Design B smoke script(s) to validate routed submit + job-scoped read/cancel behavior against monolith node ports.
+- Add reusable Design B client-routing utility/module for:
+  - `SubmitJob` with empty `client_request_id`: round-robin across fixed ordered node list,
+  - `SubmitJob` with non-empty `client_request_id`: deterministic owner by locked hash formula,
+  - `GetJobStatus`/`GetJobResult`/`CancelJob`: deterministic owner by `job_id`.
+- Add tests/smokes to verify:
+  - round-robin progression for empty-key submits,
+  - deterministic repeatability for non-empty submit keys and job-scoped routing.
 - Keep Design A non-regression command matrix operational and documented.
 - Record exact command evidence, timestamps, and residual risks in handoff docs.
 
@@ -57,10 +56,12 @@ Implement deterministic Design B owner-routing client path and smoke validation 
 
 ## Acceptance criteria (definition of done)
 
-- Deterministic owner-routing helper behavior matches locked formula and node ordering.
-- Design B smoke evidence demonstrates:
-  - routed idempotent submit behavior for non-empty `client_request_id`,
-  - routed status/result/cancel calls by `job_id`.
+- Reusable client-routing utility exists with explicit node-order input and deterministic behavior.
+- Utility behavior demonstrates:
+  - empty-key `SubmitJob` round-robin progression,
+  - non-empty-key `SubmitJob` deterministic owner routing,
+  - deterministic job-scoped routing by `job_id`.
+- Design B smoke/test evidence covers both routing modes (round-robin + deterministic owner).
 - `conda run -n grpc python -m unittest tests/test_worker_report_retry.py` passes.
 - `conda run -n grpc python -m unittest tests/test_coordinator_report_outcome_idempotency.py` passes.
 - `conda run -n grpc python tests/integration/smoke_live_stack.py` passes.
@@ -71,8 +72,8 @@ Implement deterministic Design B owner-routing client path and smoke validation 
 
 ## Verification checklist
 
-- [ ] Add deterministic owner-routing utility aligned to locked hash/index formula.
-- [ ] Add/update Design B smoke script(s) for routed submit/status/result/cancel.
+- [ ] Add reusable Design B client-routing utility for empty-key round-robin + non-empty deterministic routing.
+- [ ] Add/update tests/smokes for round-robin + deterministic routing behavior.
 - [ ] Bring up Design B stack and confirm monolith health via compose `ps`.
 - [ ] Verify conda execution path (`conda run -n grpc python -c "import grpc,sys; print(sys.executable)"`).
 - [ ] Re-run `tests/test_worker_report_retry.py`.
@@ -84,6 +85,6 @@ Implement deterministic Design B owner-routing client path and smoke validation 
 
 ## Risks / rollback notes
 
-- Without deterministic routing, Design B per-node in-memory state can violate submit idempotency/read coherence expectations.
-- Script-level routing and runtime-level behavior can drift if node ordering and hash formula are duplicated in multiple places.
-- Rollback path is low risk: isolate routing utilities/scripts while keeping Design B runtime scaffold intact.
+- Without centralized ingress logic, empty-key submit traffic can drift from locked fairness assumptions.
+- Duplicated routing-order definitions across scripts/runtime remain a drift vector.
+- Rollback path is low risk: keep routing utility additive and keep existing runtime contract unchanged.

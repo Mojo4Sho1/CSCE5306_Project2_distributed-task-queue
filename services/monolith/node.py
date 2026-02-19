@@ -81,6 +81,16 @@ def _env_float(name: str, default: float, minimum: float = 0.0) -> float:
     return max(value, minimum)
 
 
+def _default_monolith_node_order() -> list[str]:
+    return [f"monolith-{idx}" for idx in range(1, 7)]
+
+
+def _parse_monolith_node_order(raw: str) -> list[str]:
+    parts = [token.strip() for token in raw.split(",")]
+    ordered = [token for token in parts if token]
+    return ordered or _default_monolith_node_order()
+
+
 def _resolve_logger(node_id: str, log_level: str) -> logging.Logger:
     try:
         return init_logger(service_name=f"monolith.{node_id}", level=log_level)
@@ -116,6 +126,13 @@ class MonolithNodeRuntime:
         self._shutdown_grace_seconds = _env_int("SHUTDOWN_GRACE_SECONDS", 3, minimum=0)
         self._log_level = _env_str("LOG_LEVEL", "INFO").upper()
         self._worker_enabled = _env_str("MONOLITH_ENABLE_WORKER", "1") != "0"
+        raw_node_order = _env_str("MONOLITH_NODE_ORDER", ",".join(_default_monolith_node_order()))
+        self._node_order = _parse_monolith_node_order(raw_node_order)
+        try:
+            self._node_index = self._node_order.index(self._node_id)
+        except ValueError:
+            self._node_order = _default_monolith_node_order()
+            self._node_index = self._node_order.index(self._node_id) if self._node_id in self._node_order else 0
 
         self._internal_rpc_timeout_ms = _env_int(
             "INTERNAL_RPC_TIMEOUT_MS",
@@ -188,6 +205,8 @@ class MonolithNodeRuntime:
         self._job_cfg = SimpleNamespace(
             service_name=f"job.{self._node_id}",
             max_dedup_keys=self._max_dedup_keys,
+            owner_node_index=self._node_index,
+            owner_node_count=len(self._node_order),
         )
         self._queue_cfg = SimpleNamespace(service_name=f"queue.{self._node_id}")
         self._result_cfg = SimpleNamespace(
@@ -258,6 +277,8 @@ class MonolithNodeRuntime:
             bind_addr=bind_addr,
             grpc_max_workers=self._grpc_max_workers,
             worker_enabled=self._worker_enabled,
+            node_index=self._node_index,
+            node_count=len(self._node_order),
         )
 
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=self._grpc_max_workers))
@@ -319,4 +340,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

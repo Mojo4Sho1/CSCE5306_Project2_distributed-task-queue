@@ -28,10 +28,16 @@ except Exception:  # pragma: no cover
     def now_ms() -> int:
         return int(time.time() * 1000)
 
+try:
+    from common.owner_routing import owner_index_for_key
+except Exception:  # pragma: no cover
+    owner_index_for_key = None  # type: ignore
+
 
 _DEFAULT_PAGE_SIZE = 50
 _MAX_PAGE_SIZE = 200
 _DEFAULT_MAX_DEDUP_KEYS = 10000
+_DEFAULT_OWNER_JOB_ID_MAX_ATTEMPTS = 1024
 
 _TERMINAL_STATUSES = {
     public_pb2.DONE,
@@ -84,6 +90,16 @@ class JobServicer(pb2_grpc.JobInternalServiceServicer):
         self._logger = logger or logging.getLogger("job.servicer")
         configured_cap = int(getattr(config, "max_dedup_keys", _DEFAULT_MAX_DEDUP_KEYS))
         self._max_dedup_keys = configured_cap if configured_cap > 0 else _DEFAULT_MAX_DEDUP_KEYS
+        self._owner_node_index = int(getattr(config, "owner_node_index", -1))
+        self._owner_node_count = int(getattr(config, "owner_node_count", 0))
+        self._owner_job_id_max_attempts = int(
+            getattr(config, "owner_job_id_max_attempts", _DEFAULT_OWNER_JOB_ID_MAX_ATTEMPTS)
+        )
+        self._owner_routing_enabled = (
+            owner_index_for_key is not None
+            and self._owner_node_count > 0
+            and 0 <= self._owner_node_index < self._owner_node_count
+        )
 
         self._lock = threading.RLock()
         self._jobs: Dict[str, _JobRecord] = {}
@@ -129,6 +145,16 @@ class JobServicer(pb2_grpc.JobInternalServiceServicer):
                 return False
         return True
 
+    def _new_job_id(self) -> str:
+        if not self._owner_routing_enabled:
+            return str(uuid.uuid4())
+        for _ in range(max(1, self._owner_job_id_max_attempts)):
+            candidate = str(uuid.uuid4())
+            idx = owner_index_for_key(candidate, self._owner_node_count)  # type: ignore[misc]
+            if idx == self._owner_node_index:
+                return candidate
+        raise RuntimeError("failed to generate owner-affine job_id")
+
     def CreateJob(self, request: pb2.CreateJobRequest, context: grpc.ServicerContext) -> pb2.CreateJobResponse:
         if not request.spec.job_type.strip():
             self._set_error(context, grpc.StatusCode.INVALID_ARGUMENT, "spec.job_type must be non-empty")
@@ -157,7 +183,11 @@ class JobServicer(pb2_grpc.JobInternalServiceServicer):
                     self._dedup.move_to_end(dedup_key)
                     return pb2.CreateJobResponse(job_id=rec.job_id, status=rec.status)
 
-            job_id = str(uuid.uuid4())
+            try:
+                job_id = self._new_job_id()
+            except RuntimeError as exc:
+                self._set_error(context, grpc.StatusCode.INTERNAL, str(exc))
+                return pb2.CreateJobResponse(job_id="", status=public_pb2.JOB_STATUS_UNSPECIFIED)
             created_at = now_ms()
             rec = _JobRecord(
                 job_id=job_id,

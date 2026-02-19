@@ -14,9 +14,11 @@ For script-only utilities and wrappers, see:
 
 - `conda run -n grpc python -m unittest tests/test_worker_report_retry.py`
 - `conda run -n grpc python -m unittest tests/test_coordinator_report_outcome_idempotency.py`
+- `conda run -n grpc python -m unittest tests/test_owner_routing.py`
 - `conda run -n grpc python tests/integration/smoke_live_stack.py`
 - `conda run -n grpc python tests/integration/smoke_integration_terminal_path.py`
 - `conda run -n grpc python tests/integration/smoke_integration_failure_path.py`
+- `conda run -n grpc python tests/integration/smoke_design_b_owner_routing.py`
 
 ## Validation Workflow (Design A)
 
@@ -30,6 +32,15 @@ For script-only utilities and wrappers, see:
    - `conda run -n grpc python tests/integration/smoke_live_stack.py`
    - `conda run -n grpc python tests/integration/smoke_integration_terminal_path.py`
    - `conda run -n grpc python tests/integration/smoke_integration_failure_path.py`
+
+## Validation Workflow (Design B Owner Routing)
+
+1. Start Design B services:
+   - `docker compose -f docker/docker-compose.design-b.yml up --build -d`
+   - `docker compose -f docker/docker-compose.design-b.yml ps`
+2. Run routing-focused checks:
+   - `conda run -n grpc python -m unittest tests/test_owner_routing.py`
+   - `conda run -n grpc python tests/integration/smoke_design_b_owner_routing.py`
 
 ## Naming Standard for New Tests
 

@@ -121,6 +121,7 @@ Practical note:
 Design B v1 parity boundary reminder:
 - Public request/response contracts remain frozen.
 - Design B owner routing for job-scoped operations remains a client/load-generator responsibility per `docs/spec/fairness-evaluation.md`.
+- Monolith job creation enforces owner-affine `job_id` generation so `job_id`-based routing is coherent across submit/status/result/cancel paths.
 
 ## User Demo Workflow (Design A)
 
@@ -195,13 +196,15 @@ Use this matrix to choose the right verification level:
 |---|---|---|
 | Fast logic regression check | `conda run -n grpc python -m unittest tests/test_worker_report_retry.py` | No |
 | Coordinator terminal idempotency check | `conda run -n grpc python -m unittest tests/test_coordinator_report_outcome_idempotency.py` | No |
+| Owner-routing formula check | `conda run -n grpc python -m unittest tests/test_owner_routing.py` | No |
 | Live API + service wiring sanity | `conda run -n grpc python tests/integration/smoke_live_stack.py` | Yes |
 | Live success lifecycle (`QUEUED -> RUNNING -> DONE`) | `conda run -n grpc python tests/integration/smoke_integration_terminal_path.py` | Yes |
 | Live failure lifecycle (`QUEUED -> RUNNING -> FAILED`) | `conda run -n grpc python tests/integration/smoke_integration_failure_path.py` | Yes |
+| Design B deterministic owner routing (`SubmitJob` key + job-scoped routing) | `conda run -n grpc python tests/integration/smoke_design_b_owner_routing.py` | Yes (Design B) |
 
 ## Live Smoke Workflow (Design A)
 
-After services are healthy, run:
+After Design A services are healthy, run:
 
 ```bash
 conda run -n grpc python -m unittest tests/test_worker_report_retry.py
@@ -209,6 +212,13 @@ conda run -n grpc python -m unittest tests/test_coordinator_report_outcome_idemp
 conda run -n grpc python tests/integration/smoke_live_stack.py
 conda run -n grpc python tests/integration/smoke_integration_terminal_path.py
 conda run -n grpc python tests/integration/smoke_integration_failure_path.py
+```
+
+Design B routing-validation path:
+
+```bash
+conda run -n grpc python -m unittest tests/test_owner_routing.py
+conda run -n grpc python tests/integration/smoke_design_b_owner_routing.py
 ```
 
 Retry-coverage note:
@@ -335,10 +345,12 @@ distributed-task-queue/
 |   |-- _TEST_INDEX.md
 |   |-- test_worker_report_retry.py
 |   |-- test_coordinator_report_outcome_idempotency.py
+|   |-- test_owner_routing.py
 |   `-- integration/
 |       |-- smoke_live_stack.py
 |       |-- smoke_integration_terminal_path.py
-|       `-- smoke_integration_failure_path.py
+|       |-- smoke_integration_failure_path.py
+|       `-- smoke_design_b_owner_routing.py
 `-- services/
     |-- monolith/
     |   |-- __init__.py

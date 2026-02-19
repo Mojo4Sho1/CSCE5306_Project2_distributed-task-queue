@@ -50,6 +50,7 @@ Baseline internal orchestration uses node-local loopback wiring.
   - `PYTHONPATH=/app:/app/generated`
 - Monolith node identity and bind:
   - `MONOLITH_NODE_ID` (per-container unique id)
+  - `MONOLITH_NODE_ORDER` (comma-separated fixed ordered node id list; default `monolith-1,monolith-2,monolith-3,monolith-4,monolith-5,monolith-6`)
   - `MONOLITH_BIND_HOST` (default `0.0.0.0`)
   - `MONOLITH_PUBLIC_PORT` (default `50051`)
 - Worker enablement:
@@ -60,6 +61,13 @@ Runtime defaults remain aligned with locked v1 constants for:
 - heartbeat timing,
 - retry/backoff settings,
 - dedup and output byte bounds.
+
+## Deterministic routing coherence (v1)
+
+- The client/load-generator still performs deterministic owner routing per fairness spec:
+  - `SubmitJob` (`client_request_id` when non-empty),
+  - `GetJobStatus`, `GetJobResult`, `CancelJob` (`job_id`).
+- Monolith node job creation enforces owner-affine `job_id` generation based on configured node order, so `job_id`-routed follow-up calls map back to the creating owner node without inter-node forwarding.
 
 ## Health visibility
 
@@ -90,4 +98,3 @@ docker compose -f docker/docker-compose.design-b.yml down --remove-orphans
 - No Design A contract changes.
 - No inter-node forwarding behavior in this scaffold.
 - Design B owner routing for job-scoped operations remains a client/load-generator responsibility per `docs/spec/fairness-evaluation.md`.
-
