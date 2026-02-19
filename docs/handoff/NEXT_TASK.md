@@ -24,9 +24,9 @@ Add deterministic automated coverage for worker `_report_with_retry` interrupt/e
   - attempt count behavior remains unchanged.
 - Keep worker config surface and defaults unchanged.
 - Validate non-regression across:
-  - `scripts/smoke_live_stack.py`
-  - `scripts/smoke_integration_terminal_path.py`
-  - `scripts/smoke_integration_failure_path.py`
+  - `tests/integration/smoke_live_stack.py`
+  - `tests/integration/smoke_integration_terminal_path.py`
+  - `tests/integration/smoke_integration_failure_path.py`
 - Record exact command evidence, timestamps, and residual risk notes in handoff docs.
 
 ## Scope (out)
@@ -57,9 +57,9 @@ Add deterministic automated coverage for worker `_report_with_retry` interrupt/e
 - Automated test coverage verifies stop-event interruption and transient RPC retry handling for `_report_with_retry`.
 - Locked retry defaults and env controls remain unchanged.
 - `conda run -n grpc python -m unittest tests/test_worker_report_retry.py` passes.
-- `conda run -n grpc python scripts/smoke_live_stack.py` passes.
-- `conda run -n grpc python scripts/smoke_integration_terminal_path.py` passes.
-- `conda run -n grpc python scripts/smoke_integration_failure_path.py` passes.
+- `conda run -n grpc python tests/integration/smoke_live_stack.py` passes.
+- `conda run -n grpc python tests/integration/smoke_integration_terminal_path.py` passes.
+- `conda run -n grpc python tests/integration/smoke_integration_failure_path.py` passes.
 - Any failures are documented with exact commands, timestamps, and root-cause hypothesis in `CURRENT_STATUS.md`.
 - Handoff/runtime docs updated with concrete pass/fail evidence and residual risks.
 
@@ -69,9 +69,9 @@ Add deterministic automated coverage for worker `_report_with_retry` interrupt/e
 - [ ] Re-run existing deterministic retry timing test module (`tests/test_worker_report_retry.py`).
 - [ ] Verify conda execution path using `conda run -n grpc python -c "import grpc,sys; print(sys.executable)"`.
 - [ ] Run `docker compose -f docker/docker-compose.design-a.yml up --build -d` and confirm healthy services with `docker compose -f docker/docker-compose.design-a.yml ps`.
-- [ ] Run `conda run -n grpc python scripts/smoke_live_stack.py`.
-- [ ] Run `conda run -n grpc python scripts/smoke_integration_terminal_path.py`.
-- [ ] Run `conda run -n grpc python scripts/smoke_integration_failure_path.py`.
+- [ ] Run `conda run -n grpc python tests/integration/smoke_live_stack.py`.
+- [ ] Run `conda run -n grpc python tests/integration/smoke_integration_terminal_path.py`.
+- [ ] Run `conda run -n grpc python tests/integration/smoke_integration_failure_path.py`.
 - [ ] Record command outputs and residual risk notes in `docs/handoff/CURRENT_STATUS.md`.
 
 ## Risks / rollback notes

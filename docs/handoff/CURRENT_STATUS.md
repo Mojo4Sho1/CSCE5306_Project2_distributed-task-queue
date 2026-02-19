@@ -5,7 +5,7 @@
 
 ## Current focus
 
-Design A deterministic automated coverage for worker `ReportWorkOutcome` retry wait semantics, with live-smoke non-regression validation.
+Repository navigation migration for test/tooling paths (canonical integration under `tests/integration`, manual/dev/legacy split under `scripts/`) with compatibility wrappers and non-regression validation.
 
 ## Completed in current focus
 
@@ -14,19 +14,34 @@ Design A deterministic automated coverage for worker `ReportWorkOutcome` retry w
   - verifies bounded exponential retry-window progression (`initial`, `multiplier`, `max`),
   - verifies max-attempt behavior remains unchanged (4 total attempts),
   - verifies no retry wait is applied on first-attempt success.
-- Updated `README.md` live workflow to include deterministic retry test command and brief coverage note.
+- Migrated canonical integration scripts to `tests/integration/`:
+  - `smoke_live_stack.py`,
+  - `smoke_integration_terminal_path.py`,
+  - `smoke_integration_failure_path.py`.
+- Migrated manual/dev utilities to dedicated folders:
+  - `scripts/manual/manual_gateway_client.py`,
+  - `scripts/dev/healthcheck.py`.
+- Migrated retained helper harnesses to `scripts/legacy_smoke/`.
+- Added deprecated compatibility wrappers at old `scripts/*.py` paths to avoid breaking existing commands.
+- Updated documentation for navigation/taxonomy and canonical command matrix:
+  - `README.md`,
+  - `scripts/SMOKE_INDEX.md`,
+  - `docs/INDEX.md`,
+  - `docs/handoff/NEXT_TASK.md`.
 
 ## Passing checks
 
-- Run timestamp anchor: `2026-02-19 11:37:55 -06:00` (local host clock).
+- Run timestamp anchor: `2026-02-19 12:04:17 -06:00` (local host clock).
 - `conda run -n grpc python -c "import grpc,sys; print(sys.executable)"`: PASS (`D:\Programming\anaconda3\envs\grpc\python.exe`)
-- `conda run -n grpc python -m py_compile services/worker/worker.py tests/test_worker_report_retry.py`: PASS
+- `conda run -n grpc python -m py_compile tests/integration/smoke_live_stack.py tests/integration/smoke_integration_terminal_path.py tests/integration/smoke_integration_failure_path.py scripts/manual/manual_gateway_client.py scripts/dev/healthcheck.py scripts/smoke_live_stack.py scripts/smoke_integration_terminal_path.py scripts/smoke_integration_failure_path.py scripts/manual_gateway_client.py scripts/healthcheck.py`: PASS
 - `conda run -n grpc python -m unittest tests/test_worker_report_retry.py`: PASS
   - `Ran 3 tests ... OK`
 - `docker compose -f docker/docker-compose.design-a.yml up --build -d`: PASS
 - `docker compose -f docker/docker-compose.design-a.yml ps`: PASS
   - `gateway`, `job`, `queue`, `coordinator`, `result`, `worker` all `Up (... healthy)`.
-- `conda run -n grpc python scripts/smoke_live_stack.py`: PASS
+- `conda run -n grpc python scripts/manual/manual_gateway_client.py --help`: PASS
+- `conda run -n grpc python scripts/manual_gateway_client.py --help`: PASS (wrapper compatibility)
+- `conda run -n grpc python tests/integration/smoke_live_stack.py`: PASS
   - `gateway.SubmitJob`: PASS
   - `gateway.GetJobStatus`: PASS
   - `gateway.GetJobResult.not_ready_or_terminal`: PASS
@@ -36,24 +51,25 @@ Design A deterministic automated coverage for worker `ReportWorkOutcome` retry w
   - `queue.RemoveJobIfPresent`: PASS
   - `coordinator.WorkerHeartbeat`: PASS
   - `result.GetResult`: PASS
-- `conda run -n grpc python scripts/smoke_integration_terminal_path.py`: PASS
+- `conda run -n grpc python tests/integration/smoke_integration_terminal_path.py`: PASS
   - `submit_1..submit_2`: PASS
   - `gateway.GetJobStatus.running_seen`: PASS
   - `gateway.GetJobStatus.terminal`: PASS (`DONE`)
   - `gateway.GetJobResult.terminal_ready`: PASS (`DONE` + checksum match)
   - `gateway.GetJobResult.worker_signature`: PASS
-- `conda run -n grpc python scripts/smoke_integration_failure_path.py`: PASS
+- `conda run -n grpc python tests/integration/smoke_integration_failure_path.py`: PASS
   - `submit_failure_case`: PASS
   - `gateway.GetJobStatus.running_seen`: PASS
   - `gateway.GetJobStatus.failed_terminal`: PASS (`FAILED`)
   - `gateway.GetJobStatus.failure_reason`: PASS (`simulated_failure force-fail ...`)
   - `gateway.GetJobResult.failed_ready`: PASS (`FAILED` + checksum match)
   - `gateway.GetJobResult.failure_summary`: PASS
+- `conda run -n grpc python scripts/smoke_live_stack.py`: PASS (wrapper compatibility)
 
 ## Known gaps/blockers
 
 - No functional blockers identified for this coverage milestone.
-- Residual risk: deterministic test harness patches internal calls (`random.randint` and stop-event wait), so future internal refactors may require test adaptation while preserving behavior contracts.
+- Residual risk: compatibility wrappers can hide stale command usage if not removed on schedule after Design B/load-generator stabilization.
 
 ## Timing/race observations
 

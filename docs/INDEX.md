@@ -61,6 +61,8 @@ If two sources conflict, use this precedence:
   Navigation, governance, and authority model.
 - **`README.md`**  
   Project overview, quickstart, and links to authoritative docs (including the practical A/B evaluation execution plan).
+- **`scripts/SMOKE_INDEX.md`**  
+  Script taxonomy and purpose map (smoke probes vs manual/dev utilities).
 
 ## Handoff
 - **`docs/handoff/CURRENT_STATUS.md`**  
@@ -124,7 +126,7 @@ At the start of each implementation session:
 - Use the conda environment `grpc` for running project code/tests that import runtime dependencies (especially `grpcio`).
 - Prefer explicit invocation to avoid shell-activation drift:
   - `conda run -n grpc python <script.py>`
-  - `conda run -n grpc pytest` (if/when pytest suites are added)
+  - `conda run -n grpc python -m unittest <test_path.py>`
 - Rationale: default/base Python in local setups may not include required runtime deps, causing false failures.
 
 ---

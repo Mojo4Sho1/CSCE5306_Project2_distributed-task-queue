@@ -66,7 +66,7 @@ conda env update -f environment.yml --prune
 Run repo commands with explicit env selection (recommended for agents and automation):
 
 ```bash
-conda run -n grpc python scripts/smoke_gateway_skeleton.py
+conda run -n grpc python -m unittest tests/test_worker_report_retry.py
 ```
 
 Optional interactive shell:
@@ -109,27 +109,27 @@ docker compose -f docker/docker-compose.design-a.yml ps
 Submit a job from a JSON spec file:
 
 ```bash
-conda run -n grpc python scripts/manual_gateway_client.py submit --spec-file examples/jobs/hello_distributed.json
+conda run -n grpc python scripts/manual/manual_gateway_client.py submit --spec-file examples/jobs/hello_distributed.json
 ```
 
 The response prints a `job_id`. Use that `job_id` for follow-up calls:
 
 ```bash
-conda run -n grpc python scripts/manual_gateway_client.py status --job-id <JOB_ID>
-conda run -n grpc python scripts/manual_gateway_client.py result --job-id <JOB_ID>
+conda run -n grpc python scripts/manual/manual_gateway_client.py status --job-id <JOB_ID>
+conda run -n grpc python scripts/manual/manual_gateway_client.py result --job-id <JOB_ID>
 ```
 
 Optional operations:
 
 ```bash
-conda run -n grpc python scripts/manual_gateway_client.py cancel --job-id <JOB_ID> --reason "presentation_cancel"
-conda run -n grpc python scripts/manual_gateway_client.py list --page-size 10
+conda run -n grpc python scripts/manual/manual_gateway_client.py cancel --job-id <JOB_ID> --reason "presentation_cancel"
+conda run -n grpc python scripts/manual/manual_gateway_client.py list --page-size 10
 ```
 
 Manual submit without a spec file:
 
 ```bash
-conda run -n grpc python scripts/manual_gateway_client.py submit --job-type "manual-demo" --work-duration-ms 250 --payload-size-bytes 24 --label demo=true
+conda run -n grpc python scripts/manual/manual_gateway_client.py submit --job-type "manual-demo" --work-duration-ms 250 --payload-size-bytes 24 --label demo=true
 ```
 
 Expected lifecycle:
@@ -137,22 +137,55 @@ Expected lifecycle:
 - `QUEUED -> CANCELED` for queued cancel wins.
 - `RUNNING -> CANCELED` is best-effort/non-preemptive in v1.
 
+## Test Taxonomy
+
+This repo uses two complementary test layers:
+
+- `tests/` (unit tests):
+  - deterministic,
+  - fast and isolated (no live Docker stack required),
+  - focused on local logic contracts (for example retry/backoff math).
+- `tests/integration/` (canonical smoke/integration probes):
+  - live-system checks against running Design A services,
+  - validate wiring and cross-service behavior (submit/status/result/cancel paths),
+  - slower and environment-dependent by design.
+
+Script catalog and purpose map:
+- `scripts/SMOKE_INDEX.md`
+
+Naming convention (navigation standard):
+- `tests/integration/smoke_*`: canonical live probe scripts.
+- `scripts/manual/*`: human-driven demo/CLI workflows.
+- `scripts/dev/*`: local utility helpers.
+- Legacy note: old `scripts/*.py` smoke/manual/dev entrypoints are compatibility wrappers that forward to canonical paths.
+
+## Validation Command Matrix
+
+Use this matrix to choose the right verification level:
+
+| Intent | Command(s) | Requires Docker stack |
+|---|---|---|
+| Fast logic regression check | `conda run -n grpc python -m unittest tests/test_worker_report_retry.py` | No |
+| Live API + service wiring sanity | `conda run -n grpc python tests/integration/smoke_live_stack.py` | Yes |
+| Live success lifecycle (`QUEUED -> RUNNING -> DONE`) | `conda run -n grpc python tests/integration/smoke_integration_terminal_path.py` | Yes |
+| Live failure lifecycle (`QUEUED -> RUNNING -> FAILED`) | `conda run -n grpc python tests/integration/smoke_integration_failure_path.py` | Yes |
+
 ## Live Smoke Workflow (Design A)
 
 After services are healthy, run:
 
 ```bash
 conda run -n grpc python -m unittest tests/test_worker_report_retry.py
-conda run -n grpc python scripts/smoke_live_stack.py
-conda run -n grpc python scripts/smoke_integration_terminal_path.py
-conda run -n grpc python scripts/smoke_integration_failure_path.py
+conda run -n grpc python tests/integration/smoke_live_stack.py
+conda run -n grpc python tests/integration/smoke_integration_terminal_path.py
+conda run -n grpc python tests/integration/smoke_integration_failure_path.py
 ```
 
 Retry-coverage note:
 - `tests/test_worker_report_retry.py` provides deterministic automated checks for worker `ReportWorkOutcome` retry wait semantics (bounded exponential window + full jitter bounds + attempt-count behavior).
 
 Failure-path note:
-- `scripts/smoke_integration_failure_path.py` submits a job whose `job_type` contains `force-fail`.
+- `tests/integration/smoke_integration_failure_path.py` submits a job whose `job_type` contains `force-fail`.
 - Worker runtime treats this marker as a deterministic test trigger and reports `JOB_OUTCOME_FAILED`.
 
 Retry semantics note:
@@ -240,21 +273,34 @@ distributed-task-queue/
 |-- results/
 |   `-- .gitkeep
 |-- scripts/
-|   |-- healthcheck.py
-|   |-- manual_gateway_client.py
-|   |-- smoke_job_behavior.py
-|   |-- smoke_queue_behavior.py
-|   |-- smoke_coordinator_behavior.py
-|   |-- smoke_coordinator_skeleton.py
-|   |-- smoke_gateway_behavior.py
-|   |-- smoke_gateway_skeleton.py
-|   |-- smoke_integration_failure_path.py
-|   |-- smoke_integration_terminal_path.py
-|   |-- smoke_job_skeleton.py
-|   |-- smoke_live_stack.py
-|   |-- smoke_queue_skeleton.py
-|   |-- smoke_result_skeleton.py
-|   `-- smoke_worker_skeleton.py
+|   |-- SMOKE_INDEX.md
+|   |-- healthcheck.py                  # compatibility wrapper -> scripts/dev/healthcheck.py
+|   |-- manual_gateway_client.py        # compatibility wrapper -> scripts/manual/manual_gateway_client.py
+|   |-- smoke_live_stack.py             # compatibility wrapper -> tests/integration/smoke_live_stack.py
+|   |-- smoke_integration_terminal_path.py # compatibility wrapper -> tests/integration/smoke_integration_terminal_path.py
+|   |-- smoke_integration_failure_path.py  # compatibility wrapper -> tests/integration/smoke_integration_failure_path.py
+|   |-- manual/
+|   |   `-- manual_gateway_client.py
+|   |-- dev/
+|   |   `-- healthcheck.py
+|   `-- legacy_smoke/
+|       |-- smoke_coordinator_behavior.py
+|       |-- smoke_coordinator_skeleton.py
+|       |-- smoke_gateway_behavior.py
+|       |-- smoke_gateway_skeleton.py
+|       |-- smoke_job_behavior.py
+|       |-- smoke_job_skeleton.py
+|       |-- smoke_queue_behavior.py
+|       |-- smoke_queue_skeleton.py
+|       |-- smoke_result_behavior.py
+|       |-- smoke_result_skeleton.py
+|       `-- smoke_worker_skeleton.py
+|-- tests/
+|   |-- test_worker_report_retry.py
+|   `-- integration/
+|       |-- smoke_live_stack.py
+|       |-- smoke_integration_terminal_path.py
+|       `-- smoke_integration_failure_path.py
 `-- services/
     |-- coordinator/
     |   |-- main.py
