@@ -16,7 +16,9 @@ This document defines the **API surface contracts** for the Distributed Task Que
 - caller-to-method authorization matrix,
 - v1 scope boundaries and evolution rules.
 
-Runtime wiring, health checks, and deployment details are documented separately in `docs/spec/runtime-config.md`.  
+Runtime wiring, health checks, and deployment details are documented separately in:
+- `docs/spec/runtime-config-design-a.md`
+- `docs/spec/runtime-config-design-b.md`
 Error codes, retry policy, and idempotency behavior are documented in `docs/spec/error-idempotency.md`.  
 Lifecycle transitions and race handling are documented in `docs/spec/state-machine.md`.
 
@@ -431,7 +433,9 @@ After v1 freeze:
 
 - Lifecycle/transition ownership and race rules: `docs/spec/state-machine.md`
 - gRPC status codes, idempotency matrix, retry/backoff: `docs/spec/error-idempotency.md`
-- Runtime addresses, ports, env vars, readiness: `docs/spec/runtime-config.md`
+- Runtime addresses, ports, env vars, readiness:
+  - `docs/spec/runtime-config-design-a.md`
+  - `docs/spec/runtime-config-design-b.md`
 - Fairness constraints and Design B routing policy: `docs/spec/fairness-evaluation.md`
 
 ---

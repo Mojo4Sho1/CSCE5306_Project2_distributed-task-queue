@@ -31,7 +31,9 @@ Read `docs/_INDEX.md` first for:
 - Architecture and ownership: `docs/spec/architecture.md`
 - API contracts and schemas: `docs/spec/api-contracts.md`
 - Lifecycle/state machine: `docs/spec/state-machine.md`
-- Runtime/env/startup/healthchecks: `docs/spec/runtime-config.md`
+- Runtime/env/startup/healthchecks index: `docs/spec/runtime-config.md`
+- Design A runtime contract: `docs/spec/runtime-config-design-a.md`
+- Design B runtime contract (baseline scaffold): `docs/spec/runtime-config-design-b.md`
 - Error/idempotency/retry: `docs/spec/error-idempotency.md`
 - Fairness/evaluation protocol: `docs/spec/fairness-evaluation.md`
 - Locked constants/defaults: `docs/spec/constants.md`
@@ -77,9 +79,10 @@ conda activate grpc
 
 ## Docker Compose Helpers
 
-Design A compose file path:
+Compose file paths:
 
 - `docker/docker-compose.design-a.yml`
+- `docker/docker-compose.design-b.yml`
 
 Helper commands:
 
@@ -88,12 +91,36 @@ docker compose -f docker/docker-compose.design-a.yml up --build -d
 docker compose -f docker/docker-compose.design-a.yml ps
 docker compose -f docker/docker-compose.design-a.yml logs --tail=100 worker coordinator gateway job queue result
 docker compose -f docker/docker-compose.design-a.yml down --remove-orphans
+
+docker compose -f docker/docker-compose.design-b.yml up --build -d
+docker compose -f docker/docker-compose.design-b.yml ps
+docker compose -f docker/docker-compose.design-b.yml logs --tail=100 monolith-1 monolith-2 monolith-3 monolith-4 monolith-5 monolith-6
+docker compose -f docker/docker-compose.design-b.yml down --remove-orphans
 ```
 
 Practical note:
 
 - Since there is no root-level default `docker-compose.yml` now, include `-f <compose-file>` on compose commands.
 - This is intentional so Design A and Design B can use parallel naming and isolated topology files under `docker/`.
+
+## Design B Baseline Runtime (Scaffold)
+
+- Design B now includes a runnable baseline topology in `docker/docker-compose.design-b.yml`.
+- The scaffold starts six identical monolith containers (`monolith-1..monolith-6`), each exposing:
+  - public gRPC API: `taskqueue.v1.TaskQueuePublicService`,
+  - internal gRPC services in the same process for node-local wiring,
+  - one in-process worker loop (`1` execution slot per node baseline).
+- Host port mapping for public ingress:
+  - `monolith-1 -> localhost:51051`
+  - `monolith-2 -> localhost:52051`
+  - `monolith-3 -> localhost:53051`
+  - `monolith-4 -> localhost:54051`
+  - `monolith-5 -> localhost:55051`
+  - `monolith-6 -> localhost:56051`
+
+Design B v1 parity boundary reminder:
+- Public request/response contracts remain frozen.
+- Design B owner routing for job-scoped operations remains a client/load-generator responsibility per `docs/spec/fairness-evaluation.md`.
 
 ## User Demo Workflow (Design A)
 
@@ -249,7 +276,8 @@ distributed-task-queue/
 |   `-- time_utils.py
 |-- docker/
 |   |-- .gitkeep
-|   `-- docker-compose.design-a.yml
+|   |-- docker-compose.design-a.yml
+|   `-- docker-compose.design-b.yml
 |-- examples/
 |   `-- jobs/
 |       `-- hello_distributed.json
@@ -266,6 +294,8 @@ distributed-task-queue/
 |       |-- fairness-evaluation.md
 |       |-- governance.md
 |       |-- requirements.md
+|       |-- runtime-config-design-a.md
+|       |-- runtime-config-design-b.md
 |       |-- runtime-config.md
 |       `-- state-machine.md
 |-- generated/
@@ -310,6 +340,10 @@ distributed-task-queue/
 |       |-- smoke_integration_terminal_path.py
 |       `-- smoke_integration_failure_path.py
 `-- services/
+    |-- monolith/
+    |   |-- __init__.py
+    |   |-- main.py
+    |   `-- node.py
     |-- coordinator/
     |   |-- main.py
     |   |-- server.py

@@ -1,0 +1,139 @@
+services:
+  monolith-1:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.runtime
+    working_dir: /app
+    command: ["python", "-m", "services.monolith.main"]
+    volumes:
+      - ../:/app
+    environment:
+      PYTHONUNBUFFERED: "1"
+      LOG_LEVEL: "INFO"
+      MONOLITH_NODE_ID: "monolith-1"
+      MONOLITH_PUBLIC_PORT: "50051"
+      PYTHONPATH: "/app:/app/generated"
+    ports:
+      - "51051:50051"
+    healthcheck:
+      test: ["CMD", "python", "-m", "scripts.healthcheck", "--mode", "tcp", "--target", "127.0.0.1:50051", "--timeout-ms", "1000", "--service", "monolith-1"]
+      interval: 5s
+      timeout: 2s
+      retries: 12
+      start_period: 20s
+
+  monolith-2:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.runtime
+    working_dir: /app
+    command: ["python", "-m", "services.monolith.main"]
+    volumes:
+      - ../:/app
+    environment:
+      PYTHONUNBUFFERED: "1"
+      LOG_LEVEL: "INFO"
+      MONOLITH_NODE_ID: "monolith-2"
+      MONOLITH_PUBLIC_PORT: "50051"
+      PYTHONPATH: "/app:/app/generated"
+    ports:
+      - "52051:50051"
+    healthcheck:
+      test: ["CMD", "python", "-m", "scripts.healthcheck", "--mode", "tcp", "--target", "127.0.0.1:50051", "--timeout-ms", "1000", "--service", "monolith-2"]
+      interval: 5s
+      timeout: 2s
+      retries: 12
+      start_period: 20s
+
+  monolith-3:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.runtime
+    working_dir: /app
+    command: ["python", "-m", "services.monolith.main"]
+    volumes:
+      - ../:/app
+    environment:
+      PYTHONUNBUFFERED: "1"
+      LOG_LEVEL: "INFO"
+      MONOLITH_NODE_ID: "monolith-3"
+      MONOLITH_PUBLIC_PORT: "50051"
+      PYTHONPATH: "/app:/app/generated"
+    ports:
+      - "53051:50051"
+    healthcheck:
+      test: ["CMD", "python", "-m", "scripts.healthcheck", "--mode", "tcp", "--target", "127.0.0.1:50051", "--timeout-ms", "1000", "--service", "monolith-3"]
+      interval: 5s
+      timeout: 2s
+      retries: 12
+      start_period: 20s
+
+  monolith-4:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.runtime
+    working_dir: /app
+    command: ["python", "-m", "services.monolith.main"]
+    volumes:
+      - ../:/app
+    environment:
+      PYTHONUNBUFFERED: "1"
+      LOG_LEVEL: "INFO"
+      MONOLITH_NODE_ID: "monolith-4"
+      MONOLITH_PUBLIC_PORT: "50051"
+      PYTHONPATH: "/app:/app/generated"
+    ports:
+      - "54051:50051"
+    healthcheck:
+      test: ["CMD", "python", "-m", "scripts.healthcheck", "--mode", "tcp", "--target", "127.0.0.1:50051", "--timeout-ms", "1000", "--service", "monolith-4"]
+      interval: 5s
+      timeout: 2s
+      retries: 12
+      start_period: 20s
+
+  monolith-5:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.runtime
+    working_dir: /app
+    command: ["python", "-m", "services.monolith.main"]
+    volumes:
+      - ../:/app
+    environment:
+      PYTHONUNBUFFERED: "1"
+      LOG_LEVEL: "INFO"
+      MONOLITH_NODE_ID: "monolith-5"
+      MONOLITH_PUBLIC_PORT: "50051"
+      PYTHONPATH: "/app:/app/generated"
+    ports:
+      - "55051:50051"
+    healthcheck:
+      test: ["CMD", "python", "-m", "scripts.healthcheck", "--mode", "tcp", "--target", "127.0.0.1:50051", "--timeout-ms", "1000", "--service", "monolith-5"]
+      interval: 5s
+      timeout: 2s
+      retries: 12
+      start_period: 20s
+
+  monolith-6:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.runtime
+    working_dir: /app
+    command: ["python", "-m", "services.monolith.main"]
+    volumes:
+      - ../:/app
+    environment:
+      PYTHONUNBUFFERED: "1"
+      LOG_LEVEL: "INFO"
+      MONOLITH_NODE_ID: "monolith-6"
+      MONOLITH_PUBLIC_PORT: "50051"
+      PYTHONPATH: "/app:/app/generated"
+    ports:
+      - "56051:50051"
+    healthcheck:
+      test: ["CMD", "python", "-m", "scripts.healthcheck", "--mode", "tcp", "--target", "127.0.0.1:50051", "--timeout-ms", "1000", "--service", "monolith-6"]
+      interval: 5s
+      timeout: 2s
+      retries: 12
+      start_period: 20s
+

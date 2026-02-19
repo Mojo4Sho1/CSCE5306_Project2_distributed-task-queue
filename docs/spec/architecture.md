@@ -224,7 +224,9 @@ Detailed routing and evaluation constraints are defined in:
 
 - **API contracts:** `docs/spec/api-contracts.md`
 - **State machine and transitions:** `docs/spec/state-machine.md`
-- **Runtime wiring/env/readiness:** `docs/spec/runtime-config.md`
+- **Runtime wiring/env/readiness:**
+  - `docs/spec/runtime-config-design-a.md`
+  - `docs/spec/runtime-config-design-b.md`
 - **Error/idempotency/retry model:** `docs/spec/error-idempotency.md`
 - **Fairness and evaluation constraints:** `docs/spec/fairness-evaluation.md`
 - **Locked constants:** `docs/spec/constants.md`

@@ -84,7 +84,11 @@ If two sources conflict, use this precedence:
 - **`docs/spec/state-machine.md`**  
   Job lifecycle, allowed transitions, race handling, cancellation behavior.
 - **`docs/spec/runtime-config.md`**  
-  Ports, env vars, startup/readiness, healthchecks, endpoint map.
+  Runtime configuration entrypoint/index for design-specific runtime contracts.
+- **`docs/spec/runtime-config-design-a.md`**  
+  Design A ports, env vars, startup/readiness, healthchecks, endpoint map.
+- **`docs/spec/runtime-config-design-b.md`**  
+  Design B baseline scaffold runtime topology, entrypoint wiring, and health visibility contract.
 - **`docs/spec/error-idempotency.md`**  
   gRPC status policy, soft outcomes, idempotency matrix, retry/backoff defaults.
 - **`docs/spec/fairness-evaluation.md`**  

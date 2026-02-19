@@ -121,7 +121,8 @@ During active implementation work, design changes are allowed only for blocker-l
 - `docs/spec/architecture.md`
 - `docs/spec/api-contracts.md`
 - `docs/spec/state-machine.md`
-- `docs/spec/runtime-config.md`
+- `docs/spec/runtime-config-design-a.md`
+- `docs/spec/runtime-config-design-b.md`
 - `docs/spec/error-idempotency.md`
 - `docs/spec/fairness-evaluation.md`
 - `docs/spec/constants.md`

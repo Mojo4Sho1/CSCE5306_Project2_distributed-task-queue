@@ -44,7 +44,9 @@ FR-6 is not part of the client-facing equivalence surface between Design A and D
 - Architecture and ownership: `docs/spec/architecture.md`
 - API semantics and schema: `docs/spec/api-contracts.md`
 - Lifecycle transitions: `docs/spec/state-machine.md`
-- Runtime contract: `docs/spec/runtime-config.md`
+- Runtime contracts:
+  - `docs/spec/runtime-config-design-a.md`
+  - `docs/spec/runtime-config-design-b.md`
 - Error/idempotency/retry: `docs/spec/error-idempotency.md`
 - Fairness/evaluation protocol: `docs/spec/fairness-evaluation.md`
 - Locked constants: `docs/spec/constants.md`
