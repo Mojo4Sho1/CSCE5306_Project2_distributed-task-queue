@@ -137,6 +137,20 @@ Expected lifecycle:
 - `QUEUED -> CANCELED` for queued cancel wins.
 - `RUNNING -> CANCELED` is best-effort/non-preemptive in v1.
 
+## Live Smoke Workflow (Design A)
+
+After services are healthy, run:
+
+```bash
+conda run -n grpc python scripts/smoke_live_stack.py
+conda run -n grpc python scripts/smoke_integration_terminal_path.py
+conda run -n grpc python scripts/smoke_integration_failure_path.py
+```
+
+Failure-path note:
+- `scripts/smoke_integration_failure_path.py` submits a job whose `job_type` contains `force-fail`.
+- Worker runtime treats this marker as a deterministic test trigger and reports `JOB_OUTCOME_FAILED`.
+
 ## Demo UX TODO (Post-Core Milestones)
 
 After completing Design A remaining tasks, Design B, and load-generator implementation, add a lightweight alias workflow to reduce manual demo friction:
@@ -198,6 +212,7 @@ distributed-task-queue/
 |   |-- smoke_coordinator_skeleton.py
 |   |-- smoke_gateway_behavior.py
 |   |-- smoke_gateway_skeleton.py
+|   |-- smoke_integration_failure_path.py
 |   |-- smoke_integration_terminal_path.py
 |   |-- smoke_job_skeleton.py
 |   |-- smoke_live_stack.py

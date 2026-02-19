@@ -5,21 +5,23 @@
 
 ## Task summary
 
-Add a failure-path integration smoke for worker-reported `FAILED` outcomes and validate terminal/result semantics end-to-end.
+Add full-jitter behavior to worker outcome-report retries while preserving locked retry defaults and non-regressing integration coverage.
 
 ## Why this task is next
 
-- Internal RPC deadline/retry defaults are now centralized and wired through shared config/constants.
-- Live-stack and terminal-path success smokes pass after centralization.
-- The main remaining behavior coverage gap is missing end-to-end validation for the `RUNNING -> FAILED` path.
+- Failure-path integration coverage for worker-reported `FAILED` is now implemented and passing.
+- Remaining known gap is retry jitter behavior: backoff timing is deterministic exponential today.
+- Specs lock retry constants/profile and jitter mode; implementation should align without changing public/internal contracts.
 
 ## Scope (in)
 
-- Add a deterministic way to exercise a worker failure outcome in integration testing (without proto changes).
-- Validate `RUNNING -> FAILED` canonical terminalization through Gateway APIs.
-- Validate `GetJobResult` returns terminal envelope with failure-consistent summary/reason fields.
-- Re-run existing success-path live smokes to ensure no regression.
-- Record exact evidence and residual risks in handoff docs.
+- Implement full-jitter wait selection for worker `ReportWorkOutcome` retry path.
+- Keep locked defaults and config surface unchanged (`initial`, `multiplier`, `max`, `attempts`).
+- Validate no behavior regression across:
+  - `scripts/smoke_live_stack.py`
+  - `scripts/smoke_integration_terminal_path.py`
+  - `scripts/smoke_integration_failure_path.py`
+- Record exact command evidence, timestamps, and residual flake risk in handoff docs.
 
 ## Scope (out)
 
@@ -39,32 +41,32 @@ Add a failure-path integration smoke for worker-reported `FAILED` outcomes and v
 
 ## Implementation notes
 
-- Treat `docs/spec/state-machine.md` and `docs/spec/error-idempotency.md` as primary lock references for integration drift triage.
-- Preserve canonical-status-first logic for result readiness in all integration checks.
+- Treat `docs/spec/error-idempotency.md` and `docs/spec/constants.md` as primary lock references for retry/jitter semantics.
+- Apply jitter only to retry wait duration calculation; do not alter retryable-code selection or attempt count behavior.
 - Keep behavior non-breaking for existing compose/env defaults.
-- Failure-path validation should assert terminal/result consistency invariants, not just gRPC reachability.
+- Ensure logging still provides enough context to diagnose retry attempt timing.
 
 ## Acceptance criteria (definition of done)
 
-- Dedicated failure-path smoke evidence exists for worker-reported `FAILED`.
+- Worker retry waits use full jitter under bounded exponential backoff windows.
 - `conda run -n grpc python scripts/smoke_live_stack.py` passes.
 - `conda run -n grpc python scripts/smoke_integration_terminal_path.py` passes.
-- New/updated failure-path smoke passes.
+- `conda run -n grpc python scripts/smoke_integration_failure_path.py` passes.
 - Any failures are documented with exact commands, timestamps, and root-cause hypothesis in `CURRENT_STATUS.md`.
 - Handoff/runtime docs updated with concrete pass/fail evidence and residual risks.
 
 ## Verification checklist
 
-- [ ] Implement deterministic failure-path integration smoke coverage for worker outcome `FAILED`.
+- [ ] Implement full-jitter retry wait behavior in worker outcome-report path.
 - [ ] Verify conda execution path using `conda run -n grpc python -c "import grpc,sys; print(sys.executable)"`.
 - [ ] Run `docker compose -f docker/docker-compose.design-a.yml up --build -d` and confirm healthy services with `docker compose -f docker/docker-compose.design-a.yml ps`.
 - [ ] Run `conda run -n grpc python scripts/smoke_live_stack.py`.
 - [ ] Run `conda run -n grpc python scripts/smoke_integration_terminal_path.py`.
-- [ ] Run new/updated failure-path smoke command.
+- [ ] Run `conda run -n grpc python scripts/smoke_integration_failure_path.py`.
 - [ ] Record command outputs and residual risk notes in `docs/handoff/CURRENT_STATUS.md`.
 
 ## Risks / rollback notes
 
-- Failure-path triggering approach may accidentally perturb success-path determinism if not isolated.
-- Assertion design must distinguish expected business `FAILED` terminalization from transport-level transient failures.
-- Additional smoke runtime may increase CI/local flake surface if polling windows are too tight.
+- Jitter can increase execution-time variance and expose latent polling-window flakiness in smokes.
+- Overly large jitter window could delay completion and raise timeout risk under loaded hosts.
+- Misapplied jitter logic could reduce effective retry attempts if sleep behavior is not bounded correctly.

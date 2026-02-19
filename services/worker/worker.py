@@ -205,6 +205,15 @@ def _resolve_worker_id(cfg: Any) -> str:
     return socket.gethostname().strip() or "worker-unknown"
 
 
+def _should_force_failure(spec: Any) -> bool:
+    """
+    Deterministic integration trigger without contract changes:
+    any job_type containing "force-fail" is reported as FAILED by worker.
+    """
+    job_type = str(getattr(spec, "job_type", "")).strip().lower()
+    return "force-fail" in job_type
+
+
 class WorkerRuntime:
     """Deterministic worker loop with coordinator RPC integration."""
 
@@ -403,13 +412,28 @@ class WorkerRuntime:
     def _execute_and_report(self, fetch: pb2.FetchWorkResponse) -> None:
         job_id = str(fetch.job_id).strip()
         spec = getattr(fetch, "spec", public_pb2.JobSpec())
+        job_type = str(getattr(spec, "job_type", "")).strip()
         runtime_ms = self._planned_runtime_ms(spec)
-        output_bytes = self._build_output_bytes(job_id, spec, runtime_ms)
+        force_failed = _should_force_failure(spec)
+
+        if force_failed:
+            failure_reason = f"simulated_failure force-fail worker_id={self._worker_id} job_type={job_type}"
+            output_bytes = failure_reason.encode("utf-8")
+            output_summary = (
+                f"simulated_failure worker_id={self._worker_id} "
+                f"runtime_ms={runtime_ms} reason={failure_reason}"
+            )
+            outcome = public_pb2.JOB_OUTCOME_FAILED
+        else:
+            failure_reason = ""
+            output_bytes = self._build_output_bytes(job_id, spec, runtime_ms)
+            output_summary = (
+                f"simulated_success worker_id={self._worker_id} "
+                f"runtime_ms={runtime_ms} bytes={len(output_bytes)}"
+            )
+            outcome = public_pb2.JOB_OUTCOME_SUCCEEDED
+
         checksum = hashlib.sha256(output_bytes).hexdigest()
-        output_summary = (
-            f"simulated_success worker_id={self._worker_id} "
-            f"runtime_ms={runtime_ms} bytes={len(output_bytes)}"
-        )
 
         _emit(
             self._logger,
@@ -417,7 +441,8 @@ class WorkerRuntime:
             worker_id=self._worker_id,
             job_id=job_id,
             planned_runtime_ms=runtime_ms,
-            job_type=str(getattr(spec, "job_type", "")),
+            job_type=job_type,
+            force_failed=force_failed,
         )
         self._stop_event.wait(runtime_ms / 1000.0)
         if self._stop_event.is_set():
@@ -432,8 +457,9 @@ class WorkerRuntime:
         request = pb2.ReportWorkOutcomeRequest(
             worker_id=self._worker_id,
             job_id=job_id,
-            outcome=public_pb2.JOB_OUTCOME_SUCCEEDED,
+            outcome=outcome,
             runtime_ms=runtime_ms,
+            failure_reason=failure_reason,
             output_summary=output_summary,
             output_bytes=output_bytes,
             checksum=checksum,
