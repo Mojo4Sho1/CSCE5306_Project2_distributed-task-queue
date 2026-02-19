@@ -2,20 +2,23 @@
 """
 Live smoke probes against an already-running Design A stack.
 
-This script does not start/stop services; it validates that exposed gRPC
-surfaces are reachable and return expected responses for the current
-implementation phase (implemented Gateway/Job/Queue/Result/Coordinator).
+This script does not start/stop services. It validates:
+- public Gateway flows (submit/status/result/cancel/list)
+- core internal service reachability (Job/Queue/Coordinator/Result)
 """
 
 from __future__ import annotations
 
 import argparse
+import time
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, List, Tuple
+from typing import Callable, List
 
 import grpc
+
+_TERMINAL_STATUSES = {3, 4, 5}
 
 
 @dataclass
@@ -63,6 +66,13 @@ def _print_summary(checks: List[CheckResult]) -> int:
     return 1
 
 
+def _status_name(pb2_module, status_value: int) -> str:
+    try:
+        return pb2_module.JobStatus.Name(int(status_value))
+    except Exception:
+        return str(int(status_value))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Live stack smoke probes")
     parser.add_argument("--host", default="127.0.0.1", help="Host for mapped service ports")
@@ -92,16 +102,21 @@ def main() -> int:
         stub = public_pb2_grpc.TaskQueuePublicServiceStub(channel)
         submit_resp = None
         try:
+            submit_spec = public_pb2.JobSpec(
+                job_type=f"smoke-live-{int(time.time() * 1000)}",
+                work_duration_ms=20,
+                payload_size_bytes=8,
+            )
             submit_resp = stub.SubmitJob(
                 public_pb2.SubmitJobRequest(
-                    spec=public_pb2.JobSpec(job_type="smoke", work_duration_ms=1, payload_size_bytes=0),
+                    spec=submit_spec,
                 ),
                 timeout=args.rpc_timeout,
             )
             submit = CheckResult(
                 name="gateway.SubmitJob",
                 passed=bool(submit_resp.job_id) and submit_resp.initial_status == public_pb2.QUEUED,
-                detail=f"job_id={submit_resp.job_id}, status={submit_resp.initial_status}",
+                detail=f"job_id={submit_resp.job_id}, status={_status_name(public_pb2, submit_resp.initial_status)}",
             )
         except grpc.RpcError as exc:
             submit = CheckResult(
@@ -119,8 +134,71 @@ def main() -> int:
                         public_pb2.GetJobStatusRequest(job_id=submit_resp.job_id),
                         timeout=args.rpc_timeout,
                     ),
-                    lambda resp: resp.job_id == submit_resp.job_id and resp.status != public_pb2.JOB_STATUS_UNSPECIFIED,
-                    lambda resp: f"job_id={resp.job_id}, status={resp.status}",
+                    lambda resp: resp.job_id == submit_resp.job_id and resp.status in {
+                        public_pb2.QUEUED,
+                        public_pb2.RUNNING,
+                        public_pb2.CANCELED,
+                    },
+                    lambda resp: f"job_id={resp.job_id}, status={_status_name(public_pb2, resp.status)}",
+                )
+            )
+            checks.append(
+                _expect_ok(
+                    "gateway.GetJobResult.not_ready_or_terminal",
+                    lambda: stub.GetJobResult(
+                        public_pb2.GetJobResultRequest(job_id=submit_resp.job_id),
+                        timeout=args.rpc_timeout,
+                    ),
+                    lambda resp: resp.job_id == submit_resp.job_id and (
+                        (not resp.result_ready and resp.terminal_status == public_pb2.JOB_STATUS_UNSPECIFIED)
+                        or (resp.result_ready and resp.terminal_status in _TERMINAL_STATUSES)
+                    ),
+                    lambda resp: (
+                        f"job_id={resp.job_id}, ready={resp.result_ready}, "
+                        f"terminal={_status_name(public_pb2, resp.terminal_status)}"
+                    ),
+                )
+            )
+            checks.append(
+                _expect_ok(
+                    "gateway.CancelJob",
+                    lambda: stub.CancelJob(
+                        public_pb2.CancelJobRequest(
+                            job_id=submit_resp.job_id,
+                            reason="smoke_live_stack_cancel",
+                        ),
+                        timeout=args.rpc_timeout,
+                    ),
+                    lambda resp: (
+                        resp.job_id == submit_resp.job_id
+                        and resp.accepted
+                        and resp.current_status in {
+                            public_pb2.QUEUED,
+                            public_pb2.RUNNING,
+                            public_pb2.CANCELED,
+                            public_pb2.DONE,
+                            public_pb2.FAILED,
+                        }
+                    ),
+                    lambda resp: (
+                        f"job_id={resp.job_id}, accepted={resp.accepted}, "
+                        f"current={_status_name(public_pb2, resp.current_status)}, "
+                        f"already_terminal={resp.already_terminal}"
+                    ),
+                )
+            )
+            checks.append(
+                _expect_ok(
+                    "gateway.ListJobs",
+                    lambda: stub.ListJobs(
+                        public_pb2.ListJobsRequest(
+                            page=public_pb2.PageRequest(page_size=25),
+                            sort=public_pb2.CREATED_AT_DESC,
+                        ),
+                        timeout=args.rpc_timeout,
+                    ),
+                    lambda resp: any(item.job_id == submit_resp.job_id for item in resp.jobs),
+                    lambda resp: f"jobs_returned={len(resp.jobs)}",
                 )
             )
 
@@ -128,20 +206,16 @@ def main() -> int:
         stub = internal_pb2_grpc.JobInternalServiceStub(channel)
         checks.append(
             _expect_ok(
-                "job.CreateJob",
-                lambda: stub.CreateJob(
-                    internal_pb2.CreateJobRequest(
-                        spec={
-                            "job_type": "smoke",
-                            "work_duration_ms": 1,
-                            "payload_size_bytes": 0,
-                        },
-                        client_request_id="",
+                "job.ListJobRecords",
+                lambda: stub.ListJobRecords(
+                    internal_pb2.ListJobRecordsRequest(
+                        page=public_pb2.PageRequest(page_size=1),
+                        sort=public_pb2.CREATED_AT_DESC,
                     ),
                     timeout=args.rpc_timeout,
                 ),
-                lambda resp: bool(resp.job_id) and resp.status == public_pb2.QUEUED,
-                lambda resp: f"job_id={resp.job_id}, status={resp.status}",
+                lambda resp: True,
+                lambda resp: f"jobs_returned={len(resp.jobs)}",
             )
         )
 
@@ -149,13 +223,13 @@ def main() -> int:
         stub = internal_pb2_grpc.QueueInternalServiceStub(channel)
         checks.append(
             _expect_ok(
-                "queue.EnqueueJob",
-                lambda: stub.EnqueueJob(
-                    internal_pb2.EnqueueJobRequest(job_id="smoke-job", enqueued_at_ms=0),
+                "queue.RemoveJobIfPresent",
+                lambda: stub.RemoveJobIfPresent(
+                    internal_pb2.RemoveJobIfPresentRequest(job_id="smoke-live-missing"),
                     timeout=args.rpc_timeout,
                 ),
-                lambda resp: bool(resp.accepted),
-                lambda resp: f"accepted={resp.accepted}",
+                lambda resp: isinstance(resp.removed, bool),
+                lambda resp: f"removed={resp.removed}",
             )
         )
 
@@ -181,20 +255,13 @@ def main() -> int:
         stub = internal_pb2_grpc.ResultInternalServiceStub(channel)
         checks.append(
             _expect_ok(
-                "result.StoreResult",
-                lambda: stub.StoreResult(
-                    internal_pb2.StoreResultRequest(
-                        job_id="smoke-job",
-                        terminal_status=public_pb2.DONE,
-                        runtime_ms=1,
-                        output_summary="smoke",
-                        output_bytes=b"ok",
-                        checksum="",
-                    ),
+                "result.GetResult",
+                lambda: stub.GetResult(
+                    internal_pb2.GetResultRequest(job_id="smoke-live-missing"),
                     timeout=args.rpc_timeout,
                 ),
-                lambda resp: bool(resp.stored) and (not resp.already_exists) and resp.current_terminal_status == public_pb2.DONE,
-                lambda resp: f"stored={resp.stored}, already_exists={resp.already_exists}, status={resp.current_terminal_status}",
+                lambda resp: (not resp.found) and resp.job_id == "smoke-live-missing",
+                lambda resp: f"found={resp.found}, job_id={resp.job_id}",
             )
         )
 

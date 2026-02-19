@@ -123,6 +123,7 @@ distributed-task-queue/
 |   |-- smoke_coordinator_skeleton.py
 |   |-- smoke_gateway_behavior.py
 |   |-- smoke_gateway_skeleton.py
+|   |-- smoke_integration_terminal_path.py
 |   |-- smoke_job_skeleton.py
 |   |-- smoke_live_stack.py
 |   |-- smoke_queue_skeleton.py
