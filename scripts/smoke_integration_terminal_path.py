@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
-Live integration smoke for terminalization across Gateway + Coordinator paths.
+Live integration smoke for terminalization through the real worker process.
 
 Flow:
 1) Submit jobs through Gateway.
-2) Worker-compatible client heartbeats and fetches work via Coordinator.
-3) Report terminal outcome for an assigned submitted job.
-4) Verify terminal status/result retrieval through public API.
+2) Wait for worker-driven RUNNING -> terminal progression.
+3) Verify terminal status/result retrieval through public API.
 """
 
 from __future__ import annotations
@@ -75,13 +74,14 @@ def _print_summary(checks: List[CheckResult]) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Integration smoke for terminalization path")
+    parser = argparse.ArgumentParser(description="Integration smoke for worker-driven terminalization path")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--gateway-port", type=int, default=50051)
-    parser.add_argument("--coordinator-port", type=int, default=50054)
     parser.add_argument("--rpc-timeout", type=float, default=2.0)
-    parser.add_argument("--submit-count", type=int, default=4)
-    parser.add_argument("--fetch-attempts", type=int, default=40)
+    parser.add_argument("--submit-count", type=int, default=2)
+    parser.add_argument("--status-poll-attempts", type=int, default=80)
+    parser.add_argument("--result-poll-attempts", type=int, default=40)
+    parser.add_argument("--poll-sleep-ms", type=int, default=100)
     args = parser.parse_args()
 
     repo_root = _repo_root()
@@ -91,19 +91,14 @@ def main() -> int:
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
 
-    import taskqueue_internal_pb2 as internal_pb2
-    import taskqueue_internal_pb2_grpc as internal_pb2_grpc
     import taskqueue_public_pb2 as public_pb2
     import taskqueue_public_pb2_grpc as public_pb2_grpc
 
     checks: List[CheckResult] = []
     submitted_job_ids: List[str] = []
-    worker_id = f"smoke-integration-worker-{int(time.time() * 1000)}"
-    matched_job_id = ""
-    reported_checksum = ""
-    reported_runtime_ms = 17
-    reported_summary = "integration-terminal-done"
-    reported_output_bytes = b"integration-output"
+    terminal_job_id = ""
+    terminal_status = public_pb2.JOB_STATUS_UNSPECIFIED
+    saw_running = False
 
     with grpc.insecure_channel(f"{args.host}:{args.gateway_port}") as gateway_channel:
         gateway = public_pb2_grpc.TaskQueuePublicServiceStub(gateway_channel)
@@ -113,7 +108,7 @@ def main() -> int:
                     public_pb2.SubmitJobRequest(
                         spec=public_pb2.JobSpec(
                             job_type=f"integration-terminal-{idx}",
-                            work_duration_ms=10,
+                            work_duration_ms=120,
                             payload_size_bytes=16,
                             labels={"suite": "smoke_integration_terminal_path"},
                         ),
@@ -146,146 +141,79 @@ def main() -> int:
         checks.append(CheckResult("integration_precondition", False, "no submitted jobs available"))
         return _print_summary(checks)
 
-    with grpc.insecure_channel(f"{args.host}:{args.coordinator_port}") as coord_channel:
-        coordinator = internal_pb2_grpc.CoordinatorInternalServiceStub(coord_channel)
-        checks.append(
-            _expect_ok(
-                "coordinator.WorkerHeartbeat",
-                lambda: coordinator.WorkerHeartbeat(
-                    internal_pb2.WorkerHeartbeatRequest(
-                        worker_id=worker_id,
-                        heartbeat_at_ms=int(time.time() * 1000),
-                        capacity_hint=1,
-                    ),
-                    timeout=args.rpc_timeout,
-                ),
-                lambda resp: resp.accepted and int(resp.next_heartbeat_in_ms) > 0,
-                lambda resp: f"accepted={resp.accepted}, next={resp.next_heartbeat_in_ms}",
-            )
-        )
-
-        submitted_set = set(submitted_job_ids)
-        for _ in range(max(1, int(args.fetch_attempts))):
-            try:
-                fetch = coordinator.FetchWork(
-                    internal_pb2.FetchWorkRequest(worker_id=worker_id),
-                    timeout=args.rpc_timeout,
-                )
-            except grpc.RpcError as exc:
-                checks.append(
-                    CheckResult(
-                        "coordinator.FetchWork",
-                        False,
-                        f"{exc.code().name}: {exc.details() or ''}".strip(),
-                    )
-                )
-                break
-
-            if not fetch.assigned:
-                sleep_ms = int(fetch.retry_after_ms) if int(fetch.retry_after_ms) > 0 else 75
-                time.sleep(max(50, sleep_ms) / 1000.0)
-                continue
-
-            if fetch.job_id not in submitted_set:
-                # Benign background queue noise; skip and continue probing.
-                continue
-
-            matched_job_id = fetch.job_id
-            reported_checksum = hashlib.sha256(reported_output_bytes).hexdigest()
-            try:
-                report = coordinator.ReportWorkOutcome(
-                    internal_pb2.ReportWorkOutcomeRequest(
-                        worker_id=worker_id,
-                        job_id=matched_job_id,
-                        outcome=public_pb2.JOB_OUTCOME_SUCCEEDED,
-                        runtime_ms=reported_runtime_ms,
-                        output_summary=reported_summary,
-                        output_bytes=reported_output_bytes,
-                        checksum=reported_checksum,
-                    ),
-                    timeout=args.rpc_timeout,
-                )
-            except grpc.RpcError as exc:
-                checks.append(
-                    CheckResult(
-                        "coordinator.ReportWorkOutcome",
-                        False,
-                        f"{exc.code().name}: {exc.details() or ''}".strip(),
-                    )
-                )
-                break
-
-            checks.append(
-                CheckResult(
-                    "coordinator.ReportWorkOutcome",
-                    bool(report.accepted),
-                    f"job_id={matched_job_id}, accepted={report.accepted}",
-                )
-            )
-            break
-
-    checks.append(
-        CheckResult(
-            "coordinator.FetchWork.assigned_submitted_job",
-            bool(matched_job_id),
-            f"matched_job_id={matched_job_id or '<none>'}",
-        )
-    )
-
-    if not matched_job_id:
-        return _print_summary(checks)
-
     with grpc.insecure_channel(f"{args.host}:{args.gateway_port}") as gateway_channel:
         gateway = public_pb2_grpc.TaskQueuePublicServiceStub(gateway_channel)
-
+        terminal_statuses = {public_pb2.DONE, public_pb2.FAILED, public_pb2.CANCELED}
         status_resp = None
-        for _ in range(20):
-            status_resp = gateway.GetJobStatus(
-                public_pb2.GetJobStatusRequest(job_id=matched_job_id),
-                timeout=args.rpc_timeout,
-            )
-            if status_resp.status == public_pb2.DONE:
-                break
-            time.sleep(0.1)
-        if status_resp is None:
-            checks.append(CheckResult("gateway.GetJobStatus.terminal", False, "no status response"))
-        else:
-            checks.append(
-                CheckResult(
-                    "gateway.GetJobStatus.terminal",
-                    status_resp.job_id == matched_job_id and status_resp.status == public_pb2.DONE,
-                    f"job_id={status_resp.job_id}, status={_status_name(public_pb2, status_resp.status)}",
+        for _ in range(max(1, int(args.status_poll_attempts))):
+            for job_id in submitted_job_ids:
+                status_resp = gateway.GetJobStatus(
+                    public_pb2.GetJobStatusRequest(job_id=job_id),
+                    timeout=args.rpc_timeout,
                 )
+                if status_resp.status == public_pb2.RUNNING:
+                    saw_running = True
+                if status_resp.status in terminal_statuses:
+                    terminal_job_id = job_id
+                    terminal_status = status_resp.status
+                    break
+            if terminal_job_id:
+                break
+            time.sleep(max(20, int(args.poll_sleep_ms)) / 1000.0)
+
+        checks.append(
+            CheckResult(
+                "gateway.GetJobStatus.running_seen",
+                saw_running,
+                f"submitted={len(submitted_job_ids)}, running_seen={saw_running}",
             )
+        )
+        checks.append(
+            CheckResult(
+                "gateway.GetJobStatus.terminal",
+                bool(terminal_job_id),
+                f"job_id={terminal_job_id or '<none>'}, status={_status_name(public_pb2, terminal_status)}",
+            )
+        )
+
+        if not terminal_job_id:
+            return _print_summary(checks)
 
         result_resp = None
-        for _ in range(20):
+        for _ in range(max(1, int(args.result_poll_attempts))):
             result_resp = gateway.GetJobResult(
-                    public_pb2.GetJobResultRequest(job_id=matched_job_id),
-                    timeout=args.rpc_timeout,
+                public_pb2.GetJobResultRequest(job_id=terminal_job_id),
+                timeout=args.rpc_timeout,
             )
-            if result_resp.result_ready and result_resp.terminal_status == public_pb2.DONE:
+            if result_resp.result_ready:
                 break
-            time.sleep(0.1)
+            time.sleep(max(20, int(args.poll_sleep_ms)) / 1000.0)
+
         if result_resp is None:
             checks.append(CheckResult("gateway.GetJobResult.terminal_ready", False, "no result response"))
         else:
+            checksum_ok = result_resp.checksum == hashlib.sha256(bytes(result_resp.output_bytes)).hexdigest()
             checks.append(
                 CheckResult(
                     "gateway.GetJobResult.terminal_ready",
                     (
-                        result_resp.job_id == matched_job_id
+                        result_resp.job_id == terminal_job_id
                         and result_resp.result_ready
-                        and result_resp.terminal_status == public_pb2.DONE
-                        and result_resp.runtime_ms == reported_runtime_ms
-                        and result_resp.output_summary == reported_summary
-                        and bytes(result_resp.output_bytes) == reported_output_bytes
-                        and result_resp.checksum == reported_checksum
+                        and result_resp.terminal_status == terminal_status
+                        and checksum_ok
                     ),
                     (
                         f"job_id={result_resp.job_id}, ready={result_resp.result_ready}, "
-                        f"terminal={_status_name(public_pb2, result_resp.terminal_status)}, checksum={result_resp.checksum}"
+                        f"terminal={_status_name(public_pb2, result_resp.terminal_status)}, "
+                        f"runtime_ms={result_resp.runtime_ms}, checksum_ok={checksum_ok}"
                     ),
+                )
+            )
+            checks.append(
+                CheckResult(
+                    "gateway.GetJobResult.worker_signature",
+                    "simulated_success worker_id=" in result_resp.output_summary,
+                    f"output_summary={result_resp.output_summary}",
                 )
             )
 

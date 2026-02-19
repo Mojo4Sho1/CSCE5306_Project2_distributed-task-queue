@@ -1,18 +1,18 @@
 """
-Worker runtime scaffold (skeleton phase).
+Worker runtime process with deterministic simulated execution.
 
-Responsibilities in this phase:
+Responsibilities:
 - load/accept worker config
 - initialize coordinator client stub
-- run deterministic heartbeat/fetch loop with no business execution
-- emit structured lifecycle and loop logs
-
-Business execution/reporting logic is intentionally out of scope.
+- run heartbeat/fetch loop
+- execute deterministic simulated work for assigned jobs
+- report outcomes to Coordinator via ReportWorkOutcome
 """
 
 from __future__ import annotations
 
 import json
+import hashlib
 import logging
 import os
 import signal
@@ -43,6 +43,7 @@ for _p in (str(_REPO_ROOT), str(_GENERATED_DIR)):
 # Generated stubs
 import taskqueue_internal_pb2 as pb2  # type: ignore
 import taskqueue_internal_pb2_grpc as pb2_grpc  # type: ignore
+import taskqueue_public_pb2 as public_pb2  # type: ignore
 
 
 # Common utilities (use if present; fallback behavior is built in below)
@@ -190,7 +191,7 @@ def _resolve_worker_id(cfg: Any) -> str:
 
 
 class WorkerRuntime:
-    """Deterministic skeleton worker loop with coordinator RPC integration points."""
+    """Deterministic worker loop with coordinator RPC integration."""
 
     def __init__(self, config: Any, logger: logging.Logger) -> None:
         self._cfg = config
@@ -202,6 +203,9 @@ class WorkerRuntime:
         self._heartbeat_interval_ms = _coerce_int(getattr(config, "heartbeat_interval_ms", 1000), 1000)
         self._fetch_idle_sleep_ms = _coerce_int(getattr(config, "fetch_idle_sleep_ms", 200), 200)
         self._rpc_timeout_s = max(_coerce_int(getattr(config, "rpc_timeout_ms", 1000), 1000), 1) / 1000.0
+        self._report_max_attempts = 4
+        self._report_initial_backoff_ms = 100
+        self._report_max_backoff_ms = 1000
 
         if self._heartbeat_interval_ms < 1:
             self._heartbeat_interval_ms = 1000
@@ -245,16 +249,9 @@ class WorkerRuntime:
             self._send_heartbeat(now)
             self._last_heartbeat_at_ms = now
 
-        assigned, retry_after_ms = self._fetch_work()
-        if assigned:
-            # Skeleton phase: no business execution path yet.
-            _emit(
-                self._logger,
-                "worker.loop.assignment.received",
-                worker_id=self._worker_id,
-                action="ignored_in_skeleton",
-            )
-            time.sleep(max(self._fetch_idle_sleep_ms, 50) / 1000.0)
+        assignment, retry_after_ms = self._fetch_work()
+        if assignment is not None:
+            self._execute_and_report(assignment)
             return
 
         sleep_ms = retry_after_ms if retry_after_ms > 0 else self._fetch_idle_sleep_ms
@@ -308,7 +305,7 @@ class WorkerRuntime:
                 error=f"{type(exc).__name__}: {exc}",
             )
 
-    def _fetch_work(self) -> tuple[bool, int]:
+    def _fetch_work(self) -> tuple[Optional[pb2.FetchWorkResponse], int]:
         _emit(
             self._logger,
             "worker.fetch.attempt",
@@ -329,7 +326,9 @@ class WorkerRuntime:
                 assigned=assigned,
                 retry_after_ms=retry_after_ms,
             )
-            return assigned, retry_after_ms
+            if assigned and str(getattr(response, "job_id", "")).strip():
+                return response, retry_after_ms
+            return None, retry_after_ms
         except grpc.RpcError as exc:
             _emit(
                 self._logger,
@@ -339,7 +338,7 @@ class WorkerRuntime:
                 grpc_code=exc.code().name if exc.code() is not None else "UNKNOWN",
                 detail=exc.details() or "",
             )
-            return False, self._fetch_idle_sleep_ms
+            return None, self._fetch_idle_sleep_ms
         except Exception as exc:
             _emit(
                 self._logger,
@@ -348,7 +347,125 @@ class WorkerRuntime:
                 worker_id=self._worker_id,
                 error=f"{type(exc).__name__}: {exc}",
             )
-            return False, self._fetch_idle_sleep_ms
+            return None, self._fetch_idle_sleep_ms
+
+    def _execute_and_report(self, fetch: pb2.FetchWorkResponse) -> None:
+        job_id = str(fetch.job_id).strip()
+        spec = getattr(fetch, "spec", public_pb2.JobSpec())
+        runtime_ms = self._planned_runtime_ms(spec)
+        output_bytes = self._build_output_bytes(job_id, spec, runtime_ms)
+        checksum = hashlib.sha256(output_bytes).hexdigest()
+        output_summary = (
+            f"simulated_success worker_id={self._worker_id} "
+            f"runtime_ms={runtime_ms} bytes={len(output_bytes)}"
+        )
+
+        _emit(
+            self._logger,
+            "worker.execute.begin",
+            worker_id=self._worker_id,
+            job_id=job_id,
+            planned_runtime_ms=runtime_ms,
+            job_type=str(getattr(spec, "job_type", "")),
+        )
+        self._stop_event.wait(runtime_ms / 1000.0)
+        if self._stop_event.is_set():
+            _emit(
+                self._logger,
+                "worker.execute.interrupted",
+                worker_id=self._worker_id,
+                job_id=job_id,
+            )
+            return
+
+        request = pb2.ReportWorkOutcomeRequest(
+            worker_id=self._worker_id,
+            job_id=job_id,
+            outcome=public_pb2.JOB_OUTCOME_SUCCEEDED,
+            runtime_ms=runtime_ms,
+            output_summary=output_summary,
+            output_bytes=output_bytes,
+            checksum=checksum,
+        )
+
+        accepted = self._report_with_retry(request=request)
+        _emit(
+            self._logger,
+            "worker.execute.complete",
+            worker_id=self._worker_id,
+            job_id=job_id,
+            accepted=accepted,
+            checksum=checksum,
+        )
+
+    def _planned_runtime_ms(self, spec: Any) -> int:
+        raw = _coerce_int(getattr(spec, "work_duration_ms", 0), 0)
+        if raw <= 0:
+            return 120
+        return max(20, min(raw, 2000))
+
+    def _build_output_bytes(self, job_id: str, spec: Any, runtime_ms: int) -> bytes:
+        job_type = str(getattr(spec, "job_type", "")).strip()
+        payload_size_bytes = max(0, _coerce_int(getattr(spec, "payload_size_bytes", 0), 0))
+        base = (
+            f"worker={self._worker_id};job_id={job_id};job_type={job_type};"
+            f"runtime_ms={runtime_ms};payload_size={payload_size_bytes}"
+        )
+        return base.encode("utf-8")
+
+    def _report_with_retry(self, request: pb2.ReportWorkOutcomeRequest) -> bool:
+        backoff_ms = self._report_initial_backoff_ms
+        for attempt in range(1, self._report_max_attempts + 1):
+            _emit(
+                self._logger,
+                "worker.report.attempt",
+                worker_id=self._worker_id,
+                job_id=request.job_id,
+                attempt=attempt,
+            )
+            try:
+                response = self._stub.ReportWorkOutcome(request, timeout=self._rpc_timeout_s)
+                accepted = bool(getattr(response, "accepted", False))
+                _emit(
+                    self._logger,
+                    "worker.report.response",
+                    worker_id=self._worker_id,
+                    job_id=request.job_id,
+                    accepted=accepted,
+                    attempt=attempt,
+                )
+                if accepted:
+                    return True
+            except grpc.RpcError as exc:
+                _emit(
+                    self._logger,
+                    "worker.report.rpc_error",
+                    level="WARNING",
+                    worker_id=self._worker_id,
+                    job_id=request.job_id,
+                    attempt=attempt,
+                    grpc_code=exc.code().name if exc.code() is not None else "UNKNOWN",
+                    detail=exc.details() or "",
+                )
+            except Exception as exc:
+                _emit(
+                    self._logger,
+                    "worker.report.error",
+                    level="WARNING",
+                    worker_id=self._worker_id,
+                    job_id=request.job_id,
+                    attempt=attempt,
+                    error=f"{type(exc).__name__}: {exc}",
+                )
+
+            if attempt < self._report_max_attempts:
+                wait_ms = max(50, min(backoff_ms, self._report_max_backoff_ms))
+                self._stop_event.wait(wait_ms / 1000.0)
+                if self._stop_event.is_set():
+                    return False
+                backoff_ms = min(backoff_ms * 2, self._report_max_backoff_ms)
+
+        return False
 
 
 def run() -> int:
