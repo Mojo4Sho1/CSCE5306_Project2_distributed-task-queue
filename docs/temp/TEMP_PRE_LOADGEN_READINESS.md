@@ -52,8 +52,8 @@ Definition of done:
   - [x] identical total worker slots,
   - [ ] consistent deadlines/retries,
   - [x] fixed warm-up/measurement windows,
-  - [ ] same request mix and pacing model.
-- [ ] Define minimum scenario matrix:
+  - [x] same request mix and pacing model.
+- [x] Define minimum scenario matrix:
   - [x] low, medium, high load,
   - [x] submit-heavy, poll-heavy, balanced profiles.
 
