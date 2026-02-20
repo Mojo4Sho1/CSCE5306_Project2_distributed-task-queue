@@ -226,6 +226,25 @@ The benchmark contract now supports both scaffold-only and live traffic executio
   - `scripts/loadgen/scenarios/design_a_balanced_seed5307.json`
   - `scripts/loadgen/scenarios/design_b_balanced_seed5306.json`
   - `scripts/loadgen/scenarios/design_b_balanced_seed5307.json`
+  - full starter-matrix set:
+    - `scripts/loadgen/scenarios/starter_matrix/design_a_s_low_submit_heavy.json`
+    - `scripts/loadgen/scenarios/starter_matrix/design_a_s_low_poll_heavy.json`
+    - `scripts/loadgen/scenarios/starter_matrix/design_a_s_low_balanced.json`
+    - `scripts/loadgen/scenarios/starter_matrix/design_a_s_medium_submit_heavy.json`
+    - `scripts/loadgen/scenarios/starter_matrix/design_a_s_medium_poll_heavy.json`
+    - `scripts/loadgen/scenarios/starter_matrix/design_a_s_medium_balanced.json`
+    - `scripts/loadgen/scenarios/starter_matrix/design_a_s_high_submit_heavy.json`
+    - `scripts/loadgen/scenarios/starter_matrix/design_a_s_high_poll_heavy.json`
+    - `scripts/loadgen/scenarios/starter_matrix/design_a_s_high_balanced.json`
+    - `scripts/loadgen/scenarios/starter_matrix/design_b_s_low_submit_heavy.json`
+    - `scripts/loadgen/scenarios/starter_matrix/design_b_s_low_poll_heavy.json`
+    - `scripts/loadgen/scenarios/starter_matrix/design_b_s_low_balanced.json`
+    - `scripts/loadgen/scenarios/starter_matrix/design_b_s_medium_submit_heavy.json`
+    - `scripts/loadgen/scenarios/starter_matrix/design_b_s_medium_poll_heavy.json`
+    - `scripts/loadgen/scenarios/starter_matrix/design_b_s_medium_balanced.json`
+    - `scripts/loadgen/scenarios/starter_matrix/design_b_s_high_submit_heavy.json`
+    - `scripts/loadgen/scenarios/starter_matrix/design_b_s_high_poll_heavy.json`
+    - `scripts/loadgen/scenarios/starter_matrix/design_b_s_high_balanced.json`
 
 Design B ingress in live mode remains wired through the shared routing utility:
 - `common/design_b_routing.py` (`DesignBClientRouter`)
@@ -252,11 +271,29 @@ conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario sc
 conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_b_balanced_seed5307.json --output-dir results/loadgen --live-traffic --precheck-health
 ```
 
+Full starter matrix execution example (Design A then Design B, sequential isolation):
+
+```bash
+for sid in design_a_s_low_submit_heavy design_a_s_low_poll_heavy design_a_s_low_balanced design_a_s_medium_submit_heavy design_a_s_medium_poll_heavy design_a_s_medium_balanced design_a_s_high_submit_heavy design_a_s_high_poll_heavy design_a_s_high_balanced; do
+  conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario "scripts/loadgen/scenarios/starter_matrix/${sid}.json" --output-dir results/loadgen --live-traffic --precheck-health
+done
+
+for sid in design_b_s_low_submit_heavy design_b_s_low_poll_heavy design_b_s_low_balanced design_b_s_medium_submit_heavy design_b_s_medium_poll_heavy design_b_s_medium_balanced design_b_s_high_submit_heavy design_b_s_high_poll_heavy design_b_s_high_balanced; do
+  conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario "scripts/loadgen/scenarios/starter_matrix/${sid}.json" --output-dir results/loadgen --live-traffic --precheck-health
+done
+```
+
 If a deterministic run directory already exists, the runner now fails by default.
 Use `--overwrite` only for intentional replacement:
 
 ```bash
 conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_live_smoke_short.json --output-dir results/loadgen --live-traffic --precheck-health --overwrite
+```
+
+Aggregate starter-matrix artifacts (tables + plots):
+
+```bash
+conda run -n grpc python scripts/loadgen/aggregate_starter_matrix.py --results-root results/loadgen --output-dir results/loadgen/analysis/starter_matrix_2026-02-20
 ```
 
 Artifacts are written per run under:

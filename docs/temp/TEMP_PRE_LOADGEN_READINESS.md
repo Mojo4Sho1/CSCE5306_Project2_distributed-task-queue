@@ -15,6 +15,10 @@ Removal trigger:
 Then delete:
 - `docs/temp/TEMP_PRE_LOADGEN_READINESS.md`
 
+Trigger status (2026-02-20):
+- Trigger is now satisfied.
+- File retained only until the dedicated strict-cleanup task executes.
+
 ## Purpose
 
 Track remaining prerequisites between current Design B routing correctness and full benchmark execution (throughput/latency/fairness runs).
@@ -100,27 +104,18 @@ Progress note:
 ## Benchmark Execution Snapshot (2026-02-20)
 
 Execution scope completed in this session:
-- Balanced live multi-seed runs completed for both designs using precheck-enabled loadgen commands.
-- Scenario files used:
-  - `scripts/loadgen/scenarios/design_a_balanced_seed5306.json`
-  - `scripts/loadgen/scenarios/design_a_balanced_seed5307.json`
-  - `scripts/loadgen/scenarios/design_b_balanced_seed5306.json`
-  - `scripts/loadgen/scenarios/design_b_balanced_seed5307.json`
-- Run IDs produced:
-  - `design_a_balanced_seed5306-r00-88c6b30ac8`
-  - `design_a_balanced_seed5307-r00-3c78888ca7`
-  - `design_b_balanced_seed5306-r00-19271f3523`
-  - `design_b_balanced_seed5307-r00-976e24e878`
-- Artifact set completeness confirmed for each run:
-  - `rows.jsonl`, `rows.csv`, `summary.json`, `summary.csv`, `metadata.json`.
-- Quick aggregate signal (2 seeds/design, 20s measure window):
-  - A avg terminal throughput: `3.55 rps`
-  - B avg terminal throughput: `3.575 rps`
-  - A had lower p95 latencies in this slice; grpc non-OK rate was `0.0` for both designs across primary methods.
+- Full starter matrix completed for both designs (`low/medium/high` x `submit_heavy/poll_heavy/balanced`) with `3` deterministic repetitions per scenario.
+- Total run directories: `54` (`27` per design).
+- Artifact completeness confirmed:
+  - `rows.jsonl`, `rows.csv`, `summary.json`, `summary.csv`, `metadata.json` present for all runs.
+- Consolidated tables and plots generated:
+  - `results/loadgen/analysis/starter_matrix_2026-02-20/`
+- Command trace captured:
+  - `results/loadgen/starter_matrix_execution_2026-02-20.log`
 
 Residual temporary-file relevance:
-- This checklist remains useful until full starter matrix execution and report-plot integration are complete.
-- After full-matrix reproducibility is captured in canonical docs, remove this file per cleanup trigger.
+- None from execution readiness standpoint.
+- Remaining action is removal in the dedicated strict-cleanup task.
 
 ## 5) Pre-Benchmark Gate
 
@@ -140,8 +135,18 @@ Execute only after both conditions are true:
 Cleanup candidates:
 - `docs/temp/TEMP_PRE_LOADGEN_READINESS.md` (this file)
 - `scripts/legacy_smoke/` legacy scripts no longer needed for current validation path
+- Deprecated top-level compatibility wrappers (strict cleanup target):
+  - `scripts/smoke_*_behavior.py`
+  - `scripts/smoke_*_skeleton.py`
+  - `scripts/smoke_live_stack.py`
+  - `scripts/smoke_integration_terminal_path.py`
+  - `scripts/smoke_integration_failure_path.py`
+  - `scripts/manual_gateway_client.py`
+  - `scripts/healthcheck.py`
 
 Cleanup checklist:
 - [ ] Verify no canonical docs reference legacy smoke paths.
 - [ ] Verify no CI/local validation commands depend on legacy smoke scripts.
-- [ ] Remove legacy files in one focused cleanup change set with doc index updates.
+- [ ] Verify no CI/local validation commands depend on deprecated top-level compatibility wrappers.
+- [ ] Remove legacy files and deprecated wrappers in one focused cleanup change set with doc index updates.
+- [ ] Remove this temp file in that same cleanup/docs-sync change set.

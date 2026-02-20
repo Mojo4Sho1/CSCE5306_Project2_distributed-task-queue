@@ -1,0 +1,6 @@
+method,total_calls,ok_calls,throughput_rps,latency_p50_ms,latency_p95_ms,latency_p99_ms,grpc_code_rates_json,job_terminal_unique_jobs,job_terminal_throughput_rps
+SubmitJob,1440,1440,24.0,25.301,39.235,45.466,"{""OK"":1.0}",658,10.966667
+GetJobStatus,480,480,8.0,22.007,37.505,46.908,"{""OK"":1.0}",658,10.966667
+GetJobResult,360,360,6.0,26.574,40.696,46.165,"{""OK"":1.0}",658,10.966667
+CancelJob,120,120,2.0,21.672,33.722,46.844,"{""OK"":1.0}",658,10.966667
+ListJobs,0,0,0.0,0.0,0.0,0.0,{},658,10.966667

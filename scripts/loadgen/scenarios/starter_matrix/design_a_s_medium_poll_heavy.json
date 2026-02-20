@@ -1,0 +1,23 @@
+{
+  "scenario_id": "design_a_s_medium_poll_heavy",
+  "request_mix_profile": "poll_heavy",
+  "request_mix_weights": {
+    "SubmitJob": 15,
+    "GetJobStatus": 45,
+    "GetJobResult": 35,
+    "CancelJob": 5,
+    "ListJobs": 0
+  },
+  "concurrency": 24,
+  "request_rate_rps": 20,
+  "work_duration_ms": 250,
+  "warmup_seconds": 15,
+  "measure_seconds": 60,
+  "cooldown_seconds": 15,
+  "repetitions": 3,
+  "run_seed": 5306,
+  "total_worker_slots": 6,
+  "submit_client_request_id_mode": "empty",
+  "design": "A_microservices",
+  "design_a_gateway_target": "127.0.0.1:50051"
+}

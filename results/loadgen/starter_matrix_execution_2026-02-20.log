@@ -1,0 +1,914 @@
+== 2026-02-20T16:15:15Z START design A stack
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [queue internal] load .dockerignore
+#1 transferring context: 2B done
+#1 DONE 0.0s
+
+#2 [queue internal] load build definition from Dockerfile.runtime
+#2 transferring dockerfile: 273B done
+#2 DONE 0.0s
+
+#3 [job internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [job internal] load build definition from Dockerfile.runtime
+#4 transferring dockerfile: 273B done
+#4 DONE 0.0s
+
+#5 [result internal] load .dockerignore
+#5 transferring context: 2B done
+#5 DONE 0.0s
+
+#6 [result internal] load build definition from Dockerfile.runtime
+#6 transferring dockerfile: 273B done
+#6 DONE 0.0s
+
+#7 [result internal] load metadata for docker.io/library/python:3.11-slim
+#7 DONE 0.5s
+
+#8 [result 1/3] FROM docker.io/library/python:3.11-slim@sha256:0b23cfb7425d065008b778022a17b1551c82f8b4866ee5a7a200084b7e2eafbf
+#8 DONE 0.0s
+
+#9 [result] exporting to image
+#9 exporting layers done
+#9 writing image sha256:acfcb9a1cd2e620b1a6986f7b16f7a25e3f0c513012004ccfbe972d4201a0ebe done
+#9 naming to docker.io/library/docker-result done
+#9 DONE 0.0s
+
+#10 [job] exporting to image
+#10 exporting layers done
+#10 writing image sha256:bd95bda47688d80035da6705bf19ad401d8effecd91ac437d7ca0d144edeac0f done
+#10 naming to docker.io/library/docker-job done
+#10 DONE 0.0s
+
+#11 [job 2/3] WORKDIR /app
+#11 CACHED
+
+#12 [job 3/3] RUN pip install --no-cache-dir     "grpcio>=1.76.0,<2"     "protobuf>=6.31.1,<7"     "grpcio-tools>=1.76.0,<2"
+#12 CACHED
+
+#13 [queue] exporting to image
+#13 exporting layers done
+#13 writing image sha256:d2a14ae4f4cfe63ffe3c261668a4754045206226510fae1956b7a16bce5f2917 done
+#13 naming to docker.io/library/docker-queue done
+#13 DONE 0.0s
+
+#14 [gateway internal] load build definition from Dockerfile.runtime
+#14 transferring dockerfile: 273B done
+#14 DONE 0.0s
+
+#15 [gateway internal] load .dockerignore
+#15 transferring context: 2B 0.0s done
+#15 DONE 0.0s
+
+#16 [coordinator internal] load .dockerignore
+#16 transferring context: 2B 0.0s done
+#16 DONE 0.0s
+
+#17 [coordinator internal] load build definition from Dockerfile.runtime
+#17 transferring dockerfile: 273B done
+#17 DONE 0.0s
+
+#7 [coordinator internal] load metadata for docker.io/library/python:3.11-slim
+#7 DONE 0.9s
+
+#18 [coordinator] exporting to image
+#18 exporting layers done
+#18 writing image sha256:2f42371f768e56dcf8ae1d20ce3557975ae783f02bf116095a66784c46e43f3e done
+#18 naming to docker.io/library/docker-coordinator done
+#18 DONE 0.0s
+
+#8 [coordinator 1/3] FROM docker.io/library/python:3.11-slim@sha256:0b23cfb7425d065008b778022a17b1551c82f8b4866ee5a7a200084b7e2eafbf
+#8 DONE 0.0s
+
+#11 [coordinator 2/3] WORKDIR /app
+#11 CACHED
+
+#12 [coordinator 3/3] RUN pip install --no-cache-dir     "grpcio>=1.76.0,<2"     "protobuf>=6.31.1,<7"     "grpcio-tools>=1.76.0,<2"
+#12 CACHED
+
+#19 [gateway] exporting to image
+#19 exporting layers done
+#19 writing image sha256:aa1ed2e68af4c7e3a9c3c4dd5221aa8aa3facc9910b51c80416d5990a1d430fe done
+#19 naming to docker.io/library/docker-gateway done
+#19 DONE 0.0s
+
+#20 [worker internal] load .dockerignore
+#20 transferring context: 2B done
+#20 DONE 0.0s
+
+#21 [worker internal] load build definition from Dockerfile.runtime
+#21 transferring dockerfile: 273B done
+#21 DONE 0.0s
+
+#7 [worker internal] load metadata for docker.io/library/python:3.11-slim
+#7 DONE 1.3s
+
+#8 [worker 1/3] FROM docker.io/library/python:3.11-slim@sha256:0b23cfb7425d065008b778022a17b1551c82f8b4866ee5a7a200084b7e2eafbf
+#8 DONE 0.0s
+
+#11 [worker 2/3] WORKDIR /app
+#11 CACHED
+
+#12 [worker 3/3] RUN pip install --no-cache-dir     "grpcio>=1.76.0,<2"     "protobuf>=6.31.1,<7"     "grpcio-tools>=1.76.0,<2"
+#12 CACHED
+
+#22 [worker] exporting to image
+#22 exporting layers done
+#22 writing image sha256:59b7226f5c58de1959c4d4b71974171b9652ececa226b49bcae96e891870e65f done
+#22 naming to docker.io/library/docker-worker done
+#22 DONE 0.0s
+NAME                   IMAGE                COMMAND                                 SERVICE       CREATED              STATUS                        PORTS
+docker-coordinator-1   docker-coordinator   "python -m services.coordinator.main"   coordinator   About a minute ago   Up About a minute (healthy)   0.0.0.0:50054->50054/tcp
+docker-gateway-1       docker-gateway       "python -m services.gateway.main"       gateway       About a minute ago   Up About a minute (healthy)   0.0.0.0:50051->50051/tcp
+docker-job-1           docker-job           "python -m services.job.main"           job           About a minute ago   Up About a minute (healthy)   0.0.0.0:50052->50052/tcp
+docker-queue-1         docker-queue         "python -m services.queue.main"         queue         About a minute ago   Up About a minute (healthy)   0.0.0.0:50053->50053/tcp
+docker-result-1        docker-result        "python -m services.result.main"        result        About a minute ago   Up About a minute (healthy)   0.0.0.0:50055->50055/tcp
+docker-worker-1        docker-worker        "python -m services.worker.main"        worker        About a minute ago   Up About a minute (healthy)   
+== design A healthy after 1 checks
+== 2026-02-20T16:15:17Z RUN design_a_s_low_submit_heavy
+{
+  "scenario_id": "design_a_s_low_submit_heavy",
+  "runs": [
+    {
+      "run_id": "design_a_s_low_submit_heavy-r00-2697bc274b",
+      "run_dir": "results/loadgen/design_a_s_low_submit_heavy/design_a_s_low_submit_heavy-r00-2697bc274b",
+      "row_count": 300,
+      "rows_jsonl": "results/loadgen/design_a_s_low_submit_heavy/design_a_s_low_submit_heavy-r00-2697bc274b/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_low_submit_heavy/design_a_s_low_submit_heavy-r00-2697bc274b/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_low_submit_heavy/design_a_s_low_submit_heavy-r00-2697bc274b/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_low_submit_heavy/design_a_s_low_submit_heavy-r00-2697bc274b/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_low_submit_heavy/design_a_s_low_submit_heavy-r00-2697bc274b/metadata.json"
+    },
+    {
+      "run_id": "design_a_s_low_submit_heavy-r01-bb6b778d6e",
+      "run_dir": "results/loadgen/design_a_s_low_submit_heavy/design_a_s_low_submit_heavy-r01-bb6b778d6e",
+      "row_count": 300,
+      "rows_jsonl": "results/loadgen/design_a_s_low_submit_heavy/design_a_s_low_submit_heavy-r01-bb6b778d6e/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_low_submit_heavy/design_a_s_low_submit_heavy-r01-bb6b778d6e/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_low_submit_heavy/design_a_s_low_submit_heavy-r01-bb6b778d6e/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_low_submit_heavy/design_a_s_low_submit_heavy-r01-bb6b778d6e/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_low_submit_heavy/design_a_s_low_submit_heavy-r01-bb6b778d6e/metadata.json"
+    },
+    {
+      "run_id": "design_a_s_low_submit_heavy-r02-d11d80fef7",
+      "run_dir": "results/loadgen/design_a_s_low_submit_heavy/design_a_s_low_submit_heavy-r02-d11d80fef7",
+      "row_count": 300,
+      "rows_jsonl": "results/loadgen/design_a_s_low_submit_heavy/design_a_s_low_submit_heavy-r02-d11d80fef7/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_low_submit_heavy/design_a_s_low_submit_heavy-r02-d11d80fef7/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_low_submit_heavy/design_a_s_low_submit_heavy-r02-d11d80fef7/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_low_submit_heavy/design_a_s_low_submit_heavy-r02-d11d80fef7/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_low_submit_heavy/design_a_s_low_submit_heavy-r02-d11d80fef7/metadata.json"
+    }
+  ]
+}
+== 2026-02-20T16:19:48Z RUN design_a_s_low_poll_heavy
+{
+  "scenario_id": "design_a_s_low_poll_heavy",
+  "runs": [
+    {
+      "run_id": "design_a_s_low_poll_heavy-r00-361c7f38eb",
+      "run_dir": "results/loadgen/design_a_s_low_poll_heavy/design_a_s_low_poll_heavy-r00-361c7f38eb",
+      "row_count": 300,
+      "rows_jsonl": "results/loadgen/design_a_s_low_poll_heavy/design_a_s_low_poll_heavy-r00-361c7f38eb/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_low_poll_heavy/design_a_s_low_poll_heavy-r00-361c7f38eb/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_low_poll_heavy/design_a_s_low_poll_heavy-r00-361c7f38eb/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_low_poll_heavy/design_a_s_low_poll_heavy-r00-361c7f38eb/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_low_poll_heavy/design_a_s_low_poll_heavy-r00-361c7f38eb/metadata.json"
+    },
+    {
+      "run_id": "design_a_s_low_poll_heavy-r01-85c50c1cfc",
+      "run_dir": "results/loadgen/design_a_s_low_poll_heavy/design_a_s_low_poll_heavy-r01-85c50c1cfc",
+      "row_count": 300,
+      "rows_jsonl": "results/loadgen/design_a_s_low_poll_heavy/design_a_s_low_poll_heavy-r01-85c50c1cfc/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_low_poll_heavy/design_a_s_low_poll_heavy-r01-85c50c1cfc/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_low_poll_heavy/design_a_s_low_poll_heavy-r01-85c50c1cfc/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_low_poll_heavy/design_a_s_low_poll_heavy-r01-85c50c1cfc/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_low_poll_heavy/design_a_s_low_poll_heavy-r01-85c50c1cfc/metadata.json"
+    },
+    {
+      "run_id": "design_a_s_low_poll_heavy-r02-9daa754422",
+      "run_dir": "results/loadgen/design_a_s_low_poll_heavy/design_a_s_low_poll_heavy-r02-9daa754422",
+      "row_count": 300,
+      "rows_jsonl": "results/loadgen/design_a_s_low_poll_heavy/design_a_s_low_poll_heavy-r02-9daa754422/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_low_poll_heavy/design_a_s_low_poll_heavy-r02-9daa754422/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_low_poll_heavy/design_a_s_low_poll_heavy-r02-9daa754422/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_low_poll_heavy/design_a_s_low_poll_heavy-r02-9daa754422/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_low_poll_heavy/design_a_s_low_poll_heavy-r02-9daa754422/metadata.json"
+    }
+  ]
+}
+== 2026-02-20T16:24:43Z RUN design_a_s_low_balanced
+{
+  "scenario_id": "design_a_s_low_balanced",
+  "runs": [
+    {
+      "run_id": "design_a_s_low_balanced-r00-f878e8c7a3",
+      "run_dir": "results/loadgen/design_a_s_low_balanced/design_a_s_low_balanced-r00-f878e8c7a3",
+      "row_count": 300,
+      "rows_jsonl": "results/loadgen/design_a_s_low_balanced/design_a_s_low_balanced-r00-f878e8c7a3/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_low_balanced/design_a_s_low_balanced-r00-f878e8c7a3/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_low_balanced/design_a_s_low_balanced-r00-f878e8c7a3/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_low_balanced/design_a_s_low_balanced-r00-f878e8c7a3/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_low_balanced/design_a_s_low_balanced-r00-f878e8c7a3/metadata.json"
+    },
+    {
+      "run_id": "design_a_s_low_balanced-r01-f2ed1e830a",
+      "run_dir": "results/loadgen/design_a_s_low_balanced/design_a_s_low_balanced-r01-f2ed1e830a",
+      "row_count": 300,
+      "rows_jsonl": "results/loadgen/design_a_s_low_balanced/design_a_s_low_balanced-r01-f2ed1e830a/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_low_balanced/design_a_s_low_balanced-r01-f2ed1e830a/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_low_balanced/design_a_s_low_balanced-r01-f2ed1e830a/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_low_balanced/design_a_s_low_balanced-r01-f2ed1e830a/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_low_balanced/design_a_s_low_balanced-r01-f2ed1e830a/metadata.json"
+    },
+    {
+      "run_id": "design_a_s_low_balanced-r02-5acef9a854",
+      "run_dir": "results/loadgen/design_a_s_low_balanced/design_a_s_low_balanced-r02-5acef9a854",
+      "row_count": 300,
+      "rows_jsonl": "results/loadgen/design_a_s_low_balanced/design_a_s_low_balanced-r02-5acef9a854/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_low_balanced/design_a_s_low_balanced-r02-5acef9a854/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_low_balanced/design_a_s_low_balanced-r02-5acef9a854/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_low_balanced/design_a_s_low_balanced-r02-5acef9a854/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_low_balanced/design_a_s_low_balanced-r02-5acef9a854/metadata.json"
+    }
+  ]
+}
+== 2026-02-20T16:29:14Z RUN design_a_s_medium_submit_heavy
+{
+  "scenario_id": "design_a_s_medium_submit_heavy",
+  "runs": [
+    {
+      "run_id": "design_a_s_medium_submit_heavy-r00-26bce2968c",
+      "run_dir": "results/loadgen/design_a_s_medium_submit_heavy/design_a_s_medium_submit_heavy-r00-26bce2968c",
+      "row_count": 1200,
+      "rows_jsonl": "results/loadgen/design_a_s_medium_submit_heavy/design_a_s_medium_submit_heavy-r00-26bce2968c/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_medium_submit_heavy/design_a_s_medium_submit_heavy-r00-26bce2968c/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_medium_submit_heavy/design_a_s_medium_submit_heavy-r00-26bce2968c/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_medium_submit_heavy/design_a_s_medium_submit_heavy-r00-26bce2968c/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_medium_submit_heavy/design_a_s_medium_submit_heavy-r00-26bce2968c/metadata.json"
+    },
+    {
+      "run_id": "design_a_s_medium_submit_heavy-r01-21f757c04d",
+      "run_dir": "results/loadgen/design_a_s_medium_submit_heavy/design_a_s_medium_submit_heavy-r01-21f757c04d",
+      "row_count": 1200,
+      "rows_jsonl": "results/loadgen/design_a_s_medium_submit_heavy/design_a_s_medium_submit_heavy-r01-21f757c04d/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_medium_submit_heavy/design_a_s_medium_submit_heavy-r01-21f757c04d/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_medium_submit_heavy/design_a_s_medium_submit_heavy-r01-21f757c04d/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_medium_submit_heavy/design_a_s_medium_submit_heavy-r01-21f757c04d/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_medium_submit_heavy/design_a_s_medium_submit_heavy-r01-21f757c04d/metadata.json"
+    },
+    {
+      "run_id": "design_a_s_medium_submit_heavy-r02-fba80230d0",
+      "run_dir": "results/loadgen/design_a_s_medium_submit_heavy/design_a_s_medium_submit_heavy-r02-fba80230d0",
+      "row_count": 1200,
+      "rows_jsonl": "results/loadgen/design_a_s_medium_submit_heavy/design_a_s_medium_submit_heavy-r02-fba80230d0/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_medium_submit_heavy/design_a_s_medium_submit_heavy-r02-fba80230d0/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_medium_submit_heavy/design_a_s_medium_submit_heavy-r02-fba80230d0/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_medium_submit_heavy/design_a_s_medium_submit_heavy-r02-fba80230d0/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_medium_submit_heavy/design_a_s_medium_submit_heavy-r02-fba80230d0/metadata.json"
+    }
+  ]
+}
+== 2026-02-20T16:33:45Z RUN design_a_s_medium_poll_heavy
+{
+  "scenario_id": "design_a_s_medium_poll_heavy",
+  "runs": [
+    {
+      "run_id": "design_a_s_medium_poll_heavy-r00-6296ce2613",
+      "run_dir": "results/loadgen/design_a_s_medium_poll_heavy/design_a_s_medium_poll_heavy-r00-6296ce2613",
+      "row_count": 1200,
+      "rows_jsonl": "results/loadgen/design_a_s_medium_poll_heavy/design_a_s_medium_poll_heavy-r00-6296ce2613/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_medium_poll_heavy/design_a_s_medium_poll_heavy-r00-6296ce2613/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_medium_poll_heavy/design_a_s_medium_poll_heavy-r00-6296ce2613/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_medium_poll_heavy/design_a_s_medium_poll_heavy-r00-6296ce2613/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_medium_poll_heavy/design_a_s_medium_poll_heavy-r00-6296ce2613/metadata.json"
+    },
+    {
+      "run_id": "design_a_s_medium_poll_heavy-r01-6799551f2d",
+      "run_dir": "results/loadgen/design_a_s_medium_poll_heavy/design_a_s_medium_poll_heavy-r01-6799551f2d",
+      "row_count": 1200,
+      "rows_jsonl": "results/loadgen/design_a_s_medium_poll_heavy/design_a_s_medium_poll_heavy-r01-6799551f2d/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_medium_poll_heavy/design_a_s_medium_poll_heavy-r01-6799551f2d/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_medium_poll_heavy/design_a_s_medium_poll_heavy-r01-6799551f2d/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_medium_poll_heavy/design_a_s_medium_poll_heavy-r01-6799551f2d/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_medium_poll_heavy/design_a_s_medium_poll_heavy-r01-6799551f2d/metadata.json"
+    },
+    {
+      "run_id": "design_a_s_medium_poll_heavy-r02-be6431b6dc",
+      "run_dir": "results/loadgen/design_a_s_medium_poll_heavy/design_a_s_medium_poll_heavy-r02-be6431b6dc",
+      "row_count": 1200,
+      "rows_jsonl": "results/loadgen/design_a_s_medium_poll_heavy/design_a_s_medium_poll_heavy-r02-be6431b6dc/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_medium_poll_heavy/design_a_s_medium_poll_heavy-r02-be6431b6dc/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_medium_poll_heavy/design_a_s_medium_poll_heavy-r02-be6431b6dc/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_medium_poll_heavy/design_a_s_medium_poll_heavy-r02-be6431b6dc/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_medium_poll_heavy/design_a_s_medium_poll_heavy-r02-be6431b6dc/metadata.json"
+    }
+  ]
+}
+== 2026-02-20T16:38:55Z RUN design_a_s_medium_balanced
+{
+  "scenario_id": "design_a_s_medium_balanced",
+  "runs": [
+    {
+      "run_id": "design_a_s_medium_balanced-r00-2cf8b7e2dc",
+      "run_dir": "results/loadgen/design_a_s_medium_balanced/design_a_s_medium_balanced-r00-2cf8b7e2dc",
+      "row_count": 1200,
+      "rows_jsonl": "results/loadgen/design_a_s_medium_balanced/design_a_s_medium_balanced-r00-2cf8b7e2dc/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_medium_balanced/design_a_s_medium_balanced-r00-2cf8b7e2dc/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_medium_balanced/design_a_s_medium_balanced-r00-2cf8b7e2dc/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_medium_balanced/design_a_s_medium_balanced-r00-2cf8b7e2dc/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_medium_balanced/design_a_s_medium_balanced-r00-2cf8b7e2dc/metadata.json"
+    },
+    {
+      "run_id": "design_a_s_medium_balanced-r01-2de811d06a",
+      "run_dir": "results/loadgen/design_a_s_medium_balanced/design_a_s_medium_balanced-r01-2de811d06a",
+      "row_count": 1200,
+      "rows_jsonl": "results/loadgen/design_a_s_medium_balanced/design_a_s_medium_balanced-r01-2de811d06a/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_medium_balanced/design_a_s_medium_balanced-r01-2de811d06a/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_medium_balanced/design_a_s_medium_balanced-r01-2de811d06a/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_medium_balanced/design_a_s_medium_balanced-r01-2de811d06a/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_medium_balanced/design_a_s_medium_balanced-r01-2de811d06a/metadata.json"
+    },
+    {
+      "run_id": "design_a_s_medium_balanced-r02-e63306974e",
+      "run_dir": "results/loadgen/design_a_s_medium_balanced/design_a_s_medium_balanced-r02-e63306974e",
+      "row_count": 1200,
+      "rows_jsonl": "results/loadgen/design_a_s_medium_balanced/design_a_s_medium_balanced-r02-e63306974e/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_medium_balanced/design_a_s_medium_balanced-r02-e63306974e/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_medium_balanced/design_a_s_medium_balanced-r02-e63306974e/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_medium_balanced/design_a_s_medium_balanced-r02-e63306974e/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_medium_balanced/design_a_s_medium_balanced-r02-e63306974e/metadata.json"
+    }
+  ]
+}
+== 2026-02-20T16:43:26Z RUN design_a_s_high_submit_heavy
+{
+  "scenario_id": "design_a_s_high_submit_heavy",
+  "runs": [
+    {
+      "run_id": "design_a_s_high_submit_heavy-r00-38f5a36292",
+      "run_dir": "results/loadgen/design_a_s_high_submit_heavy/design_a_s_high_submit_heavy-r00-38f5a36292",
+      "row_count": 2400,
+      "rows_jsonl": "results/loadgen/design_a_s_high_submit_heavy/design_a_s_high_submit_heavy-r00-38f5a36292/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_high_submit_heavy/design_a_s_high_submit_heavy-r00-38f5a36292/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_high_submit_heavy/design_a_s_high_submit_heavy-r00-38f5a36292/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_high_submit_heavy/design_a_s_high_submit_heavy-r00-38f5a36292/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_high_submit_heavy/design_a_s_high_submit_heavy-r00-38f5a36292/metadata.json"
+    },
+    {
+      "run_id": "design_a_s_high_submit_heavy-r01-b109f59c52",
+      "run_dir": "results/loadgen/design_a_s_high_submit_heavy/design_a_s_high_submit_heavy-r01-b109f59c52",
+      "row_count": 2400,
+      "rows_jsonl": "results/loadgen/design_a_s_high_submit_heavy/design_a_s_high_submit_heavy-r01-b109f59c52/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_high_submit_heavy/design_a_s_high_submit_heavy-r01-b109f59c52/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_high_submit_heavy/design_a_s_high_submit_heavy-r01-b109f59c52/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_high_submit_heavy/design_a_s_high_submit_heavy-r01-b109f59c52/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_high_submit_heavy/design_a_s_high_submit_heavy-r01-b109f59c52/metadata.json"
+    },
+    {
+      "run_id": "design_a_s_high_submit_heavy-r02-6a7a8a24bd",
+      "run_dir": "results/loadgen/design_a_s_high_submit_heavy/design_a_s_high_submit_heavy-r02-6a7a8a24bd",
+      "row_count": 2400,
+      "rows_jsonl": "results/loadgen/design_a_s_high_submit_heavy/design_a_s_high_submit_heavy-r02-6a7a8a24bd/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_high_submit_heavy/design_a_s_high_submit_heavy-r02-6a7a8a24bd/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_high_submit_heavy/design_a_s_high_submit_heavy-r02-6a7a8a24bd/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_high_submit_heavy/design_a_s_high_submit_heavy-r02-6a7a8a24bd/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_high_submit_heavy/design_a_s_high_submit_heavy-r02-6a7a8a24bd/metadata.json"
+    }
+  ]
+}
+== 2026-02-20T16:47:58Z RUN design_a_s_high_poll_heavy
+{
+  "scenario_id": "design_a_s_high_poll_heavy",
+  "runs": [
+    {
+      "run_id": "design_a_s_high_poll_heavy-r00-8e9ef15fb4",
+      "run_dir": "results/loadgen/design_a_s_high_poll_heavy/design_a_s_high_poll_heavy-r00-8e9ef15fb4",
+      "row_count": 2400,
+      "rows_jsonl": "results/loadgen/design_a_s_high_poll_heavy/design_a_s_high_poll_heavy-r00-8e9ef15fb4/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_high_poll_heavy/design_a_s_high_poll_heavy-r00-8e9ef15fb4/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_high_poll_heavy/design_a_s_high_poll_heavy-r00-8e9ef15fb4/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_high_poll_heavy/design_a_s_high_poll_heavy-r00-8e9ef15fb4/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_high_poll_heavy/design_a_s_high_poll_heavy-r00-8e9ef15fb4/metadata.json"
+    },
+    {
+      "run_id": "design_a_s_high_poll_heavy-r01-85e764dfa7",
+      "run_dir": "results/loadgen/design_a_s_high_poll_heavy/design_a_s_high_poll_heavy-r01-85e764dfa7",
+      "row_count": 2400,
+      "rows_jsonl": "results/loadgen/design_a_s_high_poll_heavy/design_a_s_high_poll_heavy-r01-85e764dfa7/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_high_poll_heavy/design_a_s_high_poll_heavy-r01-85e764dfa7/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_high_poll_heavy/design_a_s_high_poll_heavy-r01-85e764dfa7/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_high_poll_heavy/design_a_s_high_poll_heavy-r01-85e764dfa7/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_high_poll_heavy/design_a_s_high_poll_heavy-r01-85e764dfa7/metadata.json"
+    },
+    {
+      "run_id": "design_a_s_high_poll_heavy-r02-993681335e",
+      "run_dir": "results/loadgen/design_a_s_high_poll_heavy/design_a_s_high_poll_heavy-r02-993681335e",
+      "row_count": 2400,
+      "rows_jsonl": "results/loadgen/design_a_s_high_poll_heavy/design_a_s_high_poll_heavy-r02-993681335e/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_high_poll_heavy/design_a_s_high_poll_heavy-r02-993681335e/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_high_poll_heavy/design_a_s_high_poll_heavy-r02-993681335e/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_high_poll_heavy/design_a_s_high_poll_heavy-r02-993681335e/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_high_poll_heavy/design_a_s_high_poll_heavy-r02-993681335e/metadata.json"
+    }
+  ]
+}
+== 2026-02-20T16:52:29Z RUN design_a_s_high_balanced
+{
+  "scenario_id": "design_a_s_high_balanced",
+  "runs": [
+    {
+      "run_id": "design_a_s_high_balanced-r00-4fc0d63ad6",
+      "run_dir": "results/loadgen/design_a_s_high_balanced/design_a_s_high_balanced-r00-4fc0d63ad6",
+      "row_count": 2400,
+      "rows_jsonl": "results/loadgen/design_a_s_high_balanced/design_a_s_high_balanced-r00-4fc0d63ad6/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_high_balanced/design_a_s_high_balanced-r00-4fc0d63ad6/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_high_balanced/design_a_s_high_balanced-r00-4fc0d63ad6/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_high_balanced/design_a_s_high_balanced-r00-4fc0d63ad6/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_high_balanced/design_a_s_high_balanced-r00-4fc0d63ad6/metadata.json"
+    },
+    {
+      "run_id": "design_a_s_high_balanced-r01-e552a490fb",
+      "run_dir": "results/loadgen/design_a_s_high_balanced/design_a_s_high_balanced-r01-e552a490fb",
+      "row_count": 2400,
+      "rows_jsonl": "results/loadgen/design_a_s_high_balanced/design_a_s_high_balanced-r01-e552a490fb/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_high_balanced/design_a_s_high_balanced-r01-e552a490fb/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_high_balanced/design_a_s_high_balanced-r01-e552a490fb/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_high_balanced/design_a_s_high_balanced-r01-e552a490fb/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_high_balanced/design_a_s_high_balanced-r01-e552a490fb/metadata.json"
+    },
+    {
+      "run_id": "design_a_s_high_balanced-r02-eb724cfb95",
+      "run_dir": "results/loadgen/design_a_s_high_balanced/design_a_s_high_balanced-r02-eb724cfb95",
+      "row_count": 2400,
+      "rows_jsonl": "results/loadgen/design_a_s_high_balanced/design_a_s_high_balanced-r02-eb724cfb95/rows.jsonl",
+      "rows_csv": "results/loadgen/design_a_s_high_balanced/design_a_s_high_balanced-r02-eb724cfb95/rows.csv",
+      "summary_json": "results/loadgen/design_a_s_high_balanced/design_a_s_high_balanced-r02-eb724cfb95/summary.json",
+      "summary_csv": "results/loadgen/design_a_s_high_balanced/design_a_s_high_balanced-r02-eb724cfb95/summary.csv",
+      "metadata_json": "results/loadgen/design_a_s_high_balanced/design_a_s_high_balanced-r02-eb724cfb95/metadata.json"
+    }
+  ]
+}
+== 2026-02-20T16:57:01Z STOP design A stack
+== 2026-02-20T16:57:02Z START design B stack
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [monolith-6 internal] load build definition from Dockerfile.runtime
+#1 transferring dockerfile: 273B done
+#1 DONE 0.0s
+
+#2 [monolith-1 internal] load .dockerignore
+#2 transferring context: 2B done
+#2 DONE 0.0s
+
+#3 [monolith-1 internal] load build definition from Dockerfile.runtime
+#3 transferring dockerfile: 273B done
+#3 DONE 0.0s
+
+#4 [monolith-6 internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.0s
+
+#5 [monolith-2 internal] load build definition from Dockerfile.runtime
+#5 transferring dockerfile: 273B done
+#5 DONE 0.0s
+
+#6 [monolith-2 internal] load .dockerignore
+#6 transferring context: 2B done
+#6 DONE 0.0s
+
+#7 [monolith-4 internal] load .dockerignore
+#7 transferring context: 2B done
+#7 DONE 0.0s
+
+#8 [monolith-4 internal] load build definition from Dockerfile.runtime
+#8 transferring dockerfile: 273B done
+#8 DONE 0.0s
+
+#9 [monolith-5 internal] load .dockerignore
+#9 transferring context: 2B done
+#9 DONE 0.0s
+
+#10 [monolith-5 internal] load build definition from Dockerfile.runtime
+#10 transferring dockerfile: 273B done
+#10 DONE 0.0s
+
+#11 [monolith-3 internal] load .dockerignore
+#11 transferring context: 2B done
+#11 DONE 0.0s
+
+#12 [monolith-3 internal] load build definition from Dockerfile.runtime
+#12 transferring dockerfile: 273B done
+#12 DONE 0.0s
+
+#13 [monolith-3 internal] load metadata for docker.io/library/python:3.11-slim
+#13 ...
+
+#14 [monolith-6 auth] library/python:pull token for registry-1.docker.io
+#14 DONE 0.0s
+
+#13 [monolith-3 internal] load metadata for docker.io/library/python:3.11-slim
+#13 DONE 0.8s
+
+#15 [monolith-1] exporting to image
+#15 exporting layers done
+#15 writing image sha256:ac9bd33fbd71ef5d991b64b2ba2c9a9401be21e76d6723112f94c9cd92494f32 done
+#15 naming to docker.io/library/docker-monolith-1 done
+#15 DONE 0.0s
+
+#16 [monolith-2 1/3] FROM docker.io/library/python:3.11-slim@sha256:0b23cfb7425d065008b778022a17b1551c82f8b4866ee5a7a200084b7e2eafbf
+#16 DONE 0.0s
+
+#17 [monolith-2 2/3] WORKDIR /app
+#17 CACHED
+
+#18 [monolith-2 3/3] RUN pip install --no-cache-dir     "grpcio>=1.76.0,<2"     "protobuf>=6.31.1,<7"     "grpcio-tools>=1.76.0,<2"
+#18 CACHED
+
+#19 [monolith-4] exporting to image
+#19 exporting layers done
+#19 writing image sha256:2182520687224e06f1997ce933970b9b1a2292d94df07d4ff00c1e8e3610e312 done
+#19 naming to docker.io/library/docker-monolith-4 0.0s done
+#19 DONE 0.0s
+
+#20 [monolith-5] exporting to image
+#20 exporting layers done
+#20 writing image sha256:9185d71bcc9e9d94e1ed5006ce77eb592803a453d76578ffadbb76d77b8cd25e done
+#20 naming to docker.io/library/docker-monolith-5 0.0s done
+#20 DONE 0.0s
+
+#21 [monolith-2] exporting to image
+#21 exporting layers done
+#21 writing image sha256:3f5f464b7f82551fbc9f5c4c1e9027268f8cee3aa7f141aad5d870d9589aa224 0.0s done
+#21 naming to docker.io/library/docker-monolith-2 done
+#21 DONE 0.0s
+
+#22 [monolith-3] exporting to image
+#22 exporting layers done
+#22 writing image sha256:8bc14d93b054858805d0dcfe5c444ec86c4cc3c9b56d2c397f46d9082dc248be done
+#22 naming to docker.io/library/docker-monolith-3 0.0s done
+#22 DONE 0.0s
+
+#23 [monolith-6] exporting to image
+#23 exporting layers done
+#23 writing image sha256:d7a2ae9a4d0096eb31569d94392aaf052ceb72fbc9ecf8c2578d3be3d7f77515 0.0s done
+#23 naming to docker.io/library/docker-monolith-6 0.0s done
+#23 DONE 0.0s
+NAME                  IMAGE               COMMAND                              SERVICE      CREATED        STATUS                                     PORTS
+docker-monolith-1-1   docker-monolith-1   "python -m services.monolith.main"   monolith-1   1 second ago   Up Less than a second (health: starting)   0.0.0.0:51051->50051/tcp
+docker-monolith-2-1   docker-monolith-2   "python -m services.monolith.main"   monolith-2   1 second ago   Up Less than a second (health: starting)   0.0.0.0:52051->50051/tcp
+docker-monolith-3-1   docker-monolith-3   "python -m services.monolith.main"   monolith-3   1 second ago   Up Less than a second (health: starting)   0.0.0.0:53051->50051/tcp
+docker-monolith-4-1   docker-monolith-4   "python -m services.monolith.main"   monolith-4   1 second ago   Up Less than a second (health: starting)   0.0.0.0:54051->50051/tcp
+docker-monolith-5-1   docker-monolith-5   "python -m services.monolith.main"   monolith-5   1 second ago   Up Less than a second (health: starting)   0.0.0.0:55051->50051/tcp
+docker-monolith-6-1   docker-monolith-6   "python -m services.monolith.main"   monolith-6   1 second ago   Up Less than a second (health: starting)   0.0.0.0:56051->50051/tcp
+NAME                  IMAGE               COMMAND                              SERVICE      CREATED         STATUS                            PORTS
+docker-monolith-1-1   docker-monolith-1   "python -m services.monolith.main"   monolith-1   3 seconds ago   Up 2 seconds (health: starting)   0.0.0.0:51051->50051/tcp
+docker-monolith-2-1   docker-monolith-2   "python -m services.monolith.main"   monolith-2   3 seconds ago   Up 2 seconds (health: starting)   0.0.0.0:52051->50051/tcp
+docker-monolith-3-1   docker-monolith-3   "python -m services.monolith.main"   monolith-3   3 seconds ago   Up 2 seconds (health: starting)   0.0.0.0:53051->50051/tcp
+docker-monolith-4-1   docker-monolith-4   "python -m services.monolith.main"   monolith-4   3 seconds ago   Up 2 seconds (health: starting)   0.0.0.0:54051->50051/tcp
+docker-monolith-5-1   docker-monolith-5   "python -m services.monolith.main"   monolith-5   3 seconds ago   Up 2 seconds (health: starting)   0.0.0.0:55051->50051/tcp
+docker-monolith-6-1   docker-monolith-6   "python -m services.monolith.main"   monolith-6   3 seconds ago   Up 2 seconds (health: starting)   0.0.0.0:56051->50051/tcp
+NAME                  IMAGE               COMMAND                              SERVICE      CREATED         STATUS                            PORTS
+docker-monolith-1-1   docker-monolith-1   "python -m services.monolith.main"   monolith-1   5 seconds ago   Up 4 seconds (health: starting)   0.0.0.0:51051->50051/tcp
+docker-monolith-2-1   docker-monolith-2   "python -m services.monolith.main"   monolith-2   5 seconds ago   Up 4 seconds (health: starting)   0.0.0.0:52051->50051/tcp
+docker-monolith-3-1   docker-monolith-3   "python -m services.monolith.main"   monolith-3   5 seconds ago   Up 4 seconds (health: starting)   0.0.0.0:53051->50051/tcp
+docker-monolith-4-1   docker-monolith-4   "python -m services.monolith.main"   monolith-4   5 seconds ago   Up 4 seconds (health: starting)   0.0.0.0:54051->50051/tcp
+docker-monolith-5-1   docker-monolith-5   "python -m services.monolith.main"   monolith-5   5 seconds ago   Up 4 seconds (health: starting)   0.0.0.0:55051->50051/tcp
+docker-monolith-6-1   docker-monolith-6   "python -m services.monolith.main"   monolith-6   5 seconds ago   Up 4 seconds (health: starting)   0.0.0.0:56051->50051/tcp
+NAME                  IMAGE               COMMAND                              SERVICE      CREATED         STATUS                   PORTS
+docker-monolith-1-1   docker-monolith-1   "python -m services.monolith.main"   monolith-1   7 seconds ago   Up 6 seconds (healthy)   0.0.0.0:51051->50051/tcp
+docker-monolith-2-1   docker-monolith-2   "python -m services.monolith.main"   monolith-2   7 seconds ago   Up 6 seconds (healthy)   0.0.0.0:52051->50051/tcp
+docker-monolith-3-1   docker-monolith-3   "python -m services.monolith.main"   monolith-3   7 seconds ago   Up 6 seconds (healthy)   0.0.0.0:53051->50051/tcp
+docker-monolith-4-1   docker-monolith-4   "python -m services.monolith.main"   monolith-4   7 seconds ago   Up 6 seconds (healthy)   0.0.0.0:54051->50051/tcp
+docker-monolith-5-1   docker-monolith-5   "python -m services.monolith.main"   monolith-5   7 seconds ago   Up 6 seconds (healthy)   0.0.0.0:55051->50051/tcp
+docker-monolith-6-1   docker-monolith-6   "python -m services.monolith.main"   monolith-6   7 seconds ago   Up 6 seconds (healthy)   0.0.0.0:56051->50051/tcp
+== design B healthy after 4 checks
+== 2026-02-20T16:57:10Z RUN design_b_s_low_submit_heavy
+{
+  "scenario_id": "design_b_s_low_submit_heavy",
+  "runs": [
+    {
+      "run_id": "design_b_s_low_submit_heavy-r00-7fcc4a66cb",
+      "run_dir": "results/loadgen/design_b_s_low_submit_heavy/design_b_s_low_submit_heavy-r00-7fcc4a66cb",
+      "row_count": 300,
+      "rows_jsonl": "results/loadgen/design_b_s_low_submit_heavy/design_b_s_low_submit_heavy-r00-7fcc4a66cb/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_low_submit_heavy/design_b_s_low_submit_heavy-r00-7fcc4a66cb/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_low_submit_heavy/design_b_s_low_submit_heavy-r00-7fcc4a66cb/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_low_submit_heavy/design_b_s_low_submit_heavy-r00-7fcc4a66cb/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_low_submit_heavy/design_b_s_low_submit_heavy-r00-7fcc4a66cb/metadata.json"
+    },
+    {
+      "run_id": "design_b_s_low_submit_heavy-r01-496a5528bf",
+      "run_dir": "results/loadgen/design_b_s_low_submit_heavy/design_b_s_low_submit_heavy-r01-496a5528bf",
+      "row_count": 300,
+      "rows_jsonl": "results/loadgen/design_b_s_low_submit_heavy/design_b_s_low_submit_heavy-r01-496a5528bf/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_low_submit_heavy/design_b_s_low_submit_heavy-r01-496a5528bf/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_low_submit_heavy/design_b_s_low_submit_heavy-r01-496a5528bf/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_low_submit_heavy/design_b_s_low_submit_heavy-r01-496a5528bf/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_low_submit_heavy/design_b_s_low_submit_heavy-r01-496a5528bf/metadata.json"
+    },
+    {
+      "run_id": "design_b_s_low_submit_heavy-r02-6e653e5a16",
+      "run_dir": "results/loadgen/design_b_s_low_submit_heavy/design_b_s_low_submit_heavy-r02-6e653e5a16",
+      "row_count": 300,
+      "rows_jsonl": "results/loadgen/design_b_s_low_submit_heavy/design_b_s_low_submit_heavy-r02-6e653e5a16/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_low_submit_heavy/design_b_s_low_submit_heavy-r02-6e653e5a16/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_low_submit_heavy/design_b_s_low_submit_heavy-r02-6e653e5a16/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_low_submit_heavy/design_b_s_low_submit_heavy-r02-6e653e5a16/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_low_submit_heavy/design_b_s_low_submit_heavy-r02-6e653e5a16/metadata.json"
+    }
+  ]
+}
+== 2026-02-20T17:01:42Z RUN design_b_s_low_poll_heavy
+{
+  "scenario_id": "design_b_s_low_poll_heavy",
+  "runs": [
+    {
+      "run_id": "design_b_s_low_poll_heavy-r00-038b539781",
+      "run_dir": "results/loadgen/design_b_s_low_poll_heavy/design_b_s_low_poll_heavy-r00-038b539781",
+      "row_count": 300,
+      "rows_jsonl": "results/loadgen/design_b_s_low_poll_heavy/design_b_s_low_poll_heavy-r00-038b539781/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_low_poll_heavy/design_b_s_low_poll_heavy-r00-038b539781/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_low_poll_heavy/design_b_s_low_poll_heavy-r00-038b539781/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_low_poll_heavy/design_b_s_low_poll_heavy-r00-038b539781/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_low_poll_heavy/design_b_s_low_poll_heavy-r00-038b539781/metadata.json"
+    },
+    {
+      "run_id": "design_b_s_low_poll_heavy-r01-462e753565",
+      "run_dir": "results/loadgen/design_b_s_low_poll_heavy/design_b_s_low_poll_heavy-r01-462e753565",
+      "row_count": 300,
+      "rows_jsonl": "results/loadgen/design_b_s_low_poll_heavy/design_b_s_low_poll_heavy-r01-462e753565/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_low_poll_heavy/design_b_s_low_poll_heavy-r01-462e753565/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_low_poll_heavy/design_b_s_low_poll_heavy-r01-462e753565/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_low_poll_heavy/design_b_s_low_poll_heavy-r01-462e753565/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_low_poll_heavy/design_b_s_low_poll_heavy-r01-462e753565/metadata.json"
+    },
+    {
+      "run_id": "design_b_s_low_poll_heavy-r02-70aa6026ef",
+      "run_dir": "results/loadgen/design_b_s_low_poll_heavy/design_b_s_low_poll_heavy-r02-70aa6026ef",
+      "row_count": 300,
+      "rows_jsonl": "results/loadgen/design_b_s_low_poll_heavy/design_b_s_low_poll_heavy-r02-70aa6026ef/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_low_poll_heavy/design_b_s_low_poll_heavy-r02-70aa6026ef/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_low_poll_heavy/design_b_s_low_poll_heavy-r02-70aa6026ef/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_low_poll_heavy/design_b_s_low_poll_heavy-r02-70aa6026ef/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_low_poll_heavy/design_b_s_low_poll_heavy-r02-70aa6026ef/metadata.json"
+    }
+  ]
+}
+== 2026-02-20T17:06:13Z RUN design_b_s_low_balanced
+{
+  "scenario_id": "design_b_s_low_balanced",
+  "runs": [
+    {
+      "run_id": "design_b_s_low_balanced-r00-5de3ea804f",
+      "run_dir": "results/loadgen/design_b_s_low_balanced/design_b_s_low_balanced-r00-5de3ea804f",
+      "row_count": 300,
+      "rows_jsonl": "results/loadgen/design_b_s_low_balanced/design_b_s_low_balanced-r00-5de3ea804f/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_low_balanced/design_b_s_low_balanced-r00-5de3ea804f/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_low_balanced/design_b_s_low_balanced-r00-5de3ea804f/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_low_balanced/design_b_s_low_balanced-r00-5de3ea804f/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_low_balanced/design_b_s_low_balanced-r00-5de3ea804f/metadata.json"
+    },
+    {
+      "run_id": "design_b_s_low_balanced-r01-7e8727c707",
+      "run_dir": "results/loadgen/design_b_s_low_balanced/design_b_s_low_balanced-r01-7e8727c707",
+      "row_count": 300,
+      "rows_jsonl": "results/loadgen/design_b_s_low_balanced/design_b_s_low_balanced-r01-7e8727c707/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_low_balanced/design_b_s_low_balanced-r01-7e8727c707/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_low_balanced/design_b_s_low_balanced-r01-7e8727c707/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_low_balanced/design_b_s_low_balanced-r01-7e8727c707/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_low_balanced/design_b_s_low_balanced-r01-7e8727c707/metadata.json"
+    },
+    {
+      "run_id": "design_b_s_low_balanced-r02-610f43c189",
+      "run_dir": "results/loadgen/design_b_s_low_balanced/design_b_s_low_balanced-r02-610f43c189",
+      "row_count": 300,
+      "rows_jsonl": "results/loadgen/design_b_s_low_balanced/design_b_s_low_balanced-r02-610f43c189/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_low_balanced/design_b_s_low_balanced-r02-610f43c189/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_low_balanced/design_b_s_low_balanced-r02-610f43c189/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_low_balanced/design_b_s_low_balanced-r02-610f43c189/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_low_balanced/design_b_s_low_balanced-r02-610f43c189/metadata.json"
+    }
+  ]
+}
+== 2026-02-20T17:10:44Z RUN design_b_s_medium_submit_heavy
+{
+  "scenario_id": "design_b_s_medium_submit_heavy",
+  "runs": [
+    {
+      "run_id": "design_b_s_medium_submit_heavy-r00-0de1dff553",
+      "run_dir": "results/loadgen/design_b_s_medium_submit_heavy/design_b_s_medium_submit_heavy-r00-0de1dff553",
+      "row_count": 1200,
+      "rows_jsonl": "results/loadgen/design_b_s_medium_submit_heavy/design_b_s_medium_submit_heavy-r00-0de1dff553/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_medium_submit_heavy/design_b_s_medium_submit_heavy-r00-0de1dff553/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_medium_submit_heavy/design_b_s_medium_submit_heavy-r00-0de1dff553/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_medium_submit_heavy/design_b_s_medium_submit_heavy-r00-0de1dff553/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_medium_submit_heavy/design_b_s_medium_submit_heavy-r00-0de1dff553/metadata.json"
+    },
+    {
+      "run_id": "design_b_s_medium_submit_heavy-r01-06f34e3a50",
+      "run_dir": "results/loadgen/design_b_s_medium_submit_heavy/design_b_s_medium_submit_heavy-r01-06f34e3a50",
+      "row_count": 1200,
+      "rows_jsonl": "results/loadgen/design_b_s_medium_submit_heavy/design_b_s_medium_submit_heavy-r01-06f34e3a50/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_medium_submit_heavy/design_b_s_medium_submit_heavy-r01-06f34e3a50/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_medium_submit_heavy/design_b_s_medium_submit_heavy-r01-06f34e3a50/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_medium_submit_heavy/design_b_s_medium_submit_heavy-r01-06f34e3a50/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_medium_submit_heavy/design_b_s_medium_submit_heavy-r01-06f34e3a50/metadata.json"
+    },
+    {
+      "run_id": "design_b_s_medium_submit_heavy-r02-05b5ea7d83",
+      "run_dir": "results/loadgen/design_b_s_medium_submit_heavy/design_b_s_medium_submit_heavy-r02-05b5ea7d83",
+      "row_count": 1200,
+      "rows_jsonl": "results/loadgen/design_b_s_medium_submit_heavy/design_b_s_medium_submit_heavy-r02-05b5ea7d83/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_medium_submit_heavy/design_b_s_medium_submit_heavy-r02-05b5ea7d83/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_medium_submit_heavy/design_b_s_medium_submit_heavy-r02-05b5ea7d83/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_medium_submit_heavy/design_b_s_medium_submit_heavy-r02-05b5ea7d83/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_medium_submit_heavy/design_b_s_medium_submit_heavy-r02-05b5ea7d83/metadata.json"
+    }
+  ]
+}
+== 2026-02-20T17:15:16Z RUN design_b_s_medium_poll_heavy
+{
+  "scenario_id": "design_b_s_medium_poll_heavy",
+  "runs": [
+    {
+      "run_id": "design_b_s_medium_poll_heavy-r00-4208591267",
+      "run_dir": "results/loadgen/design_b_s_medium_poll_heavy/design_b_s_medium_poll_heavy-r00-4208591267",
+      "row_count": 1200,
+      "rows_jsonl": "results/loadgen/design_b_s_medium_poll_heavy/design_b_s_medium_poll_heavy-r00-4208591267/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_medium_poll_heavy/design_b_s_medium_poll_heavy-r00-4208591267/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_medium_poll_heavy/design_b_s_medium_poll_heavy-r00-4208591267/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_medium_poll_heavy/design_b_s_medium_poll_heavy-r00-4208591267/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_medium_poll_heavy/design_b_s_medium_poll_heavy-r00-4208591267/metadata.json"
+    },
+    {
+      "run_id": "design_b_s_medium_poll_heavy-r01-82d950095d",
+      "run_dir": "results/loadgen/design_b_s_medium_poll_heavy/design_b_s_medium_poll_heavy-r01-82d950095d",
+      "row_count": 1200,
+      "rows_jsonl": "results/loadgen/design_b_s_medium_poll_heavy/design_b_s_medium_poll_heavy-r01-82d950095d/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_medium_poll_heavy/design_b_s_medium_poll_heavy-r01-82d950095d/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_medium_poll_heavy/design_b_s_medium_poll_heavy-r01-82d950095d/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_medium_poll_heavy/design_b_s_medium_poll_heavy-r01-82d950095d/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_medium_poll_heavy/design_b_s_medium_poll_heavy-r01-82d950095d/metadata.json"
+    },
+    {
+      "run_id": "design_b_s_medium_poll_heavy-r02-076a5dea4a",
+      "run_dir": "results/loadgen/design_b_s_medium_poll_heavy/design_b_s_medium_poll_heavy-r02-076a5dea4a",
+      "row_count": 1200,
+      "rows_jsonl": "results/loadgen/design_b_s_medium_poll_heavy/design_b_s_medium_poll_heavy-r02-076a5dea4a/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_medium_poll_heavy/design_b_s_medium_poll_heavy-r02-076a5dea4a/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_medium_poll_heavy/design_b_s_medium_poll_heavy-r02-076a5dea4a/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_medium_poll_heavy/design_b_s_medium_poll_heavy-r02-076a5dea4a/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_medium_poll_heavy/design_b_s_medium_poll_heavy-r02-076a5dea4a/metadata.json"
+    }
+  ]
+}
+== 2026-02-20T17:19:47Z RUN design_b_s_medium_balanced
+{
+  "scenario_id": "design_b_s_medium_balanced",
+  "runs": [
+    {
+      "run_id": "design_b_s_medium_balanced-r00-bb6176a896",
+      "run_dir": "results/loadgen/design_b_s_medium_balanced/design_b_s_medium_balanced-r00-bb6176a896",
+      "row_count": 1200,
+      "rows_jsonl": "results/loadgen/design_b_s_medium_balanced/design_b_s_medium_balanced-r00-bb6176a896/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_medium_balanced/design_b_s_medium_balanced-r00-bb6176a896/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_medium_balanced/design_b_s_medium_balanced-r00-bb6176a896/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_medium_balanced/design_b_s_medium_balanced-r00-bb6176a896/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_medium_balanced/design_b_s_medium_balanced-r00-bb6176a896/metadata.json"
+    },
+    {
+      "run_id": "design_b_s_medium_balanced-r01-38b887e019",
+      "run_dir": "results/loadgen/design_b_s_medium_balanced/design_b_s_medium_balanced-r01-38b887e019",
+      "row_count": 1200,
+      "rows_jsonl": "results/loadgen/design_b_s_medium_balanced/design_b_s_medium_balanced-r01-38b887e019/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_medium_balanced/design_b_s_medium_balanced-r01-38b887e019/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_medium_balanced/design_b_s_medium_balanced-r01-38b887e019/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_medium_balanced/design_b_s_medium_balanced-r01-38b887e019/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_medium_balanced/design_b_s_medium_balanced-r01-38b887e019/metadata.json"
+    },
+    {
+      "run_id": "design_b_s_medium_balanced-r02-690b022f78",
+      "run_dir": "results/loadgen/design_b_s_medium_balanced/design_b_s_medium_balanced-r02-690b022f78",
+      "row_count": 1200,
+      "rows_jsonl": "results/loadgen/design_b_s_medium_balanced/design_b_s_medium_balanced-r02-690b022f78/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_medium_balanced/design_b_s_medium_balanced-r02-690b022f78/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_medium_balanced/design_b_s_medium_balanced-r02-690b022f78/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_medium_balanced/design_b_s_medium_balanced-r02-690b022f78/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_medium_balanced/design_b_s_medium_balanced-r02-690b022f78/metadata.json"
+    }
+  ]
+}
+== 2026-02-20T17:24:19Z RUN design_b_s_high_submit_heavy
+{
+  "scenario_id": "design_b_s_high_submit_heavy",
+  "runs": [
+    {
+      "run_id": "design_b_s_high_submit_heavy-r00-10dfd3502f",
+      "run_dir": "results/loadgen/design_b_s_high_submit_heavy/design_b_s_high_submit_heavy-r00-10dfd3502f",
+      "row_count": 2400,
+      "rows_jsonl": "results/loadgen/design_b_s_high_submit_heavy/design_b_s_high_submit_heavy-r00-10dfd3502f/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_high_submit_heavy/design_b_s_high_submit_heavy-r00-10dfd3502f/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_high_submit_heavy/design_b_s_high_submit_heavy-r00-10dfd3502f/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_high_submit_heavy/design_b_s_high_submit_heavy-r00-10dfd3502f/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_high_submit_heavy/design_b_s_high_submit_heavy-r00-10dfd3502f/metadata.json"
+    },
+    {
+      "run_id": "design_b_s_high_submit_heavy-r01-dbe0c33850",
+      "run_dir": "results/loadgen/design_b_s_high_submit_heavy/design_b_s_high_submit_heavy-r01-dbe0c33850",
+      "row_count": 2400,
+      "rows_jsonl": "results/loadgen/design_b_s_high_submit_heavy/design_b_s_high_submit_heavy-r01-dbe0c33850/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_high_submit_heavy/design_b_s_high_submit_heavy-r01-dbe0c33850/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_high_submit_heavy/design_b_s_high_submit_heavy-r01-dbe0c33850/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_high_submit_heavy/design_b_s_high_submit_heavy-r01-dbe0c33850/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_high_submit_heavy/design_b_s_high_submit_heavy-r01-dbe0c33850/metadata.json"
+    },
+    {
+      "run_id": "design_b_s_high_submit_heavy-r02-46430bee0a",
+      "run_dir": "results/loadgen/design_b_s_high_submit_heavy/design_b_s_high_submit_heavy-r02-46430bee0a",
+      "row_count": 2400,
+      "rows_jsonl": "results/loadgen/design_b_s_high_submit_heavy/design_b_s_high_submit_heavy-r02-46430bee0a/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_high_submit_heavy/design_b_s_high_submit_heavy-r02-46430bee0a/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_high_submit_heavy/design_b_s_high_submit_heavy-r02-46430bee0a/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_high_submit_heavy/design_b_s_high_submit_heavy-r02-46430bee0a/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_high_submit_heavy/design_b_s_high_submit_heavy-r02-46430bee0a/metadata.json"
+    }
+  ]
+}
+== 2026-02-20T17:28:50Z RUN design_b_s_high_poll_heavy
+{
+  "scenario_id": "design_b_s_high_poll_heavy",
+  "runs": [
+    {
+      "run_id": "design_b_s_high_poll_heavy-r00-a32dc2caf9",
+      "run_dir": "results/loadgen/design_b_s_high_poll_heavy/design_b_s_high_poll_heavy-r00-a32dc2caf9",
+      "row_count": 2400,
+      "rows_jsonl": "results/loadgen/design_b_s_high_poll_heavy/design_b_s_high_poll_heavy-r00-a32dc2caf9/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_high_poll_heavy/design_b_s_high_poll_heavy-r00-a32dc2caf9/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_high_poll_heavy/design_b_s_high_poll_heavy-r00-a32dc2caf9/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_high_poll_heavy/design_b_s_high_poll_heavy-r00-a32dc2caf9/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_high_poll_heavy/design_b_s_high_poll_heavy-r00-a32dc2caf9/metadata.json"
+    },
+    {
+      "run_id": "design_b_s_high_poll_heavy-r01-71a268d9ff",
+      "run_dir": "results/loadgen/design_b_s_high_poll_heavy/design_b_s_high_poll_heavy-r01-71a268d9ff",
+      "row_count": 2400,
+      "rows_jsonl": "results/loadgen/design_b_s_high_poll_heavy/design_b_s_high_poll_heavy-r01-71a268d9ff/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_high_poll_heavy/design_b_s_high_poll_heavy-r01-71a268d9ff/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_high_poll_heavy/design_b_s_high_poll_heavy-r01-71a268d9ff/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_high_poll_heavy/design_b_s_high_poll_heavy-r01-71a268d9ff/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_high_poll_heavy/design_b_s_high_poll_heavy-r01-71a268d9ff/metadata.json"
+    },
+    {
+      "run_id": "design_b_s_high_poll_heavy-r02-17bd4c8695",
+      "run_dir": "results/loadgen/design_b_s_high_poll_heavy/design_b_s_high_poll_heavy-r02-17bd4c8695",
+      "row_count": 2400,
+      "rows_jsonl": "results/loadgen/design_b_s_high_poll_heavy/design_b_s_high_poll_heavy-r02-17bd4c8695/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_high_poll_heavy/design_b_s_high_poll_heavy-r02-17bd4c8695/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_high_poll_heavy/design_b_s_high_poll_heavy-r02-17bd4c8695/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_high_poll_heavy/design_b_s_high_poll_heavy-r02-17bd4c8695/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_high_poll_heavy/design_b_s_high_poll_heavy-r02-17bd4c8695/metadata.json"
+    }
+  ]
+}
+== 2026-02-20T17:34:13Z RUN design_b_s_high_balanced
+{
+  "scenario_id": "design_b_s_high_balanced",
+  "runs": [
+    {
+      "run_id": "design_b_s_high_balanced-r00-62f5b20c11",
+      "run_dir": "results/loadgen/design_b_s_high_balanced/design_b_s_high_balanced-r00-62f5b20c11",
+      "row_count": 2400,
+      "rows_jsonl": "results/loadgen/design_b_s_high_balanced/design_b_s_high_balanced-r00-62f5b20c11/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_high_balanced/design_b_s_high_balanced-r00-62f5b20c11/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_high_balanced/design_b_s_high_balanced-r00-62f5b20c11/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_high_balanced/design_b_s_high_balanced-r00-62f5b20c11/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_high_balanced/design_b_s_high_balanced-r00-62f5b20c11/metadata.json"
+    },
+    {
+      "run_id": "design_b_s_high_balanced-r01-03d4b09a87",
+      "run_dir": "results/loadgen/design_b_s_high_balanced/design_b_s_high_balanced-r01-03d4b09a87",
+      "row_count": 2400,
+      "rows_jsonl": "results/loadgen/design_b_s_high_balanced/design_b_s_high_balanced-r01-03d4b09a87/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_high_balanced/design_b_s_high_balanced-r01-03d4b09a87/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_high_balanced/design_b_s_high_balanced-r01-03d4b09a87/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_high_balanced/design_b_s_high_balanced-r01-03d4b09a87/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_high_balanced/design_b_s_high_balanced-r01-03d4b09a87/metadata.json"
+    },
+    {
+      "run_id": "design_b_s_high_balanced-r02-78743b016e",
+      "run_dir": "results/loadgen/design_b_s_high_balanced/design_b_s_high_balanced-r02-78743b016e",
+      "row_count": 2400,
+      "rows_jsonl": "results/loadgen/design_b_s_high_balanced/design_b_s_high_balanced-r02-78743b016e/rows.jsonl",
+      "rows_csv": "results/loadgen/design_b_s_high_balanced/design_b_s_high_balanced-r02-78743b016e/rows.csv",
+      "summary_json": "results/loadgen/design_b_s_high_balanced/design_b_s_high_balanced-r02-78743b016e/summary.json",
+      "summary_csv": "results/loadgen/design_b_s_high_balanced/design_b_s_high_balanced-r02-78743b016e/summary.csv",
+      "metadata_json": "results/loadgen/design_b_s_high_balanced/design_b_s_high_balanced-r02-78743b016e/metadata.json"
+    }
+  ]
+}
+== 2026-02-20T17:38:45Z STOP design B stack
+== 2026-02-20T17:38:46Z DONE

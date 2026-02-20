@@ -5,64 +5,103 @@
 
 ## Current focus
 
-Small live multi-seed benchmark matrix execution (Design A + Design B) is completed with artifact validation and summary extraction.
+Full starter fairness matrix execution and consolidation for Design A vs Design B is complete.
 
 ## Completed in current focus
 
-- Added balanced live scenario files for explicit two-seed execution per design:
-  - `scripts/loadgen/scenarios/design_a_balanced_seed5306.json`
-  - `scripts/loadgen/scenarios/design_a_balanced_seed5307.json`
-  - `scripts/loadgen/scenarios/design_b_balanced_seed5306.json`
-  - `scripts/loadgen/scenarios/design_b_balanced_seed5307.json`
-- Executed live benchmark runs with precheck enabled:
-  - `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_balanced_seed5306.json --output-dir results/loadgen --live-traffic --precheck-health`
-  - `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_balanced_seed5307.json --output-dir results/loadgen --live-traffic --precheck-health`
-  - `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_b_balanced_seed5306.json --output-dir results/loadgen --live-traffic --precheck-health`
-  - `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_b_balanced_seed5307.json --output-dir results/loadgen --live-traffic --precheck-health`
-- Run IDs generated:
-  - `design_a_balanced_seed5306-r00-88c6b30ac8`
-  - `design_a_balanced_seed5307-r00-3c78888ca7`
-  - `design_b_balanced_seed5306-r00-19271f3523`
-  - `design_b_balanced_seed5307-r00-976e24e878`
-- Artifact completeness verified for each run directory:
-  - `rows.jsonl`, `rows.csv`, `summary.json`, `summary.csv`, `metadata.json` all present.
-- Produced and recorded report-ready metrics from `summary.json` for throughput, p50/p95/p99 latencies, grpc non-OK rates, and terminal throughput.
+- Added full starter-matrix scenario configs (9 per design) under:
+  - `scripts/loadgen/scenarios/starter_matrix/`
+- Scenario coverage executed live with precheck and deterministic run IDs:
+  - Design A:
+    - `design_a_s_low_submit_heavy`
+    - `design_a_s_low_poll_heavy`
+    - `design_a_s_low_balanced`
+    - `design_a_s_medium_submit_heavy`
+    - `design_a_s_medium_poll_heavy`
+    - `design_a_s_medium_balanced`
+    - `design_a_s_high_submit_heavy`
+    - `design_a_s_high_poll_heavy`
+    - `design_a_s_high_balanced`
+  - Design B:
+    - `design_b_s_low_submit_heavy`
+    - `design_b_s_low_poll_heavy`
+    - `design_b_s_low_balanced`
+    - `design_b_s_medium_submit_heavy`
+    - `design_b_s_medium_poll_heavy`
+    - `design_b_s_medium_balanced`
+    - `design_b_s_high_submit_heavy`
+    - `design_b_s_high_poll_heavy`
+    - `design_b_s_high_balanced`
+- Repetitions per scenario: `3` (deterministic `r00/r01/r02`).
+- Total completed run directories: `54` (`27` per design).
+- Full command trace captured in:
+  - `results/loadgen/starter_matrix_execution_2026-02-20.log`
+- Added aggregation pipeline:
+  - `scripts/loadgen/aggregate_starter_matrix.py`
+- Produced consolidated report outputs:
+  - `results/loadgen/analysis/starter_matrix_2026-02-20/starter_matrix_run_method_rows.csv`
+  - `results/loadgen/analysis/starter_matrix_2026-02-20/starter_matrix_method_agg.csv`
+  - `results/loadgen/analysis/starter_matrix_2026-02-20/starter_matrix_terminal_agg.csv`
+  - `results/loadgen/analysis/starter_matrix_2026-02-20/starter_matrix_ab_delta_primary.csv`
+  - `results/loadgen/analysis/starter_matrix_2026-02-20/starter_matrix_summary.md`
+  - `results/loadgen/analysis/starter_matrix_2026-02-20/plots/ab_p95_latency_primary_methods.png`
+  - `results/loadgen/analysis/starter_matrix_2026-02-20/plots/ab_terminal_throughput_by_scenario.png`
+- Updated notebook to consume consolidated artifacts:
+  - `notebooks/benchmark_analysis.ipynb`
 
 ## Passing checks
 
-- Run timestamp anchor: `2026-02-20` local session.
-- `TMPDIR=/tmp/codex-loadgen-tests conda run -n grpc python -m unittest tests/test_loadgen_contracts.py`: PASS
-  - `Ran 9 tests ... OK`
-- Docker stack health confirmed before run execution:
-  - `docker compose -f docker/docker-compose.design-a.yml ps`
-  - `docker compose -f docker/docker-compose.design-b.yml ps`
-  - all services reported `healthy`.
-- Live run outputs:
-  - each run returned `row_count: 240` with non-empty run artifact paths.
-- Design-level summary averages (2 seeds each, `measure_seconds=20`):
-  - `A_microservices`:
-    - avg terminal throughput: `3.55 rps`
-    - avg p95 latency: `SubmitJob=20.626 ms`, `GetJobStatus=19.596 ms`, `GetJobResult=19.648 ms`, `CancelJob=16.441 ms`
-    - avg grpc non-OK rate: `0.0` for Submit/Status/Result/Cancel
-  - `B_monolith`:
-    - avg terminal throughput: `3.575 rps`
-    - avg p95 latency: `SubmitJob=26.095 ms`, `GetJobStatus=22.46 ms`, `GetJobResult=26.4 ms`, `CancelJob=26.09 ms`
-    - avg grpc non-OK rate: `0.0` for Submit/Status/Result/Cancel
+- Baseline deterministic unit gate:
+  - `TMPDIR=/tmp/codex-loadgen-matrix-<epoch> conda run -n grpc python -m unittest tests/test_loadgen_contracts.py`
+  - Result: `Ran 9 tests ... OK`
+- Artifact completeness verification:
+  - scenario dirs: `18`
+  - run dirs: `54`
+  - missing required files (`rows.jsonl/rows.csv/summary.json/summary.csv/metadata.json`): `0`
+- Aggregation coverage:
+  - `summary_count=54`
+  - `run_method_rows=270`
+  - `method_agg_rows=90`
+  - `terminal_agg_rows=18`
+  - `ab_delta_rows=36`
+
+## Key benchmark signals (starter matrix aggregate)
+
+- Primary-method throughput means are identical between designs in this harness slice (all deltas in `starter_matrix_ab_delta_primary.csv` are `0.0 rps`):
+  - scheduler/request-rate pacing plus all-OK responses fixed method-level completed-call throughput.
+- Primary-method p95 latency global means (ms):
+  - `A_microservices`: Submit `35.600`, Status `32.146`, Result `33.511`, Cancel `33.202`
+  - `B_monolith`: Submit `25.863`, Status `23.093`, Result `27.187`, Cancel `23.089`
+- gRPC non-OK rates:
+  - `0.0` across primary methods for both designs in this execution set.
+- Terminal-job throughput global means (`summary.md` aggregate):
+  - `A_microservices`: `2.470988 rps` (mean CV `0.241133`)
+  - `B_monolith`: `5.343827 rps` (mean CV `0.021774`)
 
 ## Known gaps/blockers
 
-- Local sandboxed command execution path on the current remote MacBook session blocks localhost socket probes by default (`Operation not permitted`), so live precheck/loadgen commands required elevated execution in this environment.
-- This appears environment-specific (remote MacBook workflow); user noted this does not reproduce on their desktop Docker environment.
-- The two compose files share the same default project name (`docker`). Running `down` in parallel produced benign race errors (`No such container`) during teardown; sequential teardown is preferred for future runs.
-- Current matrix is balanced-only and short-window; broader fairness analysis still needs full low/medium/high matrix with repeated replications.
+- Live localhost probing/traffic in this remote MacBook session still required elevated execution due sandbox socket restrictions (`operation not permitted` without elevation).
+- Matplotlib is not installed in conda env `grpc`; plots were generated with system Python (`MPLCONFIGDIR=/tmp/mplconfig`) while loadgen execution/testing remained in `grpc`.
+- Throughput equality in primary-method tables is expected under fixed request-rate pacing and no error responses; interpret latency/terminal-throughput differences as the more informative signal for this run profile.
+- External validity remains bounded to the locked starter matrix and this host environment.
 
 ## Next task (single target)
 
-Expand benchmark coverage to the full starter matrix (`low/medium/high` x `submit_heavy/poll_heavy/balanced`) for both designs, then produce consolidated report artifacts/plots suitable for final A/B claims.
+Execute strict post-matrix cleanup only:
+- remove legacy/deprecated script surfaces,
+- remove temporary readiness file,
+- sync all indexes/docs to canonical paths.
 
 ## Definition of done for next task
 
-- Full 9-scenario starter matrix is executed for both designs with repeated seeds.
-- Aggregated comparison tables are generated directly from produced artifacts.
-- Notebook/report figures are updated from real run data with explicit caveat labels.
-- Handoff docs include exact command batches, artifact root paths, and residual validity risks.
+- `scripts/legacy_smoke/` removed.
+- Deprecated top-level compatibility wrappers removed:
+  - `scripts/smoke_*_behavior.py`
+  - `scripts/smoke_*_skeleton.py`
+  - `scripts/smoke_live_stack.py`
+  - `scripts/smoke_integration_terminal_path.py`
+  - `scripts/smoke_integration_failure_path.py`
+  - `scripts/manual_gateway_client.py`
+  - `scripts/healthcheck.py`
+- `docs/temp/TEMP_PRE_LOADGEN_READINESS.md` removed.
+- `README.md`, `docs/_INDEX.md`, `scripts/_SCRIPT_INDEX.md`, and handoff docs updated in the same cleanup change set.

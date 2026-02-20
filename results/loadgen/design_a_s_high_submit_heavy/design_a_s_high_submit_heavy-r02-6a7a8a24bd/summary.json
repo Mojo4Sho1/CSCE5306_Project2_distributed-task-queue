@@ -1,0 +1,78 @@
+{
+  "measure_seconds": 60.0,
+  "total_rows": 2400,
+  "job_terminal_throughput": {
+    "unique_terminal_jobs": 131,
+    "throughput_rps": 2.183333
+  },
+  "methods": [
+    {
+      "method": "SubmitJob",
+      "total_calls": 1440,
+      "ok_calls": 1440,
+      "throughput_rps": 24.0,
+      "latency_ms": {
+        "p50": 39.217,
+        "p95": 63.577,
+        "p99": 68.235
+      },
+      "grpc_code_rates": {
+        "OK": 1.0
+      }
+    },
+    {
+      "method": "GetJobStatus",
+      "total_calls": 480,
+      "ok_calls": 480,
+      "throughput_rps": 8.0,
+      "latency_ms": {
+        "p50": 29.097,
+        "p95": 50.807,
+        "p99": 54.923
+      },
+      "grpc_code_rates": {
+        "OK": 1.0
+      }
+    },
+    {
+      "method": "GetJobResult",
+      "total_calls": 360,
+      "ok_calls": 360,
+      "throughput_rps": 6.0,
+      "latency_ms": {
+        "p50": 29.366,
+        "p95": 51.907,
+        "p99": 58.068
+      },
+      "grpc_code_rates": {
+        "OK": 1.0
+      }
+    },
+    {
+      "method": "CancelJob",
+      "total_calls": 120,
+      "ok_calls": 120,
+      "throughput_rps": 2.0,
+      "latency_ms": {
+        "p50": 36.196,
+        "p95": 47.893,
+        "p99": 58.63
+      },
+      "grpc_code_rates": {
+        "OK": 1.0
+      }
+    },
+    {
+      "method": "ListJobs",
+      "total_calls": 0,
+      "ok_calls": 0,
+      "throughput_rps": 0.0,
+      "latency_ms": {
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0
+      },
+      "grpc_code_rates": {}
+    }
+  ]
+}

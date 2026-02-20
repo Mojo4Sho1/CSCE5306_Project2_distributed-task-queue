@@ -1,0 +1,131 @@
+{
+  "scenario": {
+    "scenario_id": "design_a_s_medium_poll_heavy",
+    "design": "A_microservices",
+    "concurrency": 24,
+    "work_duration_ms": 250,
+    "request_mix_profile": "poll_heavy",
+    "request_mix_weights": {
+      "SubmitJob": 15,
+      "GetJobStatus": 45,
+      "GetJobResult": 35,
+      "CancelJob": 5,
+      "ListJobs": 0
+    },
+    "warmup_seconds": 15.0,
+    "measure_seconds": 60.0,
+    "cooldown_seconds": 15.0,
+    "repetitions": 3,
+    "run_seed": 5306,
+    "total_worker_slots": 6,
+    "request_rate_rps": 20.0,
+    "submit_client_request_id_mode": "empty",
+    "design_a_gateway_target": "127.0.0.1:50051",
+    "design_b_ordered_targets": [],
+    "design_b_round_robin_start": 0
+  },
+  "run_id": "design_a_s_medium_poll_heavy-r00-6296ce2613",
+  "repeat_index": 0,
+  "phase_metrics": {
+    "warmup": {
+      "duration_seconds": 15.0,
+      "recorded": false,
+      "start_ts_ms": 1771605226928,
+      "end_ts_ms": 1771605241934,
+      "row_count": 0
+    },
+    "measure": {
+      "duration_seconds": 60.0,
+      "recorded": true,
+      "start_ts_ms": 1771605241934,
+      "end_ts_ms": 1771605301940,
+      "row_count": 1200
+    },
+    "cooldown": {
+      "duration_seconds": 15.0,
+      "recorded": false,
+      "start_ts_ms": 1771605301940,
+      "end_ts_ms": 1771605316946,
+      "row_count": 0
+    }
+  },
+  "row_count": 1200,
+  "summary": {
+    "measure_seconds": 60.0,
+    "total_rows": 1200,
+    "job_terminal_throughput": {
+      "unique_terminal_jobs": 60,
+      "throughput_rps": 1.0
+    },
+    "methods": [
+      {
+        "method": "SubmitJob",
+        "total_calls": 180,
+        "ok_calls": 180,
+        "throughput_rps": 3.0,
+        "latency_ms": {
+          "p50": 17.846,
+          "p95": 29.594,
+          "p99": 43.271
+        },
+        "grpc_code_rates": {
+          "OK": 1.0
+        }
+      },
+      {
+        "method": "GetJobStatus",
+        "total_calls": 540,
+        "ok_calls": 540,
+        "throughput_rps": 9.0,
+        "latency_ms": {
+          "p50": 17.141,
+          "p95": 28.115,
+          "p99": 32.966
+        },
+        "grpc_code_rates": {
+          "OK": 1.0
+        }
+      },
+      {
+        "method": "GetJobResult",
+        "total_calls": 420,
+        "ok_calls": 420,
+        "throughput_rps": 7.0,
+        "latency_ms": {
+          "p50": 17.699,
+          "p95": 28.142,
+          "p99": 31.234
+        },
+        "grpc_code_rates": {
+          "OK": 1.0
+        }
+      },
+      {
+        "method": "CancelJob",
+        "total_calls": 60,
+        "ok_calls": 60,
+        "throughput_rps": 1.0,
+        "latency_ms": {
+          "p50": 21.846,
+          "p95": 28.702,
+          "p99": 30.663
+        },
+        "grpc_code_rates": {
+          "OK": 1.0
+        }
+      },
+      {
+        "method": "ListJobs",
+        "total_calls": 0,
+        "ok_calls": 0,
+        "throughput_rps": 0.0,
+        "latency_ms": {
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0
+        },
+        "grpc_code_rates": {}
+      }
+    ]
+  }
+}
