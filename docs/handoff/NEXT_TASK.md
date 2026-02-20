@@ -5,61 +5,73 @@
 
 ## Task summary
 
-Add minimal output-collision safety to loadgen runs: fail if run directory exists by default, with explicit `--overwrite` for intentional replacement.
+Execute a reproducible, small multi-seed benchmark matrix (Design A + Design B) using the current loadgen scaffold and produce report-ready summary evidence.
 
 ## Why this task is next
 
-- Report-quality loadgen hardening is now complete:
-  - pre-run health precheck gate exists in CLI,
-  - summary artifacts include job-terminal throughput,
-  - latency summaries avoid degenerate all-zero behavior in short live runs.
-- Remaining operational gap is artifact safety:
-  - deterministic run IDs currently make reruns replace prior artifacts silently.
-- Scope-control decision for class-project simplicity:
-  - keep this change minimal and avoid advanced reproducibility framework work.
-  - final benchmark/report runs are expected to use multiple seeds; this task is about preventing accidental overwrite, not changing fairness methodology.
+- Loadgen contract hardening is now in place (health precheck, latency precision, terminal-throughput summary, and collision-safe artifact handling).
+- Remaining work is controlled execution and evidence capture for A/B analysis quality.
+- This closes the loop from tooling readiness to benchmark-result generation.
 
 ## Scope (in)
 
-- Add run-dir existence guard before artifact write.
-- Default behavior: fail fast if deterministic run directory already exists.
-- Add explicit `--overwrite` path for intentional replacement.
-- Add deterministic tests for both default and overwrite behaviors.
-- Update docs/handoff/runbook with operator guidance.
+- Run a minimal but representative live benchmark matrix for both designs:
+  - at least one balanced profile per design,
+  - multiple seeds per selected scenario.
+- Use pre-run connectivity gate and deterministic artifact policy:
+  - `--precheck-health` for live runs,
+  - `--overwrite` only when intentionally replacing a deterministic run directory.
+- Capture and validate produced artifacts:
+  - `rows.jsonl`, `rows.csv`, `summary.json`, `summary.csv`, `metadata.json`.
+- Generate concise report-ready summary snippets from produced artifacts:
+  - throughput,
+  - latency percentiles (p50/p95/p99),
+  - grpc error rates,
+  - terminal throughput.
+- Update docs/handoff with exact commands, run IDs, and observed caveats.
 
 ## Scope (out)
 
 - Proto/schema changes.
-- Service runtime behavior changes.
-- Fairness lock modifications.
-- Advanced run management features (run registry, auto-suffix naming, retention policies).
+- Service business-logic rewrites.
+- Fairness lock changes.
+- Advanced loadgen feature work beyond execution/reporting of existing scaffold.
 
 ## Dependencies / prerequisites
 
 - Use conda environment `grpc` for all code/tests.
-- Keep design stacks healthy when running live benchmark checks.
+- Start healthy stacks before live runs:
+  - `docker compose -f docker/docker-compose.design-a.yml up --build -d`
+  - `docker compose -f docker/docker-compose.design-b.yml up --build -d`
+- Keep scenario config and fairness controls aligned with locked specs.
+
+## Implementation notes
+
+- Follow `docs/spec/fairness-evaluation.md` for parity controls and reporting scope.
+- Preserve deterministic run naming; do not silently replace artifacts.
+- Treat `--overwrite` as an explicit operator decision only.
+- Record any environment-related deviations (for example connectivity limits) in handoff docs.
 
 ## Acceptance criteria (definition of done)
 
-- Re-running the same scenario tuple fails by default when output path already exists.
-- `--overwrite` allows explicit replacement of existing artifacts.
-- Behavior is documented as operational safety and kept intentionally low-complexity.
-- Existing baseline unit/integration suites remain green.
+- Live benchmark runs complete for both designs with multiple seeds.
+- Artifacts exist and are traceable by scenario/run ID for each executed run.
+- A concise comparison summary is generated from actual produced artifacts.
+- Documentation reflects final run commands, locations, and caveats.
+- Handoff docs provide concrete pass/fail evidence and residual risks.
 
 ## Verification checklist
 
-- [ ] Implement run-dir collision handling in loadgen runner/CLI.
-- [ ] Add/extend deterministic tests for fail-if-exists and `--overwrite`.
-- [ ] Re-run `tests/test_loadgen_contracts.py`.
-- [ ] Re-run `tests/test_worker_report_retry.py`.
-- [ ] Re-run `tests/test_coordinator_report_outcome_idempotency.py`.
-- [ ] Re-run `tests/integration/smoke_live_stack.py`.
-- [ ] Re-run `tests/integration/smoke_integration_terminal_path.py`.
-- [ ] Re-run `tests/integration/smoke_integration_failure_path.py`.
-- [ ] Re-run `tests/integration/smoke_design_b_owner_routing.py`.
-- [ ] Update `docs/handoff/CURRENT_STATUS.md` with command outputs/timestamps/residual risks.
+- [ ] Run deterministic unit baseline:
+  - `conda run -n grpc python -m unittest tests/test_loadgen_contracts.py`
+- [ ] Verify Design A live readiness and execute selected live scenario seeds.
+- [ ] Verify Design B live readiness and execute selected live scenario seeds.
+- [ ] Confirm artifact set completeness for each run directory.
+- [ ] Produce and record summary metrics for report usage.
+- [ ] Update `docs/handoff/CURRENT_STATUS.md` with exact command outputs and caveats.
 
 ## Risks / rollback notes
 
-- Changing run-dir policy can impact downstream scripts expecting exact deterministic path naming.
-- Mitigation: keep deterministic naming unchanged and use explicit `--overwrite` only when intended.
+- Live A/B runs are environment-sensitive (stack health, host resources, network stability).
+- Multi-seed execution can be time-consuming; partial-run artifact interpretation must be explicit.
+- Overwrite misuse can still replace evidence if used without intent; keep command logs in handoff.

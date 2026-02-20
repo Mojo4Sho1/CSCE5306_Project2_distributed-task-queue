@@ -5,111 +5,63 @@
 
 ## Current focus
 
-Loadgen report-quality hardening (pre-run health gate + terminal-throughput summary + latency precision).
+Loadgen run-output collision safety (`fail-if-exists` default + explicit `--overwrite`) is completed.
 
 ## Completed in current focus
 
-- Hardened loadgen contracts/runtime:
-  - `common/loadgen_contracts.py`
-  - includes:
-    - optional stack target health validation helper (`validate_stack_health_targets`) for design ingress targets,
-    - `BenchmarkRow.latency_ms` precision promotion to floating-point milliseconds,
-    - latency capture floor for observed calls (`0.001 ms`) to avoid degenerate zero-only local summaries,
-    - terminal-status detection for status/result/cancel responses (`job_terminal`),
-    - top-level summary metric:
-      - `job_terminal_throughput.unique_terminal_jobs`,
-      - `job_terminal_throughput.throughput_rps`,
-    - summary CSV columns for terminal-throughput parity with JSON:
-      - `job_terminal_unique_jobs`,
-      - `job_terminal_throughput_rps`.
-- Hardened loadgen CLI:
-  - `scripts/loadgen/run_benchmark_scaffold.py`
-  - added:
-    - `--precheck-health`,
-    - `--precheck-timeout-ms`,
-    - fail-fast unhealthy precheck exit (`2`) with structured stderr JSON.
-- Expanded deterministic tests:
-  - `tests/test_loadgen_contracts.py`
-  - added coverage for:
-    - latency precision + terminal-throughput summary,
-    - precheck unhealthy-target detection.
-- Updated docs/indexes/checklists:
+- Updated `common/loadgen_contracts.py`:
+  - `BenchmarkRunner.run(...)` now accepts `overwrite: bool = False`.
+  - Added deterministic run-dir guard before phase execution.
+  - Default behavior raises `FileExistsError` when deterministic run directory already exists.
+  - `overwrite=True` removes existing run directory and replaces artifacts intentionally.
+- Updated `scripts/loadgen/run_benchmark_scaffold.py`:
+  - Added CLI flag `--overwrite`.
+  - Added structured fail-fast collision error output and explicit non-zero exit path.
+- Expanded deterministic tests in `tests/test_loadgen_contracts.py`:
+  - `test_run_dir_collision_fails_by_default`.
+  - `test_run_dir_collision_overwrite_replaces_artifacts`.
+- Updated operator-facing documentation:
   - `README.md`
+  - `scripts/_SCRIPT_INDEX.md`
+  - `tests/_TEST_INDEX.md`
   - `docs/spec/fairness-evaluation.md`
   - `docs/spec/runtime-config-design-a.md`
   - `docs/spec/runtime-config-design-b.md`
-  - `scripts/_SCRIPT_INDEX.md`
-  - `tests/_TEST_INDEX.md`
   - `docs/temp/TEMP_PRE_LOADGEN_READINESS.md`
   - `docs/handoff/NEXT_TASK.md`
 
 ## Passing checks
 
-- Run timestamp anchor: `2026-02-19 16:47:57 -06:00`.
+- Run timestamp anchor: `2026-02-19 18:49:14 -0600`.
 - `conda run -n grpc python -m py_compile common/loadgen_contracts.py scripts/loadgen/run_benchmark_scaffold.py tests/test_loadgen_contracts.py`: PASS
 - `conda run -n grpc python -m unittest tests/test_loadgen_contracts.py`: PASS
-  - `Ran 7 tests ... OK`
+  - `Ran 9 tests ... OK`
 - `conda run -n grpc python -m unittest tests/test_worker_report_retry.py`: PASS
   - `Ran 6 tests ... OK`
 - `conda run -n grpc python -m unittest tests/test_coordinator_report_outcome_idempotency.py`: PASS
   - `Ran 3 tests ... OK`
-- `conda run -n grpc python -m unittest tests/test_owner_routing.py`: PASS
-  - `Ran 3 tests ... OK`
-- `conda run -n grpc python -m unittest tests/test_design_b_client_routing.py`: PASS
-  - `Ran 6 tests ... OK`
-- `docker compose -f docker/docker-compose.design-a.yml ps`: PASS
-  - `gateway`, `job`, `queue`, `coordinator`, `result`, `worker` all `Up (... healthy)` during verification window.
-- `docker compose -f docker/docker-compose.design-b.yml ps`: PASS
-  - `monolith-1..monolith-6` all `Up (... healthy)` during verification window.
-- `conda run -n grpc python tests/integration/smoke_live_stack.py`: PASS
-  - final `RESULT: PASS`
-- `conda run -n grpc python tests/integration/smoke_integration_terminal_path.py`: PASS
-  - final `RESULT: PASS`
-- `conda run -n grpc python tests/integration/smoke_integration_failure_path.py`: PASS
-  - final `RESULT: PASS`
-- `conda run -n grpc python tests/integration/smoke_design_b_owner_routing.py`: PASS
-  - final `RESULT: PASS`
-- `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_live_smoke_short.json --output-dir results/loadgen --live-traffic --precheck-health`: PASS
-  - produced run:
-    - `results/loadgen/design_a_live_smoke_short/design_a_live_smoke_short-r00-64f99fd582/rows.jsonl`,
-    - `results/loadgen/design_a_live_smoke_short/design_a_live_smoke_short-r00-64f99fd582/rows.csv`,
-    - `results/loadgen/design_a_live_smoke_short/design_a_live_smoke_short-r00-64f99fd582/summary.json`,
-    - `results/loadgen/design_a_live_smoke_short/design_a_live_smoke_short-r00-64f99fd582/summary.csv`,
-    - `results/loadgen/design_a_live_smoke_short/design_a_live_smoke_short-r00-64f99fd582/metadata.json`.
-  - summary evidence:
-    - `job_terminal_throughput.unique_terminal_jobs = 6`,
-    - `job_terminal_throughput.throughput_rps = 3.0`,
-    - non-degenerate live latency percentiles observed (for example `SubmitJob p50=0.001 ms`).
+- CLI deterministic collision behavior checks:
+  - `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario /tmp/loadgen_collision_scenario.json --output-dir /tmp/loadgen-collision-cli`: PASS
+  - re-run same command without `--overwrite`: PASS (expected fail-fast) with exit code `3` and structured collision error
+  - re-run with `--overwrite`: PASS (intentional replacement succeeds)
 
 ## Known gaps/blockers
 
-- No functional blocker for report-quality baseline scope completed in this task.
-- Re-running the same scenario/repetition in the same output directory still overwrites prior artifacts because run IDs are deterministic by `(scenario_id, run_seed, repeat_index)`.
-- Precheck is connectivity-level (`TCP host:port`) and not deep service semantic health.
-
-## Decision notes for next session
-
-- Project-scope decision: keep benchmark reproducibility features lightweight (class-project complexity target).
-- Clarification: run-output collision handling is not equivalent to scientific reproducibility controls.
-  - reproducibility controls already present: fixed seed in scenario, locked timeout/retry defaults, metadata capture.
-  - collision handling is operational safety to avoid accidental artifact loss on rerun.
-- Benchmarking guidance: final report runs should use multiple seeds and repeated trials; same-seed reruns remain useful for debugging/audit.
-- Agreed minimal next implementation:
-  - default fail when deterministic run directory already exists,
-  - explicit `--overwrite` flag for intentional replacement,
-  - avoid higher-complexity run naming/registry features.
-
-## Timing/race observations
-
-- Running scaffold mode and live mode with identical scenario/run tuple in the same output directory still reuses the deterministic run ID and replaces prior files.
+- Integration smoke commands requiring live localhost gRPC connectivity are blocked in this sandbox (`Operation not permitted` on connect to `127.0.0.1:*`):
+  - `tests/integration/smoke_live_stack.py`
+  - `tests/integration/smoke_integration_terminal_path.py`
+  - `tests/integration/smoke_integration_failure_path.py`
+  - `tests/integration/smoke_design_b_owner_routing.py`
+- This is an environment/network-execution limitation, not a functional blocker in the loadgen collision-safety change set.
 
 ## Next task (single target)
 
-Add minimal run-output overwrite protection (`fail-if-exists` by default + explicit `--overwrite`).
+Execute and document a small multi-seed benchmark matrix using the current loadgen scaffold for both designs, with reproducible artifact capture and report-ready summary tables.
 
 ## Definition of done for next task
 
-- Runner/CLI fails fast when deterministic run directory already exists (default behavior).
-- CLI supports explicit override flag (`--overwrite`) for intentional replacement.
-- Collision behavior and rationale are documented as operational safety (not fairness/semantics).
-- Existing unit/integration baseline remains green.
+- At least one balanced live scenario is run for Design A and Design B with multiple seeds.
+- Output artifacts are captured under `results/loadgen/` with clear scenario/run metadata.
+- A concise report-ready summary (throughput + latency + error rates + terminal throughput) is produced from generated artifacts.
+- Documentation/runbook notes are updated for reproducible reruns (including `--precheck-health` and `--overwrite` usage boundaries).
+- Handoff docs capture exact commands, outcomes, and any residual fairness caveats.

@@ -19,6 +19,11 @@ Test commands and test taxonomy live in:
 - `conda run -n grpc python scripts/dev/healthcheck.py --mode tcp --target gateway:50051 --service gateway`
 - `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_b_balanced_baseline.json --output-dir results/loadgen`
 - `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_live_smoke_short.json --output-dir results/loadgen --live-traffic --precheck-health`
+- `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_live_smoke_short.json --output-dir results/loadgen --live-traffic --precheck-health --overwrite`
+
+Loadgen runner safety:
+- deterministic `run_id` path collisions fail by default;
+- pass `--overwrite` only when intentional artifact replacement is desired.
 
 ## Compatibility Wrappers (Deprecated)
 

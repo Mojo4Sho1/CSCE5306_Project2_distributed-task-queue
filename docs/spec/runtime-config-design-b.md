@@ -93,6 +93,7 @@ Container health timing policy:
 
 Loadgen pre-run gate:
 - `scripts/loadgen/run_benchmark_scaffold.py --precheck-health` probes all configured `design_b_ordered_targets` and fails fast if any ingress target is unreachable.
+- deterministic run-directory collisions fail by default; pass `--overwrite` for intentional replacement.
 
 ## Bring-up commands
 

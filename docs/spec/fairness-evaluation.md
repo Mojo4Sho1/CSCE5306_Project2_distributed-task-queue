@@ -321,7 +321,7 @@ Benchmark contract reference (live-capable implementation):
   - `BenchmarkRow` + JSONL/CSV row writers
 - summary artifacts: `summary.json`, `summary.csv` (throughput/latency/error-rate tables by method + job-terminal throughput)
 - latency precision: summary percentiles preserve sub-millisecond values (with a minimum floor for observed calls)
-- `scripts/loadgen/run_benchmark_scaffold.py` (`--live-traffic` enables live request execution, `--precheck-health` enables fail-fast stack health gating)
+- `scripts/loadgen/run_benchmark_scaffold.py` (`--live-traffic` enables live request execution, `--precheck-health` enables fail-fast stack health gating, deterministic run-dir collisions fail by default unless `--overwrite` is explicitly passed)
 
 ---
 

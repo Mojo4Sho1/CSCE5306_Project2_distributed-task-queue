@@ -208,6 +208,146 @@ class LoadgenContractTests(unittest.TestCase):
                 metadata["run_id"],
             )
 
+    def test_run_dir_collision_fails_by_default(self) -> None:
+        scenario = BenchmarkScenario.from_dict(
+            {
+                "scenario_id": "collision_default_fail",
+                "design": "A_microservices",
+                "concurrency": 1,
+                "work_duration_ms": 10,
+                "request_mix_profile": "submit-only",
+                "request_mix_weights": {"SubmitJob": 1, "GetJobStatus": 0, "GetJobResult": 0, "CancelJob": 0, "ListJobs": 0},
+                "warmup_seconds": 0,
+                "measure_seconds": 1,
+                "cooldown_seconds": 0,
+                "repetitions": 1,
+                "run_seed": 101,
+                "total_worker_slots": 6,
+                "design_a_gateway_target": "127.0.0.1:50051",
+            }
+        )
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            runner = BenchmarkRunner(
+                scenario=scenario,
+                output_root=Path(tmp_dir) / "out",
+                sleep_fn=lambda _: None,
+                clock_fn=lambda: 1700000002.0,
+            )
+
+            def _hook(context, _phase_name):
+                return [
+                    BenchmarkRow(
+                        design=scenario.design,
+                        scenario_id=scenario.scenario_id,
+                        run_id=context.run_id,
+                        method="SubmitJob",
+                        start_ts_ms=1,
+                        latency_ms=1,
+                        grpc_code="OK",
+                        accepted=True,
+                        result_ready=None,
+                        already_terminal=None,
+                        job_terminal=False,
+                        job_id="job-default-collision",
+                        concurrency=scenario.concurrency,
+                        work_duration_ms=scenario.work_duration_ms,
+                        request_mix_profile=scenario.request_mix_profile,
+                        total_worker_slots=scenario.total_worker_slots,
+                    )
+                ]
+
+            artifacts = runner.run(operation_hook=_hook)
+            self.assertTrue(artifacts[0].run_dir.exists())
+            with self.assertRaises(FileExistsError):
+                runner.run(operation_hook=_hook)
+
+    def test_run_dir_collision_overwrite_replaces_artifacts(self) -> None:
+        scenario = BenchmarkScenario.from_dict(
+            {
+                "scenario_id": "collision_overwrite",
+                "design": "A_microservices",
+                "concurrency": 1,
+                "work_duration_ms": 10,
+                "request_mix_profile": "submit-only",
+                "request_mix_weights": {"SubmitJob": 1, "GetJobStatus": 0, "GetJobResult": 0, "CancelJob": 0, "ListJobs": 0},
+                "warmup_seconds": 0,
+                "measure_seconds": 1,
+                "cooldown_seconds": 0,
+                "repetitions": 1,
+                "run_seed": 102,
+                "total_worker_slots": 6,
+                "design_a_gateway_target": "127.0.0.1:50051",
+            }
+        )
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            runner = BenchmarkRunner(
+                scenario=scenario,
+                output_root=Path(tmp_dir) / "out",
+                sleep_fn=lambda _: None,
+                clock_fn=lambda: 1700000003.0,
+            )
+
+            def _hook_first(context, _phase_name):
+                return [
+                    BenchmarkRow(
+                        design=scenario.design,
+                        scenario_id=scenario.scenario_id,
+                        run_id=context.run_id,
+                        method="SubmitJob",
+                        start_ts_ms=1,
+                        latency_ms=11,
+                        grpc_code="OK",
+                        accepted=True,
+                        result_ready=None,
+                        already_terminal=None,
+                        job_terminal=False,
+                        job_id="job-first",
+                        concurrency=scenario.concurrency,
+                        work_duration_ms=scenario.work_duration_ms,
+                        request_mix_profile=scenario.request_mix_profile,
+                        total_worker_slots=scenario.total_worker_slots,
+                    )
+                ]
+
+            first_artifacts = runner.run(operation_hook=_hook_first)
+            first_rows = [
+                json.loads(line)
+                for line in first_artifacts[0].rows_jsonl_path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+            self.assertEqual("job-first", first_rows[0]["job_id"])
+
+            def _hook_second(context, _phase_name):
+                return [
+                    BenchmarkRow(
+                        design=scenario.design,
+                        scenario_id=scenario.scenario_id,
+                        run_id=context.run_id,
+                        method="SubmitJob",
+                        start_ts_ms=2,
+                        latency_ms=22,
+                        grpc_code="OK",
+                        accepted=True,
+                        result_ready=None,
+                        already_terminal=None,
+                        job_terminal=False,
+                        job_id="job-second",
+                        concurrency=scenario.concurrency,
+                        work_duration_ms=scenario.work_duration_ms,
+                        request_mix_profile=scenario.request_mix_profile,
+                        total_worker_slots=scenario.total_worker_slots,
+                    )
+                ]
+
+            second_artifacts = runner.run(operation_hook=_hook_second, overwrite=True)
+            second_rows = [
+                json.loads(line)
+                for line in second_artifacts[0].rows_jsonl_path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+            self.assertEqual(1, len(second_rows))
+            self.assertEqual("job-second", second_rows[0]["job_id"])
+
     def test_request_mix_scheduler_distribution(self) -> None:
         scheduler = RequestMixScheduler(
             {"SubmitJob": 2, "GetJobStatus": 1, "GetJobResult": 0, "CancelJob": 0, "ListJobs": 0},

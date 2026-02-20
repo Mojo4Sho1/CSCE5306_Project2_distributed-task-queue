@@ -3,6 +3,7 @@
 **Status:** Temporary planning artifact  
 **Owner:** Joe + Codex  
 **Created:** 2026-02-19
+**Last updated:** 2026-02-19
 
 ## Temporary File Notice
 
@@ -84,13 +85,17 @@ Definition of done:
   - [x] measurement window (recorded),
   - [x] cool-down handling,
   - [x] repeated runs with stable naming.
-- [ ] Add reproducibility controls:
+- [x] Add reproducibility controls:
   - [x] explicit random seed,
   - [x] fixed timeout/deadline defaults,
-  - [x] run metadata capture.
+  - [x] run metadata capture,
+  - [x] deterministic run-directory collision safety (`fail-if-exists` default + explicit `--overwrite`).
 
 Definition of done:
 - Repeated runs are easy to execute and compare with minimal manual steps.
+
+Progress note:
+- Minimal artifact safety is now implemented: deterministic run directories are protected by default and only replaced when `--overwrite` is provided.
 
 ## 5) Pre-Benchmark Gate
 

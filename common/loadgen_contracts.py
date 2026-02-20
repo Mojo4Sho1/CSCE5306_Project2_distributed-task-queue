@@ -4,6 +4,7 @@ import csv
 import hashlib
 import json
 import random
+import shutil
 import socket
 import sys
 import threading
@@ -329,6 +330,7 @@ class BenchmarkRunner:
         operation_hook: Callable[[RunContext, str], Sequence[BenchmarkRow]] | None = None,
         *,
         phase_engine: PhaseEngine | None = None,
+        overwrite: bool = False,
     ) -> list[RunArtifacts]:
         artifacts: list[RunArtifacts] = []
         for repeat_index in range(self._scenario.repetitions):
@@ -344,6 +346,7 @@ class BenchmarkRunner:
                 design_b_router=self._build_design_b_router(),
             )
             run_dir = self._output_root / self._scenario.scenario_id / run_id
+            self._prepare_run_dir(run_dir=run_dir, overwrite=overwrite)
             phase_metrics, phase_rows = self._execute_phases(context=context, phase_engine=phase_engine)
             if phase_engine is not None:
                 rows = phase_rows
@@ -385,6 +388,18 @@ class BenchmarkRunner:
             )
 
         return artifacts
+
+    def _prepare_run_dir(self, *, run_dir: Path, overwrite: bool) -> None:
+        if not run_dir.exists():
+            return
+        if not overwrite:
+            raise FileExistsError(
+                f"run directory already exists for deterministic run_id: {run_dir}"
+            )
+        if run_dir.is_dir():
+            shutil.rmtree(run_dir)
+        else:
+            run_dir.unlink()
 
     def _build_design_b_router(self) -> DesignBClientRouter | None:
         if self._scenario.design != "B_monolith":

@@ -54,6 +54,11 @@ def parse_args() -> argparse.Namespace:
         default=1000,
         help="Timeout for each precheck probe in milliseconds (default: 1000).",
     )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Allow replacing an existing deterministic run directory.",
+    )
     return parser.parse_args()
 
 
@@ -104,9 +109,23 @@ def main() -> int:
                 adapter=adapter,
                 request_rate_rps=args.request_rate_rps,
             )
-            artifacts = runner.run(phase_engine=phase_engine)
+            artifacts = runner.run(phase_engine=phase_engine, overwrite=args.overwrite)
         else:
-            artifacts = runner.run()
+            artifacts = runner.run(overwrite=args.overwrite)
+    except FileExistsError as exc:
+        print(
+            json.dumps(
+                {
+                    "error": "run directory already exists",
+                    "scenario_id": scenario.scenario_id,
+                    "detail": str(exc),
+                    "hint": "rerun with --overwrite to replace existing artifacts",
+                },
+                indent=2,
+            ),
+            file=sys.stderr,
+        )
+        return 3
     finally:
         if adapter is not None:
             adapter.close()

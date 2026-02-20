@@ -51,6 +51,9 @@ For script-only utilities and wrappers, see:
    - `conda run -n grpc python -m unittest tests/test_loadgen_contracts.py`
 2. Run short live smoke to produce measurement + summary artifacts:
    - `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_live_smoke_short.json --output-dir results/loadgen --live-traffic --precheck-health`
+3. If rerunning the same deterministic scenario tuple:
+   - default behavior fails on existing run directory;
+   - use `--overwrite` for intentional replacement.
 
 ## Naming Standard for New Tests
 

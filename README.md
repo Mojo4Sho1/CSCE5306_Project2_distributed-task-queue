@@ -237,6 +237,13 @@ Run live traffic artifacts:
 conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_live_smoke_short.json --output-dir results/loadgen --live-traffic --precheck-health
 ```
 
+If a deterministic run directory already exists, the runner now fails by default.
+Use `--overwrite` only for intentional replacement:
+
+```bash
+conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_live_smoke_short.json --output-dir results/loadgen --live-traffic --precheck-health --overwrite
+```
+
 Artifacts are written per run under:
 - `results/loadgen/<scenario_id>/<run_id>/rows.jsonl`
 - `results/loadgen/<scenario_id>/<run_id>/rows.csv`
@@ -246,6 +253,7 @@ Artifacts are written per run under:
 
 Live benchmark hardening notes:
 - optional fail-fast precheck gate: `--precheck-health` (`--precheck-timeout-ms` override),
+- run-directory collision safety: fail-if-exists by default; explicit `--overwrite` for replacement,
 - summary now includes job-terminal throughput aggregation (`unique_terminal_jobs`, `throughput_rps`),
 - latency percentiles keep sub-millisecond precision with a `0.001 ms` floor for observed calls.
 
@@ -442,4 +450,3 @@ distributed-task-queue/
         |-- main.py
         `-- worker.py
 ```
-

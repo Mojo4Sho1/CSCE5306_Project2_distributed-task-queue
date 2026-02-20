@@ -200,6 +200,7 @@ This model is intentionally minimal for v1 and sufficient for container orchestr
 - Optional container-level healthcheck status supports operations; it does not replace canonical control-plane liveness semantics.
 - Runtime behavior in this file is designed for deterministic, reproducible local/CI startup using Docker Compose.
 - Loadgen runner may enforce this health surface as a fail-fast pre-run gate via `scripts/loadgen/run_benchmark_scaffold.py --precheck-health` (TCP probe to required ingress target).
+- Loadgen runner fails by default if the deterministic run directory already exists; use `--overwrite` only for intentional artifact replacement.
 
 ---
 
