@@ -219,7 +219,13 @@ The benchmark contract now supports both scaffold-only and live traffic executio
 - Row schema + writers: `common/loadgen_contracts.py` (`BenchmarkRow`, JSONL/CSV writers)
 - Live RPC adapter with locked retry/deadline semantics: `common/loadgen_contracts.py` (`GrpcPublicApiAdapter`)
 - CLI entrypoint: `scripts/loadgen/run_benchmark_scaffold.py`
-- Example scenario: `scripts/loadgen/scenarios/design_b_balanced_baseline.json`
+- Example scenarios:
+  - `scripts/loadgen/scenarios/design_a_live_smoke_short.json`
+  - `scripts/loadgen/scenarios/design_b_balanced_baseline.json`
+  - `scripts/loadgen/scenarios/design_a_balanced_seed5306.json`
+  - `scripts/loadgen/scenarios/design_a_balanced_seed5307.json`
+  - `scripts/loadgen/scenarios/design_b_balanced_seed5306.json`
+  - `scripts/loadgen/scenarios/design_b_balanced_seed5307.json`
 
 Design B ingress in live mode remains wired through the shared routing utility:
 - `common/design_b_routing.py` (`DesignBClientRouter`)
@@ -235,6 +241,15 @@ Run live traffic artifacts:
 
 ```bash
 conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_live_smoke_short.json --output-dir results/loadgen --live-traffic --precheck-health
+```
+
+Balanced multi-seed live example (A/B parity slice):
+
+```bash
+conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_balanced_seed5306.json --output-dir results/loadgen --live-traffic --precheck-health
+conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_balanced_seed5307.json --output-dir results/loadgen --live-traffic --precheck-health
+conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_b_balanced_seed5306.json --output-dir results/loadgen --live-traffic --precheck-health
+conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_b_balanced_seed5307.json --output-dir results/loadgen --live-traffic --precheck-health
 ```
 
 If a deterministic run directory already exists, the runner now fails by default.
@@ -393,7 +408,11 @@ distributed-task-queue/
 |   |   |-- run_benchmark_scaffold.py
 |   |   `-- scenarios/
 |   |       |-- design_a_live_smoke_short.json
-|   |       `-- design_b_balanced_baseline.json
+|   |       |-- design_b_balanced_baseline.json
+|   |       |-- design_a_balanced_seed5306.json
+|   |       |-- design_a_balanced_seed5307.json
+|   |       |-- design_b_balanced_seed5306.json
+|   |       `-- design_b_balanced_seed5307.json
 |   `-- legacy_smoke/
 |       |-- smoke_coordinator_behavior.py
 |       |-- smoke_coordinator_skeleton.py

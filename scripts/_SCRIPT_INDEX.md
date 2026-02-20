@@ -19,6 +19,10 @@ Test commands and test taxonomy live in:
 - `conda run -n grpc python scripts/dev/healthcheck.py --mode tcp --target gateway:50051 --service gateway`
 - `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_b_balanced_baseline.json --output-dir results/loadgen`
 - `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_live_smoke_short.json --output-dir results/loadgen --live-traffic --precheck-health`
+- `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_balanced_seed5306.json --output-dir results/loadgen --live-traffic --precheck-health`
+- `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_balanced_seed5307.json --output-dir results/loadgen --live-traffic --precheck-health`
+- `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_b_balanced_seed5306.json --output-dir results/loadgen --live-traffic --precheck-health`
+- `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_b_balanced_seed5307.json --output-dir results/loadgen --live-traffic --precheck-health`
 - `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --scenario scripts/loadgen/scenarios/design_a_live_smoke_short.json --output-dir results/loadgen --live-traffic --precheck-health --overwrite`
 
 Loadgen runner safety:

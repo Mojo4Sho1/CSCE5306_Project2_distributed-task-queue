@@ -1,0 +1,23 @@
+{
+  "scenario_id": "design_a_balanced_seed5306",
+  "design": "A_microservices",
+  "concurrency": 12,
+  "work_duration_ms": 250,
+  "request_mix_profile": "balanced",
+  "request_mix_weights": {
+    "SubmitJob": 7,
+    "GetJobStatus": 6,
+    "GetJobResult": 5,
+    "CancelJob": 2,
+    "ListJobs": 0
+  },
+  "request_rate_rps": 12,
+  "warmup_seconds": 5,
+  "measure_seconds": 20,
+  "cooldown_seconds": 5,
+  "repetitions": 1,
+  "run_seed": 5306,
+  "total_worker_slots": 6,
+  "submit_client_request_id_mode": "empty",
+  "design_a_gateway_target": "127.0.0.1:50051"
+}

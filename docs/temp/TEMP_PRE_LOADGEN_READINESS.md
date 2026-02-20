@@ -3,7 +3,7 @@
 **Status:** Temporary planning artifact  
 **Owner:** Joe + Codex  
 **Created:** 2026-02-19
-**Last updated:** 2026-02-19
+**Last updated:** 2026-02-20
 
 ## Temporary File Notice
 
@@ -96,6 +96,31 @@ Definition of done:
 
 Progress note:
 - Minimal artifact safety is now implemented: deterministic run directories are protected by default and only replaced when `--overwrite` is provided.
+
+## Benchmark Execution Snapshot (2026-02-20)
+
+Execution scope completed in this session:
+- Balanced live multi-seed runs completed for both designs using precheck-enabled loadgen commands.
+- Scenario files used:
+  - `scripts/loadgen/scenarios/design_a_balanced_seed5306.json`
+  - `scripts/loadgen/scenarios/design_a_balanced_seed5307.json`
+  - `scripts/loadgen/scenarios/design_b_balanced_seed5306.json`
+  - `scripts/loadgen/scenarios/design_b_balanced_seed5307.json`
+- Run IDs produced:
+  - `design_a_balanced_seed5306-r00-88c6b30ac8`
+  - `design_a_balanced_seed5307-r00-3c78888ca7`
+  - `design_b_balanced_seed5306-r00-19271f3523`
+  - `design_b_balanced_seed5307-r00-976e24e878`
+- Artifact set completeness confirmed for each run:
+  - `rows.jsonl`, `rows.csv`, `summary.json`, `summary.csv`, `metadata.json`.
+- Quick aggregate signal (2 seeds/design, 20s measure window):
+  - A avg terminal throughput: `3.55 rps`
+  - B avg terminal throughput: `3.575 rps`
+  - A had lower p95 latencies in this slice; grpc non-OK rate was `0.0` for both designs across primary methods.
+
+Residual temporary-file relevance:
+- This checklist remains useful until full starter matrix execution and report-plot integration are complete.
+- After full-matrix reproducibility is captured in canonical docs, remove this file per cleanup trigger.
 
 ## 5) Pre-Benchmark Gate
 

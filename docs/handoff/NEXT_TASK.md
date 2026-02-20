@@ -1,41 +1,40 @@
 # Next Task
 
-**Last updated:** 2026-02-19  
+**Last updated:** 2026-02-20  
 **Owner:** Joe + Codex
 
 ## Task summary
 
-Execute a reproducible, small multi-seed benchmark matrix (Design A + Design B) using the current loadgen scaffold and produce report-ready summary evidence.
+Execute the full starter fairness matrix for Design A and Design B and generate consolidated, report-ready A/B comparison outputs.
 
 ## Why this task is next
 
-- Loadgen contract hardening is now in place (health precheck, latency precision, terminal-throughput summary, and collision-safe artifact handling).
-- Remaining work is controlled execution and evidence capture for A/B analysis quality.
-- This closes the loop from tooling readiness to benchmark-result generation.
+- A small balanced multi-seed matrix is now complete with validated artifacts and per-design summaries.
+- Remaining risk is under-sampling: claims currently rely on a narrow workload slice.
+- Final report quality now depends on matrix breadth, aggregation discipline, and visualization from produced artifacts.
 
 ## Scope (in)
 
-- Run a minimal but representative live benchmark matrix for both designs:
-  - at least one balanced profile per design,
-  - multiple seeds per selected scenario.
+- Run the full starter matrix from `docs/spec/fairness-evaluation.md` for both designs:
+  - load levels: `low`, `medium`, `high`,
+  - mixes: `submit_heavy`, `poll_heavy`, `balanced`,
+  - repeated seeds per scenario (minimum 3 recommended for this pass).
 - Use pre-run connectivity gate and deterministic artifact policy:
   - `--precheck-health` for live runs,
-  - `--overwrite` only when intentionally replacing a deterministic run directory.
-- Capture and validate produced artifacts:
-  - `rows.jsonl`, `rows.csv`, `summary.json`, `summary.csv`, `metadata.json`.
-- Generate concise report-ready summary snippets from produced artifacts:
-  - throughput,
-  - latency percentiles (p50/p95/p99),
-  - grpc error rates,
-  - terminal throughput.
-- Update docs/handoff with exact commands, run IDs, and observed caveats.
+  - avoid `--overwrite` except deliberate reruns with explicit note.
+- Build a reproducible aggregation pass across run directories producing:
+  - per-method throughput and latency percentile comparison (A vs B),
+  - grpc non-OK/error-code rates by method,
+  - terminal-job throughput comparison by scenario and design,
+  - seed-to-seed variability stats.
+- Update notebook and handoff docs with generated tables/plots and run-traceable inputs.
 
 ## Scope (out)
 
 - Proto/schema changes.
 - Service business-logic rewrites.
 - Fairness lock changes.
-- Advanced loadgen feature work beyond execution/reporting of existing scaffold.
+- New loadgen feature development outside execution/aggregation/reporting.
 
 ## Dependencies / prerequisites
 
@@ -50,28 +49,32 @@ Execute a reproducible, small multi-seed benchmark matrix (Design A + Design B) 
 - Follow `docs/spec/fairness-evaluation.md` for parity controls and reporting scope.
 - Preserve deterministic run naming; do not silently replace artifacts.
 - Treat `--overwrite` as an explicit operator decision only.
-- Record any environment-related deviations (for example connectivity limits) in handoff docs.
+- Keep Design A and Design B runs isolated in time (no overlapping load runs).
+- Record environment-related deviations (for example sandboxed localhost permission constraints) in handoff docs.
 
 ## Acceptance criteria (definition of done)
 
-- Live benchmark runs complete for both designs with multiple seeds.
-- Artifacts exist and are traceable by scenario/run ID for each executed run.
-- A concise comparison summary is generated from actual produced artifacts.
-- Documentation reflects final run commands, locations, and caveats.
-- Handoff docs provide concrete pass/fail evidence and residual risks.
+- Full 9-scenario starter matrix runs complete for both designs with repeated seeds.
+- Artifact sets are complete and traceable for every executed run.
+- Consolidated comparison outputs (tables and at least one plot set) are generated from `summary.json`/`rows.*`.
+- Documentation reflects exact execution batches, aggregation commands, and caveats.
+- Handoff docs include concrete evidence plus remaining risks to external validity.
 
 ## Verification checklist
 
 - [ ] Run deterministic unit baseline:
   - `conda run -n grpc python -m unittest tests/test_loadgen_contracts.py`
-- [ ] Verify Design A live readiness and execute selected live scenario seeds.
-- [ ] Verify Design B live readiness and execute selected live scenario seeds.
-- [ ] Confirm artifact set completeness for each run directory.
-- [ ] Produce and record summary metrics for report usage.
-- [ ] Update `docs/handoff/CURRENT_STATUS.md` with exact command outputs and caveats.
+- [ ] Verify both design stacks are healthy (`docker compose ... ps`) before each batch.
+- [ ] Execute all 9 starter scenarios for Design A with repeated seeds.
+- [ ] Execute all 9 starter scenarios for Design B with repeated seeds.
+- [ ] Confirm artifact completeness for every run directory.
+- [ ] Run aggregation step and publish consolidated A/B tables.
+- [ ] Update notebook/report visuals from generated artifacts.
+- [ ] Update `docs/handoff/CURRENT_STATUS.md` with commands, run IDs, outputs, and caveats.
 
 ## Risks / rollback notes
 
 - Live A/B runs are environment-sensitive (stack health, host resources, network stability).
-- Multi-seed execution can be time-consuming; partial-run artifact interpretation must be explicit.
-- Overwrite misuse can still replace evidence if used without intent; keep command logs in handoff.
+- Full matrix execution is time-consuming; interruption handling and partial-batch labeling must be explicit.
+- Compose project-name collision can cause teardown races when A/B compose files are controlled in parallel; prefer sequential `down`.
+- Overwrite misuse can replace deterministic evidence; keep command logs and explicit rerun notes in handoff.
