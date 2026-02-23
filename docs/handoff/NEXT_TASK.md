@@ -51,12 +51,19 @@ Create a final evidence-and-reproducibility handoff for the completed starter fa
   - `results/loadgen/analysis/starter_matrix_2026-02-20/`
 - Existing notebook:
   - `notebooks/benchmark_analysis.ipynb`
+- Active temporary report workspace (non-authoritative, downstream consumer of this task):
+  - `docs/temp/report_draft_staging.tex`
+  - `docs/temp/REPORT_DRAFT_CHECKLIST.md`
 
 ## Implementation notes
 
 - Keep this task documentation-only unless a broken reference requires a minimal non-behavioral fix.
 - Prefer relative repo paths that are copy-paste runnable.
 - Keep all benchmark claims traceable to concrete artifact files.
+- Sequencing for clean handoff:
+  - complete this evidence/reproducibility packaging task first,
+  - then execute report-draft checklist phases against `docs/temp/report_draft_staging.tex`.
+- Do not rerun full starter matrix for this task.
 
 ## Subtasks
 
@@ -71,6 +78,7 @@ Create a final evidence-and-reproducibility handoff for the completed starter fa
 - Reproducibility commands execute from documented paths without ambiguity.
 - Guardrails/limitations are explicitly documented beside headline benchmark signals.
 - README/index/handoff docs point to the new evidence/runbook docs.
+- `docs/temp/REPORT_DRAFT_CHECKLIST.md` can reference these outputs directly without path ambiguity.
 - Handoff status reflects completion and advances `NEXT_TASK.md` again.
 
 ## Verification checklist
@@ -88,3 +96,4 @@ Create a final evidence-and-reproducibility handoff for the completed starter fa
 - Missing or stale artifact references can weaken report traceability.
 - Overstating benchmark conclusions without caveats can create interpretation errors.
 - If any listed artifact is absent, document the gap explicitly before report consumption.
+- Do not delete temporary report workspace files until report content is migrated and temp cleanup criteria are satisfied in `docs/temp/REPORT_DRAFT_CHECKLIST.md`.

@@ -18,6 +18,9 @@ Strict post-matrix repository cleanup and documentation normalization are comple
   - `scripts/_SCRIPT_INDEX.md`
   - `docs/handoff/CURRENT_STATUS.md`
   - `docs/handoff/NEXT_TASK.md`
+- Added temporary report-drafting workspace files:
+  - `docs/temp/report_draft_staging.tex`
+  - `docs/temp/REPORT_DRAFT_CHECKLIST.md`
 
 ## Passing checks
 
@@ -31,6 +34,14 @@ Strict post-matrix repository cleanup and documentation normalization are comple
 - No functional/service behavior changes were made in this cleanup change set.
 - Prior environment constraints remain unchanged:
   - elevated execution may be required for live localhost Docker probing in this remote session.
+
+## Active coordination notes
+
+- Authoritative execution priority remains `docs/handoff/NEXT_TASK.md` (evidence/reproducibility packaging).
+- Temporary report drafting in `docs/temp/` is active but non-authoritative:
+  - checklist: `docs/temp/REPORT_DRAFT_CHECKLIST.md`
+  - staging draft: `docs/temp/report_draft_staging.tex`
+- Report drafting should consume existing benchmark artifacts; no full starter-matrix rerun is expected unless explicitly requested.
 
 ## Next task (single target)
 
@@ -49,3 +60,4 @@ Build final report evidence pack and reproducibility index from completed starte
   - regenerating notebook-driven figures.
 - Document interpretation guardrails for this dataset (scope limits, external validity, and key locked assumptions).
 - Update `README.md`, `docs/_INDEX.md`, and handoff docs in the same change set.
+- Ensure outputs are immediately usable by temp report checklist workflow in `docs/temp/REPORT_DRAFT_CHECKLIST.md`.

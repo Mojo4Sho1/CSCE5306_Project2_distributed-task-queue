@@ -1,0 +1,221 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{setspace}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{siunitx}
+\usepackage{subcaption}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue,
+    urlcolor=blue
+}
+
+\setstretch{1.08}
+
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+
+\title{\textbf{Distributed Task Queue System:\\Design, Implementation, and Evaluation}}
+\author{Joe Caldwell}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section*{Project Artifacts}
+\textbf{Source Code Repository (GitHub/GitLab):} \url{https://github.com/<username>/<repo-name>}\\
+
+\section{Introduction}
+This report presents the design, implementation, and evaluation of a distributed task queue system.
+The project studies trade-offs in communication overhead, scalability, and operational complexity across two distributed designs:
+\begin{enumerate}[label=(\alph*)]
+    \item a microservice architecture that separates functionality into dedicated services, and
+    \item a monolith-per-node architecture where each node colocates most system functionality.
+\end{enumerate}
+Both designs use gRPC-based RPC communication and Dockerized deployment.
+
+\section{System Overview}
+
+\subsection{System Design}
+The system accepts client jobs, schedules work, executes tasks, and returns results.
+In the microservice architecture, the distributed system includes six \emph{functional} containerized nodes:
+\begin{enumerate}
+    \item Gateway Service
+    \item Job Service
+    \item Queue Service
+    \item Coordinator Service
+    \item Worker Service
+    \item Result Service
+\end{enumerate}
+
+\noindent
+The project uses a separate load-generator client for benchmarking.
+The load generator is evaluation tooling and is not counted as one of the six functional system nodes.
+
+\noindent
+\textbf{Architecture figure placeholder:}
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox{0.92\linewidth}{
+    \centering
+    \vspace{1.2cm}
+    Insert architecture diagram here (microservices and data flow).
+    \vspace{1.2cm}
+    }}
+    \caption{Microservice-based task queue architecture.}
+    \label{fig:architecture}
+\end{figure}
+
+\subsection{Communication Model}
+The system uses gRPC for client-service and service-service communication.
+gRPC provides strongly typed interfaces through Protocol Buffers, compact binary serialization, and explicit service contracts.
+This model makes service boundaries clear and supports reproducible latency and throughput measurements.
+
+\subsection{Functional Requirements}
+Table~\ref{tab:functional-requirements} lists the six functional requirements supported by the system.
+
+\begin{table}[H]
+\centering
+\caption{Functional requirements of the distributed task queue system.}
+\label{tab:functional-requirements}
+\begin{tabular}{p{0.12\linewidth} p{0.82\linewidth}}
+\toprule
+\textbf{ID} & \textbf{Requirement} \\
+\midrule
+FR-1 & \textbf{SubmitJob}: The system accepts a job request and returns a unique job identifier. \\
+FR-2 & \textbf{GetJobStatus}: The system returns current job status (queued, running, done, failed, or canceled). \\
+FR-3 & \textbf{GetJobResult}: The system returns job output after completion. \\
+FR-4 & \textbf{CancelJob}: The system supports cancellation for pending jobs and best-effort cancellation for running jobs. \\
+FR-5 & \textbf{ListJobs}: The system lists recent jobs with filtering and pagination support. \\
+FR-6 & \textbf{WorkerHeartbeat/FetchWork}: Workers report liveness and request available work from the system. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Non-Functional Requirements}
+In addition to functional behavior, the system satisfies the following non-functional requirements:
+
+\begin{table}[H]
+\centering
+\caption{Non-functional requirements of the distributed task queue system.}
+\label{tab:nonfunctional-requirements}
+\begin{tabular}{p{0.12\linewidth} p{0.82\linewidth}}
+\toprule
+\textbf{ID} & \textbf{Requirement} \\
+\midrule
+NFR-1 & \textbf{API Contract Consistency}: Both architectures expose equivalent client-facing gRPC APIs and status semantics. \\
+NFR-2 & \textbf{Scalability Testability}: The system supports controlled load tests across multiple concurrency levels without code changes. \\
+NFR-3 & \textbf{Performance Observability}: The evaluation records throughput (requests/sec and jobs/sec), latency percentiles (p50/p95/p99), and end-to-end completion time. \\
+NFR-4 & \textbf{Reproducibility}: A clean environment can reproduce deployment and benchmarking using documented Docker Compose and scripts. \\
+NFR-5 & \textbf{Baseline Fault Handling}: The coordinator tracks worker heartbeats and marks workers unavailable after timeout so queued jobs are not silently lost. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Requirement-to-Service Coverage}
+Table~\ref{tab:fr-service-map} maps each functional requirement to the primary services that implement it.
+
+\begin{table}[H]
+\centering
+\caption{Functional requirement coverage by service.}
+\label{tab:fr-service-map}
+\begin{tabular}{p{0.12\linewidth} p{0.78\linewidth}}
+\toprule
+\textbf{ID} & \textbf{Primary Services} \\
+\midrule
+FR-1 & Gateway, Job, Queue \\
+FR-2 & Gateway, Job, Result \\
+FR-3 & Gateway, Result \\
+FR-4 & Gateway, Job, Queue, Coordinator \\
+FR-5 & Gateway, Job \\
+FR-6 & Coordinator, Worker, Queue \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Evaluation Methodology}
+
+\subsection{Experimental Setup}
+\textbf{Hardware environment:} \todo{CPU, RAM, OS, Docker version}\\
+\textbf{Number of nodes:} 6 functional containerized nodes per design\\
+\textbf{Workload driver:} A separate load-generator client/container issues controlled gRPC requests\\
+\textbf{Workload specification:} \todo{concurrency levels, job-duration levels, request mix, run duration, repetitions}
+
+\subsection{Compared Designs}
+\begin{itemize}
+    \item \textbf{Design A (Microservices):} six dedicated functional services (Gateway, Job, Queue, Coordinator, Worker, Result).
+    \item \textbf{Design B (Monolith-per-node):} six identical nodes, each colocating most functionality in-process while exposing equivalent external APIs.
+\end{itemize}
+
+\noindent
+\textbf{API equivalence constraint:}
+To ensure a fair comparison, both designs expose the same client-facing gRPC API
+(\texttt{SubmitJob}, \texttt{GetJobStatus}, \texttt{GetJobResult}, \texttt{CancelJob}, and \texttt{ListJobs})
+with equivalent request/response schemas and status semantics.
+The experiments use identical load-generation and measurement logic across both designs.
+
+
+\subsection{Metrics}
+\begin{itemize}
+    \item Throughput (requests/sec and jobs/sec)
+    \item Latency (p50, p95, p99 per API)
+    \item End-to-end job completion time (submit-to-done)
+\end{itemize}
+
+\subsection{Fairness Controls}
+To keep the comparison fair, both designs use the same hardware, workload profiles, test durations, and measurement procedures.
+The experiments also use identical client-side measurement logic and warm-up behavior across both designs.
+
+\section{Performance and Scalability Results}
+\textbf{Results figure placeholders:}
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \fbox{\parbox{0.9\linewidth}{\centering Throughput vs. concurrency}}
+        \caption{Throughput scaling}
+        \label{fig:throughput}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \fbox{\parbox{0.9\linewidth}{\centering Latency (p50/p95/p99) vs. concurrency}}
+        \caption{Latency scaling}
+        \label{fig:latency}
+    \end{subfigure}
+    \caption{Primary performance and scalability results.}
+    \label{fig:results}
+\end{figure}
+
+\section{Analysis of System-Design Trade-offs}
+\todo{Analyze where microservices improve modularity and independent scaling and where additional RPC hops and coordination increase latency/complexity. Compare bottlenecks, failure behavior, and operational effort between the two designs.}
+
+\section{Lessons Learned from AI Tool Usage}
+\subsection{How AI Tools Were Used}
+\todo{Document concrete use cases such as API scaffolding, debugging support, benchmark scripting, and technical writing assistance.}
+
+\subsection{Benefits}
+\todo{Summarize iteration-speed improvements, boilerplate reduction, and design-space exploration benefits.}
+
+\subsection{Limitations and Verification}
+\todo{Describe validation steps used to verify generated code/text, including manual checks, test-based confirmation, and reproducibility checks.}
+
+\section{Conclusion}
+This project demonstrates practical trade-offs between service decomposition and function colocation in distributed systems.
+The evaluation provides empirical evidence on throughput, latency, and scalability behavior under controlled workloads.
+
+\end{document}
