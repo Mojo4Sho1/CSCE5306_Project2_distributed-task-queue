@@ -5,56 +5,56 @@
 
 ## Current focus
 
-Starter-matrix evidence packaging and reproducibility handoff are complete.
+Report drafting phases 4-5 are complete in `docs/temp/report_draft_staging.tex` (results section population + trade-off/guardrail analysis).
 
 ## Completed in current focus
 
-- Added canonical benchmark evidence index:
-  - `results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`
-- Added reproducibility runbook for selected A/B rerun + aggregation + notebook refresh:
-  - `docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md`
-- Updated documentation links to evidence/runbook in:
-  - `README.md`
-  - `docs/_INDEX.md`
-  - `docs/temp/REPORT_DRAFT_CHECKLIST.md`
-  - `docs/handoff/CURRENT_STATUS.md`
-  - `docs/handoff/NEXT_TASK.md`
-- Verified primary artifact references required by prior handoff acceptance criteria.
+- Populated `Performance and Scalability Results` with artifact-backed text and a headline aggregate table.
+- Added plot-based interpretation prose tied to canonical plot artifacts:
+  - `results/loadgen/analysis/starter_matrix_2026-02-20/plots/ab_p95_latency_primary_methods.png`
+  - `results/loadgen/analysis/starter_matrix_2026-02-20/plots/ab_terminal_throughput_by_scenario.png`
+- Added explicit traceability for metrics to:
+  - `starter_matrix_summary.md`
+  - `starter_matrix_method_agg.csv`
+  - `starter_matrix_terminal_agg.csv`
+  - `starter_matrix_ab_delta_primary.csv`
+- Replaced Section 5 TODO with concrete system-design trade-off analysis, including:
+  - why Design B likely outperformed in this dataset,
+  - what the evidence does and does not prove,
+  - operational trade-offs and parity caveats.
+- Updated `docs/temp/REPORT_DRAFT_CHECKLIST.md`:
+  - phases 4 and 5 marked complete,
+  - traceability progress updated.
 
 ## Passing checks
 
-- Evidence index exists:
-  - `test -f results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`
-- Starter execution log exists:
-  - `test -f results/loadgen/starter_matrix_execution_2026-02-20.log`
-- Aggregate summary/delta/plot/notebook entrypoints exist:
-  - `test -f results/loadgen/analysis/starter_matrix_2026-02-20/starter_matrix_summary.md`
-  - `test -f results/loadgen/analysis/starter_matrix_2026-02-20/starter_matrix_ab_delta_primary.csv`
-  - `test -f results/loadgen/analysis/starter_matrix_2026-02-20/plots/ab_p95_latency_primary_methods.png`
-  - `test -f notebooks/benchmark_analysis.ipynb`
+- Placeholder replacement remains complete:
+  - `rg -n "<username>|<repo-name>" docs/temp/report_draft_staging.tex` (no matches)
+- Guardrail terms present:
+  - `rg -n "fixed-pacing|external validity|ListJobs|owner routing" docs/temp/report_draft_staging.tex`
+- Remaining TODOs are now limited to AI-tool section work (phase 6+).
 
 ## Known gaps/blockers
 
-- No code/runtime/proto behavior changes were made in this change set.
-- Temporary report draft still contains placeholders and TODO sections pending the next handoff task.
+- AI-tool lessons section remains TODO (phase 6).
+- Reproducibility appendix-style report text remains TODO (phase 7).
+- Optional LaTeX compile/polish pass remains TODO (phase 8).
+- Overleaf image import wiring is intentionally not performed in-repo; only artifact paths and analysis prose are provided.
 
 ## Active coordination notes
 
-- Canonical benchmark evidence entrypoint:
-  - `results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`
-- Canonical reproducibility commands:
-  - `docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md`
-- Temporary report drafting remains non-authoritative but now has direct evidence pointers:
+- The report now contains evidence-backed narrative for methodology, results, and trade-off analysis.
+- Remaining work is primarily author-facing polish and process documentation sections.
+- Temporary drafting workspace remains non-authoritative:
   - `docs/temp/report_draft_staging.tex`
   - `docs/temp/REPORT_DRAFT_CHECKLIST.md`
 
 ## Next task (single target)
 
-Populate the report draft with authoritative architecture/methodology/results content using the new evidence index and reproducibility runbook.
+Complete phases 6-7: fill AI-tool usage/verification lessons and add concise reproducibility appendix text in the draft.
 
 ## Definition of done for next task
 
-- Replace report placeholders with repository-backed content in `docs/temp/report_draft_staging.tex` for core technical sections.
-- Add benchmark figures/tables and numeric claims traceable to starter-matrix artifacts.
-- Ensure fairness guardrails and parity assumptions are explicitly included in report methodology and results interpretation.
-- Reduce unresolved placeholders/TODOs to only intentionally deferred sections (if any), with clear rationale.
+- Replace all TODOs in `Lessons Learned from AI Tool Usage` with concrete, project-specific content.
+- Add a short reproducibility appendix-style subsection in the draft (or equivalent section content) with the key command flow and artifact pointers.
+- Ensure all remaining TODO markers are either removed or intentionally deferred only for final compile/polish.

@@ -36,22 +36,25 @@
 \maketitle
 
 \section*{Project Artifacts}
-\textbf{Source Code Repository (GitHub/GitLab):} \url{https://github.com/<username>/<repo-name>}\\
+\textbf{Source Code Repository (GitHub):} \url{https://github.com/Mojo4Sho1/CSCE5306_Project2_distributed-task-queue}\\
+\textbf{Documentation index:} \texttt{docs/\_INDEX.md}\\
+\textbf{Benchmark evidence index:} \texttt{results/loadgen/analysis/starter\_matrix\_2026-02-20/EVIDENCE\_INDEX.md}\\
+\textbf{Reproducibility runbook:} \texttt{docs/handoff/STARTER\_MATRIX\_REPRODUCIBILITY.md}
 
 \section{Introduction}
 This report presents the design, implementation, and evaluation of a distributed task queue system.
-The project studies trade-offs in communication overhead, scalability, and operational complexity across two distributed designs:
+The project studies trade-offs in communication overhead, scalability, and operational complexity across two distributed designs under a shared client-facing API contract and locked fairness controls:
 \begin{enumerate}[label=(\alph*)]
     \item a microservice architecture that separates functionality into dedicated services, and
     \item a monolith-per-node architecture where each node colocates most system functionality.
 \end{enumerate}
-Both designs use gRPC-based RPC communication and Dockerized deployment.
+Both designs use gRPC and Protocol Buffers, run with in-memory storage, and target at-least-once execution semantics with best-effort, non-preemptive running cancellation in v1.
 
 \section{System Overview}
 
 \subsection{System Design}
 The system accepts client jobs, schedules work, executes tasks, and returns results.
-In the microservice architecture, the distributed system includes six \emph{functional} containerized nodes:
+In Design A (microservices), the distributed system includes six \emph{functional} containerized nodes:
 \begin{enumerate}
     \item Gateway Service
     \item Job Service
@@ -62,8 +65,11 @@ In the microservice architecture, the distributed system includes six \emph{func
 \end{enumerate}
 
 \noindent
-The project uses a separate load-generator client for benchmarking.
-The load generator is evaluation tooling and is not counted as one of the six functional system nodes.
+Design B uses six identical monolith nodes where each node hosts the public API service and internal job/queue/coordinator/result services in one process.
+For parity, both designs expose the same public API methods: \texttt{SubmitJob}, \texttt{GetJobStatus}, \texttt{GetJobResult}, \texttt{CancelJob}, and \texttt{ListJobs}.
+
+\noindent
+The load generator is separate benchmarking tooling and is not counted as a functional node in either design.
 
 \noindent
 \textbf{Architecture figure placeholder:}
@@ -80,9 +86,9 @@ The load generator is evaluation tooling and is not counted as one of the six fu
 \end{figure}
 
 \subsection{Communication Model}
-The system uses gRPC for client-service and service-service communication.
-gRPC provides strongly typed interfaces through Protocol Buffers, compact binary serialization, and explicit service contracts.
-This model makes service boundaries clear and supports reproducible latency and throughput measurements.
+The communication model is defined by two protobuf namespaces: public \texttt{taskqueue.v1} and internal \texttt{taskqueue.internal.v1}.
+The public service is \texttt{TaskQueuePublicService}; in Design A, internal service boundaries are formalized as \texttt{JobInternalService}, \texttt{QueueInternalService}, \texttt{CoordinatorInternalService}, and \texttt{ResultInternalService}.
+gRPC provides explicit request/response schemas, stable method names, and compact binary serialization, which keeps client-visible semantics consistent while allowing different internal topologies across Design A and Design B.
 
 \subsection{Functional Requirements}
 Table~\ref{tab:functional-requirements} lists the six functional requirements supported by the system.
@@ -104,6 +110,8 @@ FR-6 & \textbf{WorkerHeartbeat/FetchWork}: Workers report liveness and request a
 \bottomrule
 \end{tabular}
 \end{table}
+\noindent
+FR-6 is an internal control-plane requirement (coordinator/worker path in Design A) and is not part of the client-facing equivalence surface used for strict A/B semantic parity.
 
 \subsection{Non-Functional Requirements}
 In addition to functional behavior, the system satisfies the following non-functional requirements:
@@ -121,6 +129,7 @@ NFR-2 & \textbf{Scalability Testability}: The system supports controlled load te
 NFR-3 & \textbf{Performance Observability}: The evaluation records throughput (requests/sec and jobs/sec), latency percentiles (p50/p95/p99), and end-to-end completion time. \\
 NFR-4 & \textbf{Reproducibility}: A clean environment can reproduce deployment and benchmarking using documented Docker Compose and scripts. \\
 NFR-5 & \textbf{Baseline Fault Handling}: The coordinator tracks worker heartbeats and marks workers unavailable after timeout so queued jobs are not silently lost. \\
+NFR-6 & \textbf{Capacity Fairness}: Both designs run with the same total worker-slot budget during comparisons. \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -139,7 +148,7 @@ Table~\ref{tab:fr-service-map} maps each functional requirement to the primary s
 \midrule
 FR-1 & Gateway, Job, Queue \\
 FR-2 & Gateway, Job, Result \\
-FR-3 & Gateway, Result \\
+FR-3 & Gateway, Result (canonical readiness resolved via Job status) \\
 FR-4 & Gateway, Job, Queue, Coordinator \\
 FR-5 & Gateway, Job \\
 FR-6 & Coordinator, Worker, Queue \\
@@ -150,59 +159,121 @@ FR-6 & Coordinator, Worker, Queue \\
 \section{Evaluation Methodology}
 
 \subsection{Experimental Setup}
-\textbf{Hardware environment:} \todo{CPU, RAM, OS, Docker version}\\
+\textbf{Hardware environment:} local host environment used for the 2026-02-20 starter-matrix executions; this draft intentionally treats hardware/software version capture as limited unless explicitly available in execution logs.\\
 \textbf{Number of nodes:} 6 functional containerized nodes per design\\
-\textbf{Workload driver:} A separate load-generator client/container issues controlled gRPC requests\\
-\textbf{Workload specification:} \todo{concurrency levels, job-duration levels, request mix, run duration, repetitions}
+\textbf{Workload driver:} a separate load-generator client issues controlled gRPC traffic and writes per-run artifacts under \texttt{results/loadgen/<scenario\_id>/<run\_id>/}.\\
+\textbf{Starter workload specification (locked baseline):}
+\begin{itemize}
+    \item load levels: low (\texttt{concurrency=6}, \texttt{request\_rate\_rps=5}), medium (\texttt{24}, \texttt{20}), high (\texttt{48}, \texttt{40});
+    \item request-mix profiles: \texttt{submit\_heavy}, \texttt{poll\_heavy}, and \texttt{balanced};
+    \item timing windows: \texttt{warmup\_seconds=15}, \texttt{measure\_seconds=60}, \texttt{cooldown\_seconds=15};
+    \item primary starter parity policy: \texttt{ListJobs=0\%}.
+\end{itemize}
 
 \subsection{Compared Designs}
 \begin{itemize}
-    \item \textbf{Design A (Microservices):} six dedicated functional services (Gateway, Job, Queue, Coordinator, Worker, Result).
-    \item \textbf{Design B (Monolith-per-node):} six identical nodes, each colocating most functionality in-process while exposing equivalent external APIs.
+    \item \textbf{Design A (Microservices):} six dedicated functional services (Gateway, Job, Queue, Coordinator, Worker, Result) with public ingress through Gateway.
+    \item \textbf{Design B (Monolith-per-node):} six identical nodes, each colocating public and internal services in-process with per-node in-memory state.
 \end{itemize}
 
 \noindent
-\textbf{API equivalence constraint:}
-To ensure a fair comparison, both designs expose the same client-facing gRPC API
-(\texttt{SubmitJob}, \texttt{GetJobStatus}, \texttt{GetJobResult}, \texttt{CancelJob}, and \texttt{ListJobs})
-with equivalent request/response schemas and status semantics.
-The experiments use identical load-generation and measurement logic across both designs.
+\textbf{API equivalence and parity scope:}
+Both designs expose the same client-facing gRPC methods with equivalent schema-level contracts:
+\texttt{SubmitJob}, \texttt{GetJobStatus}, \texttt{GetJobResult}, \texttt{CancelJob}, and \texttt{ListJobs}.
+Primary parity conclusions in v1 are restricted to \texttt{SubmitJob}, \texttt{GetJobStatus}, \texttt{GetJobResult}, and \texttt{CancelJob}; \texttt{ListJobs} is reported as secondary due to Design B v1 non-global best-effort scope.
 
 
 \subsection{Metrics}
 \begin{itemize}
-    \item Throughput (requests/sec and jobs/sec)
-    \item Latency (p50, p95, p99 per API)
-    \item End-to-end job completion time (submit-to-done)
+    \item RPC throughput: completed successful RPCs per second, by method.
+    \item Job throughput: terminal jobs/sec (\texttt{DONE}, \texttt{FAILED}, \texttt{CANCELED}).
+    \item Latency percentiles: p50/p95/p99 by method, measured client-side from request send to response receipt.
+    \item End-to-end completion time: \texttt{submit\_to\_done\_ms = terminal\_timestamp\_ms - accepted\_at\_ms}.
 \end{itemize}
 
 \subsection{Fairness Controls}
-To keep the comparison fair, both designs use the same hardware, workload profiles, test durations, and measurement procedures.
-The experiments also use identical client-side measurement logic and warm-up behavior across both designs.
+The benchmark fairness contract is locked by \texttt{docs/spec/fairness-evaluation.md}. The key controls used for this report are:
+\begin{itemize}
+    \item \textbf{Capacity parity:} \texttt{TOTAL\_WORKER\_SLOTS=6} for both designs (Design A: 1 worker container x 6 slots; Design B: 6 monolith nodes x 1 slot).
+    \item \textbf{Ingress parity:} Design A client load enters Gateway only; Design B uses deterministic routing policy with round-robin for empty \texttt{client\_request\_id} submit traffic and key-based owner routing for non-empty keys.
+    \item \textbf{State-coherence routing in Design B:} \texttt{GetJobStatus}, \texttt{GetJobResult}, and \texttt{CancelJob} are routed by \texttt{job\_id}; monolith nodes do not forward job-scoped requests in v1.
+    \item \textbf{Measurement parity:} same hardware class, workload matrix, warm-up/cooldown policy, run duration, and client-side measurement implementation across both designs.
+    \item \textbf{Run protocol:} fixed environment setup, warm-up, steady-state measurement window, cooldown, and repeated runs with fixed seeds/deadlines.
+\end{itemize}
+\noindent
+Reproducibility commands for a minimal A/B rerun, aggregation rerun, and notebook refresh are documented in \texttt{docs/handoff/STARTER\_MATRIX\_REPRODUCIBILITY.md}.
 
 \section{Performance and Scalability Results}
-\textbf{Results figure placeholders:}
-\begin{figure}[H]
-    \centering
-    \begin{subfigure}[b]{0.48\linewidth}
-        \centering
-        \fbox{\parbox{0.9\linewidth}{\centering Throughput vs. concurrency}}
-        \caption{Throughput scaling}
-        \label{fig:throughput}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.48\linewidth}
-        \centering
-        \fbox{\parbox{0.9\linewidth}{\centering Latency (p50/p95/p99) vs. concurrency}}
-        \caption{Latency scaling}
-        \label{fig:latency}
-    \end{subfigure}
-    \caption{Primary performance and scalability results.}
-    \label{fig:results}
-\end{figure}
+\subsection{Aggregate Starter-Matrix Signals}
+The completed starter matrix contains 27 run IDs per design (54 total runs), as summarized in \texttt{results/loadgen/analysis/starter\_matrix\_2026-02-20/starter\_matrix\_summary.md}.
+Across the primary parity methods (\texttt{SubmitJob}, \texttt{GetJobStatus}, \texttt{GetJobResult}, \texttt{CancelJob}), mean throughput is matched between designs under fixed pacing, while p95 latency is lower for Design B in most medium/high-load scenarios.
+
+\begin{table}[H]
+\centering
+\caption{Headline aggregate comparison from starter-matrix summary artifacts.}
+\label{tab:headline-aggregate}
+\begin{tabular}{p{0.34\linewidth} p{0.26\linewidth} p{0.26\linewidth}}
+\toprule
+\textbf{Metric} & \textbf{Design A} & \textbf{Design B} \\
+\midrule
+Run coverage (starter matrix) & 27 runs & 27 runs \\
+Global mean p95 across primary methods & 33.615 ms & 24.808 ms \\
+Global mean terminal throughput & 2.470988 jobs/s & 5.343827 jobs/s \\
+Terminal throughput coefficient of variation & 0.241133 & 0.021774 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Plot-Based Interpretation}
+Two canonical plots were generated from aggregate CSV outputs:
+\begin{itemize}
+    \item p95 latency by primary method: \texttt{results/loadgen/analysis/starter\_matrix\_2026-02-20/plots/ab\_p95\_latency\_primary\_methods.png}
+    \item terminal throughput by scenario: \texttt{results/loadgen/analysis/starter\_matrix\_2026-02-20/plots/ab\_terminal\_throughput\_by\_scenario.png}
+\end{itemize}
+
+The latency plot trend is consistent with the delta table in \texttt{starter\_matrix\_ab\_delta\_primary.csv}: the mean p95 latency delta across primary method-scenario rows is \texttt{-8.807 ms} (\texttt{B - A}), indicating lower tail latency for Design B overall.
+At low load, latency differences are mixed (for example, \texttt{s\_low\_submit\_heavy} shows slight A advantage), but as load increases, Design B shows persistent p95 improvements, especially on \texttt{SubmitJob}/\texttt{GetJobStatus}.
+
+The terminal-throughput plot shows the largest divergence in medium/high submit-heavy and high balanced scenarios.
+For example, from \texttt{starter\_matrix\_terminal\_agg.csv}: \texttt{high\_submit\_heavy} is \texttt{3.00 jobs/s} (A) vs \texttt{11.105556 jobs/s} (B), and \texttt{high\_balanced} is \texttt{3.866666 jobs/s} (A) vs \texttt{11.494445 jobs/s} (B).
+At low-load scenarios, both designs are close (around \texttt{0.86--1.43 jobs/s}), which suggests separation appears primarily when sustained offered load increases.
+
+\subsection{Result-Scope Notes}
+All numeric values in this section are traceable to:
+\begin{itemize}
+    \item \texttt{starter\_matrix\_summary.md}
+    \item \texttt{starter\_matrix\_method\_agg.csv}
+    \item \texttt{starter\_matrix\_terminal\_agg.csv}
+    \item \texttt{starter\_matrix\_ab\_delta\_primary.csv}
+\end{itemize}
 
 \section{Analysis of System-Design Trade-offs}
-\todo{Analyze where microservices improve modularity and independent scaling and where additional RPC hops and coordination increase latency/complexity. Compare bottlenecks, failure behavior, and operational effort between the two designs.}
+The benchmark data in this repository supports the conclusion that the monolith-per-node baseline (Design B) performed better than the microservice baseline (Design A) for this v1 configuration, particularly under medium/high sustained load.
+That interpretation is consistent with your intuition: both designs were run with equal worker-slot capacity (\texttt{TOTAL\_WORKER\_SLOTS=6}), but the microservice topology introduces additional networked service boundaries (Gateway, Job, Queue, Coordinator, Result) that can add queueing and coordination overhead under pressure.
+
+\subsection{Why Design B likely won in this dataset}
+\begin{itemize}
+    \item \textbf{Fewer cross-process hops per request path:} In Design B, public and internal services are colocated in each monolith process, which likely reduces internal RPC path length and scheduling overhead.
+    \item \textbf{Lower tail latency under load:} Aggregate p95 values are lower for Design B across primary methods (global mean delta \texttt{-8.807 ms} for \texttt{B - A}), and this gap grows in higher-load scenarios.
+    \item \textbf{Higher and more stable terminal throughput:} Design B's global mean terminal throughput is about \texttt{2.16x} Design A (\texttt{5.343827} vs \texttt{2.470988} jobs/s), with lower relative variability (CV \texttt{0.021774} vs \texttt{0.241133}).
+\end{itemize}
+
+\subsection{What this does \emph{not} prove}
+\begin{itemize}
+    \item It does not prove microservices are universally slower; it shows performance in this specific implementation and environment.
+    \item It does not isolate root cause to one service bottleneck without deeper per-service profiling (CPU, queue depth, RPC hop timing, lock contention).
+    \item It does not provide unlimited external generalization; external validity is bounded because this is fixed-pacing, environment-specific evidence.
+\end{itemize}
+
+\subsection{Operational trade-off perspective}
+\begin{itemize}
+    \item \textbf{Design A strengths:} cleaner ownership boundaries, easier service-level isolation, clearer mutation authority by domain.
+    \item \textbf{Design A costs in this run:} more distributed coordination and potential pipeline saturation points as offered load rises.
+    \item \textbf{Design B strengths:} simpler deployment shape and lower coordination overhead per request path in the tested baseline.
+    \item \textbf{Design B caveats:} correctness depends on deterministic owner routing in v1; some operations such as \texttt{ListJobs} are explicitly treated as secondary parity scope.
+\end{itemize}
+
+Overall, for this project's locked v1 benchmark setup, Design B delivered better latency/throughput behavior while Design A retains architectural modularity advantages that may matter for evolvability and isolation goals beyond raw benchmark throughput.
 
 \section{Lessons Learned from AI Tool Usage}
 \subsection{How AI Tools Were Used}

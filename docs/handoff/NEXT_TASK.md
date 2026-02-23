@@ -5,83 +5,74 @@
 
 ## Task summary
 
-Populate `docs/temp/report_draft_staging.tex` with authoritative, traceable technical content (architecture, methodology, and benchmark results) using the completed starter-matrix evidence package.
+Complete report drafting phases 6-7 in `docs/temp/report_draft_staging.tex`: fill AI-tool usage lessons and add concise reproducibility appendix-style content for final report migration.
 
 ## Why this task is next
 
-- Benchmark evidence packaging and reproducibility documentation are complete.
-- Remaining high-value milestone work is turning existing validated artifacts into a near-final report draft.
-- No additional benchmark execution is required to complete the core report narrative.
+- Phases 1-5 are complete (metadata, architecture/API/requirements, methodology/fairness, results, and trade-off analysis).
+- Remaining substantive content gaps are in AI-tool reflection and reproducibility appendix coverage.
+- These sections can be completed entirely from existing repo workflow/history and handoff docs.
 
 ## Scope (in)
 
-- Replace report placeholders for:
-  - repository metadata and artifact references,
-  - system architecture + communication model summary,
-  - functional/non-functional requirement tables (aligned to spec wording),
-  - evaluation methodology and fairness controls.
-- Insert benchmark-backed results content from:
-  - `results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`
-  - `results/loadgen/analysis/starter_matrix_2026-02-20/starter_matrix_summary.md`
-  - `results/loadgen/analysis/starter_matrix_2026-02-20/starter_matrix_method_agg.csv`
-  - `results/loadgen/analysis/starter_matrix_2026-02-20/starter_matrix_terminal_agg.csv`
-  - `results/loadgen/analysis/starter_matrix_2026-02-20/starter_matrix_ab_delta_primary.csv`
-- Add explicit interpretation guardrails in report prose:
-  - fixed-pacing throughput caveat,
-  - environment-bounded external validity,
-  - locked parity assumptions from fairness spec.
-- Keep `docs/temp/REPORT_DRAFT_CHECKLIST.md` synchronized as progress is made.
+- Phase 6:
+  - Replace all TODOs under `Lessons Learned from AI Tool Usage` with concrete, project-specific content:
+    - how AI tooling was used,
+    - concrete benefits,
+    - limitations and validation safeguards.
+- Phase 7:
+  - Add concise reproducibility appendix-style content in the draft using:
+    - `docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md`
+    - `results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`
+  - Include minimal command flow and artifact-location references suitable for report readers.
+- Keep `docs/temp/REPORT_DRAFT_CHECKLIST.md` synchronized.
 
 ## Scope (out)
 
-- New benchmark scenario authoring or full starter-matrix reruns.
-- Service/proto/runtime behavior changes.
-- Final temp-file deletion/cleanup (defer until report migration is complete).
+- Phase 8 LaTeX compile/polish pass (unless needed for quick syntax sanity checks only).
+- New benchmark execution, scenario authoring, or code/runtime behavior changes.
+- Temp-file cleanup/deletion.
 
 ## Dependencies / prerequisites
 
-- Evidence index:
-  - `results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`
-- Reproducibility runbook:
-  - `docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md`
-- Report draft workspace:
+- Draft and checklist:
   - `docs/temp/report_draft_staging.tex`
   - `docs/temp/REPORT_DRAFT_CHECKLIST.md`
-- Authoritative specs/proto:
-  - `docs/spec/*.md`
-  - `proto/*.proto`
+- Reproducibility authority:
+  - `docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md`
+- Evidence authority:
+  - `results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`
+- Methodology/fairness authority:
+  - `docs/spec/fairness-evaluation.md`
 
 ## Implementation notes
 
-- Keep claims traceable to concrete artifact files/paths.
-- Preserve temporary-draft status of `docs/temp/` files.
-- Prefer incremental checklist-driven completion (phases 1-5 first, then remaining phases).
+- Keep claims concrete and auditably tied to repository workflows/artifacts.
+- Avoid generic AI-tool commentary; use actual project examples.
+- Keep appendix commands concise and copy-paste runnable.
 
 ## Subtasks
 
-- [ ] Phase 1-2: replace placeholders + fill architecture/API/requirements sections in `report_draft_staging.tex`.
-- [ ] Phase 3: fill methodology/fairness controls with locked wording from `docs/spec/fairness-evaluation.md`.
-- [ ] Phase 4-5: insert real results figures/tables and interpretation guardrails using evidence index artifacts.
-- [ ] Update `docs/temp/REPORT_DRAFT_CHECKLIST.md` progress markers as each phase completes.
-- [ ] Run placeholder/traceability checks and document any intentionally deferred sections.
+- [ ] Phase 6: replace AI-tool section TODOs with project-specific narrative and validation safeguards.
+- [ ] Phase 7: add reproducibility appendix-style content with key command flow and artifact pointers.
+- [ ] Update `docs/temp/REPORT_DRAFT_CHECKLIST.md` phases 6-7 markers.
+- [ ] Run residual TODO scan and ensure only intentionally deferred phase-8 polish items remain.
 
 ## Acceptance criteria (definition of done)
 
-- Report draft includes concrete repository metadata and no `<username>/<repo-name>` placeholders.
-- Core technical sections (system design, communication model, requirements, methodology, results) are populated with authoritative content.
-- All numeric claims and figures in populated sections are traceable to `results/loadgen/analysis/starter_matrix_2026-02-20/` artifacts.
-- Guardrails and parity assumptions are explicit in methodology/results interpretation.
-- Checklist reflects completed phases and remaining deferred work clearly.
+- No TODO placeholders remain in the AI-tool section.
+- Draft includes clear reproducibility command/artifact pointers aligned with existing runbook/evidence docs.
+- Checklist reflects completion of phases 6-7.
+- Remaining deferred work is limited to final compile/polish and migration mechanics.
 
 ## Verification checklist
 
-- [ ] `rg -n "<username>|<repo-name>" docs/temp/report_draft_staging.tex` returns no matches.
-- [ ] `rg -n "TODO|todo" docs/temp/report_draft_staging.tex` returns only intentionally deferred sections.
-- [ ] `rg -n "EVIDENCE_INDEX|starter_matrix_2026-02-20|STARTER_MATRIX_REPRODUCIBILITY" docs/temp/report_draft_staging.tex docs/temp/REPORT_DRAFT_CHECKLIST.md`
-- [ ] `rg -n "fixed-pacing|external validity|ListJobs|owner routing" docs/temp/report_draft_staging.tex`
+- [ ] `rg -n "TODO|todo" docs/temp/report_draft_staging.tex` shows no unresolved TODOs in phases 6-7 sections.
+- [ ] `rg -n "STARTER_MATRIX_REPRODUCIBILITY|EVIDENCE_INDEX|reproduc" docs/temp/report_draft_staging.tex`
+- [ ] `rg -n "Phase 6|Phase 7" docs/temp/REPORT_DRAFT_CHECKLIST.md`
 
 ## Risks / rollback notes
 
-- Untraceable numeric claims can weaken report credibility and should be removed or explicitly marked provisional.
-- Overstating external generalization beyond this environment can misrepresent evidence strength.
-- If conflicts appear between draft prose and authoritative specs/proto, update draft prose (not specs) and document the correction.
+- Generic AI prose without concrete project examples weakens report credibility.
+- Reproducibility text that diverges from runbook commands can create operator confusion.
+- If section length grows too much, keep concise in main body and move extra detail to appendix later.
