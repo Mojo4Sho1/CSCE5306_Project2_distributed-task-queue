@@ -5,59 +5,56 @@
 
 ## Current focus
 
-Strict post-matrix repository cleanup and documentation normalization are complete.
+Starter-matrix evidence packaging and reproducibility handoff are complete.
 
 ## Completed in current focus
 
-- Removed all deprecated top-level script wrappers and legacy smoke helpers listed in the prior handoff task.
-- Removed the temporary pre-loadgen readiness planning document from `docs/temp/`.
-- Updated `environment.yml` so conda env `grpc` includes `matplotlib` and `pandas` for notebook/plot workflows.
-- Updated documentation to canonical-only paths:
+- Added canonical benchmark evidence index:
+  - `results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`
+- Added reproducibility runbook for selected A/B rerun + aggregation + notebook refresh:
+  - `docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md`
+- Updated documentation links to evidence/runbook in:
   - `README.md`
   - `docs/_INDEX.md`
-  - `scripts/_SCRIPT_INDEX.md`
+  - `docs/temp/REPORT_DRAFT_CHECKLIST.md`
   - `docs/handoff/CURRENT_STATUS.md`
   - `docs/handoff/NEXT_TASK.md`
-- Added temporary report-drafting workspace files:
-  - `docs/temp/report_draft_staging.tex`
-  - `docs/temp/REPORT_DRAFT_CHECKLIST.md`
+- Verified primary artifact references required by prior handoff acceptance criteria.
 
 ## Passing checks
 
-- Script inventory confirms canonical structure only:
-  - `rg --files scripts | sort`
-- Temp readiness artifact removed:
-  - `rg --files docs/temp` (no output)
+- Evidence index exists:
+  - `test -f results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`
+- Starter execution log exists:
+  - `test -f results/loadgen/starter_matrix_execution_2026-02-20.log`
+- Aggregate summary/delta/plot/notebook entrypoints exist:
+  - `test -f results/loadgen/analysis/starter_matrix_2026-02-20/starter_matrix_summary.md`
+  - `test -f results/loadgen/analysis/starter_matrix_2026-02-20/starter_matrix_ab_delta_primary.csv`
+  - `test -f results/loadgen/analysis/starter_matrix_2026-02-20/plots/ab_p95_latency_primary_methods.png`
+  - `test -f notebooks/benchmark_analysis.ipynb`
 
 ## Known gaps/blockers
 
-- No functional/service behavior changes were made in this cleanup change set.
-- Prior environment constraints remain unchanged:
-  - elevated execution may be required for live localhost Docker probing in this remote session.
+- No code/runtime/proto behavior changes were made in this change set.
+- Temporary report draft still contains placeholders and TODO sections pending the next handoff task.
 
 ## Active coordination notes
 
-- Authoritative execution priority remains `docs/handoff/NEXT_TASK.md` (evidence/reproducibility packaging).
-- Temporary report drafting in `docs/temp/` is active but non-authoritative:
-  - checklist: `docs/temp/REPORT_DRAFT_CHECKLIST.md`
-  - staging draft: `docs/temp/report_draft_staging.tex`
-- Report drafting should consume existing benchmark artifacts; no full starter-matrix rerun is expected unless explicitly requested.
+- Canonical benchmark evidence entrypoint:
+  - `results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`
+- Canonical reproducibility commands:
+  - `docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md`
+- Temporary report drafting remains non-authoritative but now has direct evidence pointers:
+  - `docs/temp/report_draft_staging.tex`
+  - `docs/temp/REPORT_DRAFT_CHECKLIST.md`
 
 ## Next task (single target)
 
-Build final report evidence pack and reproducibility index from completed starter-matrix outputs.
+Populate the report draft with authoritative architecture/methodology/results content using the new evidence index and reproducibility runbook.
 
 ## Definition of done for next task
 
-- Produce a single canonical evidence index under `results/loadgen/analysis/starter_matrix_2026-02-20/` linking:
-  - run logs,
-  - aggregated CSVs,
-  - plots,
-  - notebook entrypoint.
-- Add a concise reproducibility runbook in docs for:
-  - rerunning a selected A/B scenario pair,
-  - rerunning aggregation,
-  - regenerating notebook-driven figures.
-- Document interpretation guardrails for this dataset (scope limits, external validity, and key locked assumptions).
-- Update `README.md`, `docs/_INDEX.md`, and handoff docs in the same change set.
-- Ensure outputs are immediately usable by temp report checklist workflow in `docs/temp/REPORT_DRAFT_CHECKLIST.md`.
+- Replace report placeholders with repository-backed content in `docs/temp/report_draft_staging.tex` for core technical sections.
+- Add benchmark figures/tables and numeric claims traceable to starter-matrix artifacts.
+- Ensure fairness guardrails and parity assumptions are explicitly included in report methodology and results interpretation.
+- Reduce unresolved placeholders/TODOs to only intentionally deferred sections (if any), with clear rationale.

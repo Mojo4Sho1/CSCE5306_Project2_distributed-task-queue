@@ -18,9 +18,9 @@ Purpose: drive completion of `docs/temp/report_draft_staging.tex` using reposito
 | Communication Model | `proto/taskqueue_public.proto`, `proto/taskqueue_internal.proto`, `docs/spec/api-contracts.md` | API contract summary with method-level semantics |
 | Functional + NFR tables | `docs/spec/requirements.md`, `docs/spec/constants.md` | lock wording to current FR/NFR language |
 | Requirement-to-Service mapping | `docs/spec/architecture.md`, `docs/spec/api-contracts.md` | verify each FR maps to authoritative service ownership |
-| Evaluation Methodology | `docs/spec/fairness-evaluation.md`, `docs/spec/constants.md` | fairness controls, workload matrix, fixed assumptions |
+| Evaluation Methodology | `docs/spec/fairness-evaluation.md`, `docs/spec/constants.md`, `docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md` | fairness controls, workload matrix, fixed assumptions, reproducibility command set |
 | Experimental setup values | `results/loadgen/starter_matrix_execution_2026-02-20.log`, local host notes | CPU/RAM/OS/docker versions if captured; else clearly mark as limited/observed |
-| Results + figures | `results/loadgen/analysis/starter_matrix_2026-02-20/starter_matrix_summary.md`, `starter_matrix_method_agg.csv`, `starter_matrix_terminal_agg.csv`, `starter_matrix_ab_delta_primary.csv`, `plots/*.png` | populate findings, tables, and figure captions with actual numbers |
+| Results + figures | `results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`, `starter_matrix_summary.md`, `starter_matrix_method_agg.csv`, `starter_matrix_terminal_agg.csv`, `starter_matrix_ab_delta_primary.csv`, `plots/*.png` | populate findings, tables, and figure captions with actual numbers and traceable artifact pointers |
 | Trade-off analysis | `docs/spec/architecture.md`, aggregated results files | interpret latency/throughput/operational complexity differences |
 | AI tool usage | commit/history notes + your workflow notes | concrete usage, benefits, validation safeguards |
 | Conclusion | all above | concise claim set with limitations |
@@ -63,4 +63,3 @@ Use this when report content is finalized and migrated to your authoritative des
 - [ ] Remove the temp directory if empty:
   - `rmdir docs/temp`
 - [ ] Optional doc hygiene check: ensure no docs still reference temp draft paths unless intentionally retained.
-

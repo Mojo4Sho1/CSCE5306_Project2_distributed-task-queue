@@ -18,6 +18,10 @@ Read `docs/_INDEX.md` first for:
 
 Benchmark analysis notebook:
 - `notebooks/benchmark_analysis.ipynb` (loadgen artifact analysis + plot scaffold)
+- Starter-matrix evidence index:
+  - `results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`
+- Starter-matrix reproducibility runbook:
+  - `docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md`
 
 ## Project Scope (v1 Snapshot)
 
@@ -296,6 +300,10 @@ Aggregate starter-matrix artifacts (tables + plots):
 ```bash
 conda run -n grpc python scripts/loadgen/aggregate_starter_matrix.py --results-root results/loadgen --output-dir results/loadgen/analysis/starter_matrix_2026-02-20
 ```
+
+Canonical evidence packaging for this completed dataset:
+- `results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`
+- `docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md`
 
 Artifacts are written per run under:
 - `results/loadgen/<scenario_id>/<run_id>/rows.jsonl`

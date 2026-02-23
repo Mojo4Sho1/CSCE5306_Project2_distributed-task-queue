@@ -77,6 +77,17 @@ If two sources conflict, use this precedence:
   - immediate next target.
 - **`docs/handoff/NEXT_TASK.md`**  
   Exact next implementation task and acceptance criteria.
+- **`docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md`**  
+  Minimal rerun/aggregation/notebook workflow for starter-matrix reproducibility.
+
+## Benchmark Evidence (Completed Starter Matrix)
+- **`results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`**  
+  Canonical index for starter-matrix artifacts:
+  - execution log pointer,
+  - per-run artifact locations,
+  - aggregate CSV tables,
+  - primary plots,
+  - interpretation guardrails.
 
 ## Temporary Planning
 - **`docs/temp/`**  
@@ -163,6 +174,8 @@ Use these docs as source material for final deliverables:
 - **Communication model + API:** `docs/spec/api-contracts.md` + `proto/*`
 - **Evaluation methodology:** `docs/spec/fairness-evaluation.md`
 - **Performance/scalability analysis:** `results/` + report figures
+- **Starter matrix evidence package:** `results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`
+- **Starter matrix reproducibility commands:** `docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md`
 - **AI-tool lessons learned:** add notes during implementation and summarize in final report
 
 ---
