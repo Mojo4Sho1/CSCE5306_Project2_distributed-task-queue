@@ -66,7 +66,7 @@ If two sources conflict, use this precedence:
 - **`tests/_TEST_INDEX.md`**  
   Test taxonomy and canonical validation command matrix.
 - **`scripts/_SCRIPT_INDEX.md`**  
-  Script taxonomy and purpose map (manual/dev utilities plus compatibility wrappers).
+  Script taxonomy and purpose map for canonical manual/dev/loadgen tooling.
 
 ## Handoff
 - **`docs/handoff/CURRENT_STATUS.md`**  
@@ -80,8 +80,8 @@ If two sources conflict, use this precedence:
 
 ## Temporary Planning
 - **`docs/temp/`**  
-  Temporary planning/checklist artifacts used during active implementation transitions (for example pre-loadgen readiness tracking).  
-  Files in this directory are non-authoritative and should be removed once their trigger conditions are satisfied.
+  Optional non-authoritative planning/checklist artifacts used during active implementation transitions.  
+  This directory may be empty between milestones; any files added here should be removed once their trigger conditions are satisfied.
 
 ## Spec (authoritative v1 semantics)
 - **`docs/spec/architecture.md`**  

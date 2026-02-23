@@ -1,80 +1,90 @@
 # Next Task
 
-**Last updated:** 2026-02-20  
+**Last updated:** 2026-02-23  
 **Owner:** Joe + Codex
 
 ## Task summary
 
-Perform strict post-matrix cleanup by removing legacy/deprecated script entrypoints and the temporary pre-loadgen planning doc, then sync all affected documentation in the same change set.
+Create a final evidence-and-reproducibility handoff for the completed starter fairness matrix so report writing can proceed from one canonical source of truth.
 
 ## Why this task is next
 
-- Full starter fairness matrix execution and aggregation are complete as of 2026-02-20.
-- Remaining work is repository hygiene and documentation normalization before final report packaging.
-- Decision lock from prior handoff explicitly required cleanup as a separate follow-on task.
+- Starter-matrix execution and aggregation are complete.
+- Post-matrix cleanup is complete and canonical paths are now normalized.
+- Remaining milestone work is packaging benchmark evidence and rerun instructions for report/presentation use.
 
 ## Scope (in)
 
-- Remove legacy script directory:
-  - `scripts/legacy_smoke/`
-- Remove deprecated top-level compatibility wrappers:
-  - `scripts/smoke_*_behavior.py`
-  - `scripts/smoke_*_skeleton.py`
-  - `scripts/smoke_live_stack.py`
-  - `scripts/smoke_integration_terminal_path.py`
-  - `scripts/smoke_integration_failure_path.py`
-  - `scripts/manual_gateway_client.py`
-  - `scripts/healthcheck.py`
-- Remove temporary planning artifact:
-  - `docs/temp/TEMP_PRE_LOADGEN_READINESS.md`
-- Update documentation/index references to canonical paths:
+- Create a benchmark evidence index document under:
+  - `results/loadgen/analysis/starter_matrix_2026-02-20/`
+- Include explicit links/paths for:
+  - execution log,
+  - per-run artifacts,
+  - aggregate CSV outputs,
+  - primary plots,
+  - notebook entrypoint.
+- Add reproducibility runbook documentation covering:
+  - one Design A + one Design B starter scenario rerun,
+  - aggregation rerun,
+  - notebook refresh workflow.
+- Add interpretation guardrails for this dataset:
+  - fixed-pacing throughput caveat,
+  - environment-bounded external validity,
+  - required parity assumptions from fairness spec.
+- Update references in:
   - `README.md`
   - `docs/_INDEX.md`
-  - `scripts/_SCRIPT_INDEX.md`
   - `docs/handoff/CURRENT_STATUS.md`
-  - `docs/handoff/NEXT_TASK.md` (refresh to next target after cleanup completion)
+  - `docs/handoff/NEXT_TASK.md`
 
 ## Scope (out)
 
-- Any new loadgen features.
-- Additional benchmark execution.
-- Proto/service behavior changes.
-- Fairness/control-lock changes.
+- New benchmark scenario authoring.
+- Additional live benchmark execution.
+- Service/proto/runtime behavior changes.
+- Fairness contract changes.
 
 ## Dependencies / prerequisites
 
-- Confirm no required current workflow still depends on removed wrappers.
-- Ensure canonical paths remain:
-  - integration probes under `tests/integration/`
-  - manual tools under `scripts/manual/`
-  - dev utilities under `scripts/dev/`
+- Existing completed outputs in:
+  - `results/loadgen/starter_matrix_execution_2026-02-20.log`
+  - `results/loadgen/analysis/starter_matrix_2026-02-20/`
+- Existing notebook:
+  - `notebooks/benchmark_analysis.ipynb`
 
 ## Implementation notes
 
-- Execute cleanup in one focused change set to avoid transitional drift.
-- Do not remove canonical integration tests in `tests/integration/`.
-- If any README or script index examples still point to removed wrappers, replace with canonical paths in the same edit.
-- Keep this task strictly cleanup/docs-sync only.
+- Keep this task documentation-only unless a broken reference requires a minimal non-behavioral fix.
+- Prefer relative repo paths that are copy-paste runnable.
+- Keep all benchmark claims traceable to concrete artifact files.
+
+## Subtasks
+
+- [ ] Draft `EVIDENCE_INDEX.md` in `results/loadgen/analysis/starter_matrix_2026-02-20/`.
+- [ ] Add reproducibility runbook doc in `docs/` (or `docs/handoff/` if preferred) with exact commands.
+- [ ] Sync README/index/handoff links to these new docs.
+- [ ] Validate all referenced artifact paths exist.
 
 ## Acceptance criteria (definition of done)
 
-- All listed legacy/deprecated script paths are removed.
-- `docs/temp/TEMP_PRE_LOADGEN_READINESS.md` is removed.
-- No authoritative doc/index references removed paths.
-- Canonical command examples resolve to retained paths only.
-- `docs/handoff/CURRENT_STATUS.md` records cleanup evidence.
-- `docs/handoff/NEXT_TASK.md` advances to the next single target after cleanup.
+- A single evidence index doc exists and links all primary benchmark artifacts.
+- Reproducibility commands execute from documented paths without ambiguity.
+- Guardrails/limitations are explicitly documented beside headline benchmark signals.
+- README/index/handoff docs point to the new evidence/runbook docs.
+- Handoff status reflects completion and advances `NEXT_TASK.md` again.
 
 ## Verification checklist
 
-- [ ] `rg "scripts/legacy_smoke|scripts/smoke_.*(behavior|skeleton)|scripts/smoke_live_stack.py|scripts/smoke_integration_terminal_path.py|scripts/smoke_integration_failure_path.py|scripts/manual_gateway_client.py|scripts/healthcheck.py" README.md docs scripts tests`
-- [ ] `rg --files scripts | sort`
-- [ ] `rg --files docs/temp` (should be empty or not include readiness file)
-- [ ] Validate canonical smoke/test commands still run from `tests/_TEST_INDEX.md`.
-- [ ] Update handoff docs and indexes in same cleanup change set.
+- [ ] `test -f results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`
+- [ ] `test -f results/loadgen/starter_matrix_execution_2026-02-20.log`
+- [ ] `test -f results/loadgen/analysis/starter_matrix_2026-02-20/starter_matrix_summary.md`
+- [ ] `test -f results/loadgen/analysis/starter_matrix_2026-02-20/starter_matrix_ab_delta_primary.csv`
+- [ ] `test -f results/loadgen/analysis/starter_matrix_2026-02-20/plots/ab_p95_latency_primary_methods.png`
+- [ ] `test -f notebooks/benchmark_analysis.ipynb`
+- [ ] `rg -n "EVIDENCE_INDEX|reproducibility|starter_matrix_2026-02-20" README.md docs`
 
 ## Risks / rollback notes
 
-- Removing wrappers without updating references can break user/demo workflows.
-- Cleanup must preserve canonical paths used by current tests and docs.
-- If a removed wrapper is still operationally required, restore only with explicit justification and doc note.
+- Missing or stale artifact references can weaken report traceability.
+- Overstating benchmark conclusions without caveats can create interpretation errors.
+- If any listed artifact is absent, document the gap explicitly before report consumption.

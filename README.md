@@ -191,7 +191,7 @@ Naming convention (navigation standard):
 - `tests/integration/smoke_*`: canonical live probe scripts.
 - `scripts/manual/*`: human-driven demo/CLI workflows.
 - `scripts/dev/*`: local utility helpers.
-- Legacy note: old `scripts/*.py` smoke/manual/dev entrypoints are compatibility wrappers that forward to canonical paths.
+- Canonical-path note: smoke probes live in `tests/integration/`; manual/dev utilities live in `scripts/manual/` and `scripts/dev/`.
 
 ## Validation Command Matrix
 
@@ -432,11 +432,6 @@ distributed-task-queue/
 |   `-- .gitkeep
 |-- scripts/
 |   |-- _SCRIPT_INDEX.md
-|   |-- healthcheck.py                  # compatibility wrapper -> scripts/dev/healthcheck.py
-|   |-- manual_gateway_client.py        # compatibility wrapper -> scripts/manual/manual_gateway_client.py
-|   |-- smoke_live_stack.py             # compatibility wrapper -> tests/integration/smoke_live_stack.py
-|   |-- smoke_integration_terminal_path.py # compatibility wrapper -> tests/integration/smoke_integration_terminal_path.py
-|   |-- smoke_integration_failure_path.py  # compatibility wrapper -> tests/integration/smoke_integration_failure_path.py
 |   |-- manual/
 |   |   `-- manual_gateway_client.py
 |   |-- dev/
@@ -450,18 +445,6 @@ distributed-task-queue/
 |   |       |-- design_a_balanced_seed5307.json
 |   |       |-- design_b_balanced_seed5306.json
 |   |       `-- design_b_balanced_seed5307.json
-|   `-- legacy_smoke/
-|       |-- smoke_coordinator_behavior.py
-|       |-- smoke_coordinator_skeleton.py
-|       |-- smoke_gateway_behavior.py
-|       |-- smoke_gateway_skeleton.py
-|       |-- smoke_job_behavior.py
-|       |-- smoke_job_skeleton.py
-|       |-- smoke_queue_behavior.py
-|       |-- smoke_queue_skeleton.py
-|       |-- smoke_result_behavior.py
-|       |-- smoke_result_skeleton.py
-|       `-- smoke_worker_skeleton.py
 |-- tests/
 |   |-- _TEST_INDEX.md
 |   |-- test_worker_report_retry.py
