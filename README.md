@@ -57,6 +57,7 @@ Proto contract authority:
 ## Environment Setup (Conda)
 
 Use the checked-in `environment.yml` to create the required runtime environment (`grpc`) on any machine.
+It includes runtime + analysis dependencies used in this repo (including `grpcio`, `protobuf`, `pandas`, and `matplotlib`).
 
 ```bash
 conda env create -f environment.yml

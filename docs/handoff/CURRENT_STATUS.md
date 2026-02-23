@@ -11,6 +11,7 @@ Strict post-matrix repository cleanup and documentation normalization are comple
 
 - Removed all deprecated top-level script wrappers and legacy smoke helpers listed in the prior handoff task.
 - Removed the temporary pre-loadgen readiness planning document from `docs/temp/`.
+- Updated `environment.yml` so conda env `grpc` includes `matplotlib` and `pandas` for notebook/plot workflows.
 - Updated documentation to canonical-only paths:
   - `README.md`
   - `docs/_INDEX.md`
@@ -29,8 +30,7 @@ Strict post-matrix repository cleanup and documentation normalization are comple
 
 - No functional/service behavior changes were made in this cleanup change set.
 - Prior environment constraints remain unchanged:
-  - elevated execution may be required for live localhost Docker probing in this remote session,
-  - matplotlib remains outside conda env `grpc` for current plotting workflow.
+  - elevated execution may be required for live localhost Docker probing in this remote session.
 
 ## Next task (single target)
 
