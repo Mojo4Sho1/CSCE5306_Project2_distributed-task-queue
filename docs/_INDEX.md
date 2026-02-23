@@ -93,6 +93,10 @@ If two sources conflict, use this precedence:
 - **`docs/temp/`**  
   Optional non-authoritative planning/checklist artifacts used during active implementation transitions.  
   This directory may be empty between milestones; any files added here should be removed once their trigger conditions are satisfied.
+- **`docs/temp/REPORT_DRAFT_CHECKLIST.md`** *(temporary)*  
+  Active checklist for staged report-draft completion; use for phase-by-phase execution tracking during handoff.
+- **`docs/temp/report_draft_staging.tex`** *(temporary)*  
+  Non-authoritative staging draft for report content before migration to final report destination.
 
 ## Spec (authoritative v1 semantics)
 - **`docs/spec/architecture.md`**  

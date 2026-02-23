@@ -26,8 +26,6 @@
 
 \setstretch{1.08}
 
-\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
-
 \title{\textbf{Distributed Task Queue System:\\Design, Implementation, and Evaluation}}
 \author{Joe Caldwell}
 \date{\today}
@@ -277,13 +275,68 @@ Overall, for this project's locked v1 benchmark setup, Design B delivered better
 
 \section{Lessons Learned from AI Tool Usage}
 \subsection{How AI Tools Were Used}
-\todo{Document concrete use cases such as API scaffolding, debugging support, benchmark scripting, and technical writing assistance.}
+AI assistance was used as an implementation copilot and documentation assistant rather than as an autonomous source of truth.
+In code work, it was primarily used to accelerate repetitive engineering tasks such as drafting benchmark runner options and artifact-aggregation utilities (\texttt{scripts/loadgen/run\_benchmark\_scaffold.py}, \texttt{scripts/loadgen/aggregate\_starter\_matrix.py}), plus test scaffolding for routing and loadgen contract checks (\texttt{tests/test\_design\_b\_client\_routing.py}, \texttt{tests/test\_loadgen\_contracts.py}).
+In operations work, it was used to standardize command flows for Design A/Design B startup, smoke probes, and minimal reproducibility reruns.
+In report work, it was used to convert repository artifacts into traceable prose while keeping references tied to explicit files in \texttt{docs/} and \texttt{results/}.
 
 \subsection{Benefits}
-\todo{Summarize iteration-speed improvements, boilerplate reduction, and design-space exploration benefits.}
+The largest benefit was iteration speed.
+AI support reduced time spent on boilerplate-heavy edits (argument parsing, repeated validation command formatting, and documentation synchronization across README/spec/handoff files), which made it easier to keep behavior changes and docs in lockstep.
+It also improved design-space exploration velocity by quickly producing candidate structures for fairness controls, routing-policy wording, and benchmark artifact schemas before manual tightening.
+For this project workflow, the practical gain was not replacing engineering judgment; it was shortening the edit-review-test cycle for routine but high-volume changes.
 
 \subsection{Limitations and Verification}
-\todo{Describe validation steps used to verify generated code/text, including manual checks, test-based confirmation, and reproducibility checks.}
+AI-generated outputs were treated as draft proposals that required explicit verification.
+Three safeguards were used consistently:
+\begin{itemize}
+    \item \textbf{Contract checks against authority docs/proto:} behavior and wording were reconciled with \texttt{proto/taskqueue\_public.proto}, \texttt{proto/taskqueue\_internal.proto}, and locked specs (especially \texttt{docs/spec/fairness-evaluation.md}).
+    \item \textbf{Test-based confirmation:} changes were validated with unit tests and live probes (for example \texttt{tests/test\_loadgen\_contracts.py}, \texttt{tests/test\_design\_b\_client\_routing.py}, and integration smoke scripts in \texttt{tests/integration/}).
+    \item \textbf{Artifact traceability and reproducibility checks:} report claims were accepted only when numbers/plots mapped to concrete files under \texttt{results/loadgen/analysis/starter\_matrix\_2026-02-20/} and command flows matched \texttt{docs/handoff/STARTER\_MATRIX\_REPRODUCIBILITY.md}.
+\end{itemize}
+This process limited hallucinated assumptions and kept AI usage inside a human-audited, test-backed workflow.
+
+\section{Reproducibility Appendix (Concise)}
+This report's starter-matrix claims can be reproduced without rerunning the full matrix by following \texttt{docs/handoff/STARTER\_MATRIX\_REPRODUCIBILITY.md}.
+The minimal flow is:
+\begin{enumerate}
+    \item start Design A, run one starter scenario, then stop Design A;
+    \item start Design B, run one starter scenario, then stop Design B;
+    \item regenerate aggregate tables/plots;
+    \item refresh \texttt{notebooks/benchmark\_analysis.ipynb}.
+\end{enumerate}
+
+\noindent
+\textbf{Minimal command flow (from repo root):}
+\begin{verbatim}
+docker compose -f docker/docker-compose.design-a.yml up --build -d
+conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py \
+  --scenario scripts/loadgen/scenarios/starter_matrix/design_a_s_low_balanced.json \
+  --output-dir results/loadgen --live-traffic --precheck-health
+docker compose -f docker/docker-compose.design-a.yml down --remove-orphans
+
+docker compose -f docker/docker-compose.design-b.yml up --build -d
+conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py \
+  --scenario scripts/loadgen/scenarios/starter_matrix/design_b_s_low_balanced.json \
+  --output-dir results/loadgen --live-traffic --precheck-health
+docker compose -f docker/docker-compose.design-b.yml down --remove-orphans
+
+conda run -n grpc python scripts/loadgen/aggregate_starter_matrix.py \
+  --results-root results/loadgen \
+  --output-dir results/loadgen/analysis/starter_matrix_2026-02-20
+\end{verbatim}
+
+\noindent
+\textbf{Primary artifact locations for report traceability:}
+\begin{itemize}
+    \item evidence index: \texttt{results/loadgen/analysis/starter\_matrix\_2026-02-20/EVIDENCE\_INDEX.md};
+    \item aggregate tables: \texttt{starter\_matrix\_method\_agg.csv}, \texttt{starter\_matrix\_terminal\_agg.csv}, \texttt{starter\_matrix\_ab\_delta\_primary.csv};
+    \item plots: \texttt{plots/ab\_p95\_latency\_primary\_methods.png}, \texttt{plots/ab\_terminal\_throughput\_by\_scenario.png};
+    \item run log: \texttt{results/loadgen/starter\_matrix\_execution\_2026-02-20.log}.
+\end{itemize}
+
+\noindent
+Interpretation must retain fairness guardrails from \texttt{docs/spec/fairness-evaluation.md}: equal worker-slot budget, Design B owner-routing rules for job-scoped operations, fixed timing windows, and \texttt{ListJobs=0\%} in primary parity scenarios.
 
 \section{Conclusion}
 This project demonstrates practical trade-offs between service decomposition and function colocation in distributed systems.

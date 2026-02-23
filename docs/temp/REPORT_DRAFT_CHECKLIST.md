@@ -32,8 +32,8 @@ Purpose: drive completion of `docs/temp/report_draft_staging.tex` using reposito
 - [x] Phase 3: Fill methodology and fairness controls with locked language from fairness spec.
 - [x] Phase 4: Insert real benchmark results and convert placeholders to real figures/tables.
 - [x] Phase 5: Add interpretation guardrails (fixed pacing, environment bounds, external validity).
-- [ ] Phase 6: Fill AI-tool lessons with concrete examples and verification methods.
-- [ ] Phase 7: Add reproducibility appendix commands (env, compose, selected checks, artifact paths).
+- [x] Phase 6: Fill AI-tool lessons with concrete examples and verification methods.
+- [x] Phase 7: Add reproducibility appendix commands (env, compose, selected checks, artifact paths).
 - [ ] Phase 8: LaTeX quality pass (compile cleanly, table widths, figure references, cross-refs).
 
 ## Data/Plot Completion Checklist
@@ -45,10 +45,10 @@ Purpose: drive completion of `docs/temp/report_draft_staging.tex` using reposito
 
 ## Final Quality Checks
 
-- [ ] `rg -n "TODO|todo|<username>|<repo-name>" docs/temp/report_draft_staging.tex` returns no unresolved placeholders.
-- [x] Note: `<username>/<repo-name>` placeholders are resolved; remaining `TODO` items are intentionally deferred to phases 6-7 (AI lessons + reproducibility appendix text).
+- [x] `rg -n "TODO|todo|<username>|<repo-name>" docs/temp/report_draft_staging.tex` returns no unresolved placeholders.
+- [x] Note: `<username>/<repo-name>` placeholders are resolved and phase 6-7 TODO placeholders are removed.
 - [x] All numeric claims in report are traceable to `results/loadgen/analysis/starter_matrix_2026-02-20/` artifacts.
-- [ ] Methods text aligns with `docs/spec/fairness-evaluation.md` and does not imply rerunning full matrix.
+- [x] Methods text aligns with `docs/spec/fairness-evaluation.md` and does not imply rerunning full matrix.
 - [ ] No statements conflict with proto/service contracts.
 - [ ] LaTeX compiles in Overleaf without missing package or reference errors.
 

@@ -5,56 +5,58 @@
 
 ## Current focus
 
-Report drafting phases 4-5 are complete in `docs/temp/report_draft_staging.tex` (results section population + trade-off/guardrail analysis).
+Report drafting phases 6-7 are complete in `docs/temp/report_draft_staging.tex` (AI-tool lessons + reproducibility appendix-style content).
 
 ## Completed in current focus
 
-- Populated `Performance and Scalability Results` with artifact-backed text and a headline aggregate table.
-- Added plot-based interpretation prose tied to canonical plot artifacts:
-  - `results/loadgen/analysis/starter_matrix_2026-02-20/plots/ab_p95_latency_primary_methods.png`
-  - `results/loadgen/analysis/starter_matrix_2026-02-20/plots/ab_terminal_throughput_by_scenario.png`
-- Added explicit traceability for metrics to:
-  - `starter_matrix_summary.md`
-  - `starter_matrix_method_agg.csv`
-  - `starter_matrix_terminal_agg.csv`
-  - `starter_matrix_ab_delta_primary.csv`
-- Replaced Section 5 TODO with concrete system-design trade-off analysis, including:
-  - why Design B likely outperformed in this dataset,
-  - what the evidence does and does not prove,
-  - operational trade-offs and parity caveats.
+- Replaced all TODO placeholders in `Lessons Learned from AI Tool Usage` with concrete project-specific content:
+  - how AI assistance was used in code/docs workflow,
+  - concrete iteration-speed and boilerplate-reduction benefits,
+  - explicit validation safeguards (contract checks, tests, artifact traceability).
+- Added `Reproducibility Appendix (Concise)` to `docs/temp/report_draft_staging.tex` with:
+  - minimal Design A/Design B rerun command flow,
+  - aggregation command,
+  - artifact pointers to evidence index/tables/plots/run log,
+  - fairness guardrail reminder tied to `docs/spec/fairness-evaluation.md`.
 - Updated `docs/temp/REPORT_DRAFT_CHECKLIST.md`:
-  - phases 4 and 5 marked complete,
-  - traceability progress updated.
+  - phases 6 and 7 marked complete,
+  - placeholder/method-alignment checks synchronized.
+- Ran placeholder scan on the draft and confirmed no residual `TODO`/placeholder markers remain.
 
 ## Passing checks
 
-- Placeholder replacement remains complete:
-  - `rg -n "<username>|<repo-name>" docs/temp/report_draft_staging.tex` (no matches)
-- Guardrail terms present:
-  - `rg -n "fixed-pacing|external validity|ListJobs|owner routing" docs/temp/report_draft_staging.tex`
-- Remaining TODOs are now limited to AI-tool section work (phase 6+).
+- Placeholder scan is clean:
+  - `rg -n "TODO|todo|<username>|<repo-name>" docs/temp/report_draft_staging.tex` (no matches)
+- Reproducibility references are present:
+  - `rg -n "STARTER_MATRIX_REPRODUCIBILITY|EVIDENCE_INDEX|reproduc" docs/temp/report_draft_staging.tex`
+- Checklist phase markers are updated:
+  - `rg -n "Phase 6|Phase 7" docs/temp/REPORT_DRAFT_CHECKLIST.md`
 
 ## Known gaps/blockers
 
-- AI-tool lessons section remains TODO (phase 6).
-- Reproducibility appendix-style report text remains TODO (phase 7).
-- Optional LaTeX compile/polish pass remains TODO (phase 8).
+- Phase 8 quality pass remains:
+  - compile the draft in final report environment (Overleaf/local LaTeX),
+  - resolve any table/figure/reference polish issues.
+- Final migration and cleanup remain:
+  - move finalized report content to final destination,
+  - remove temporary draft/checklist files once migration is confirmed.
 - Overleaf image import wiring is intentionally not performed in-repo; only artifact paths and analysis prose are provided.
 
 ## Active coordination notes
 
-- The report now contains evidence-backed narrative for methodology, results, and trade-off analysis.
-- Remaining work is primarily author-facing polish and process documentation sections.
+- The report draft now covers phases 1-7 with evidence-backed narrative and reproducibility guidance.
+- Remaining work is now primarily publication polish and migration mechanics.
 - Temporary drafting workspace remains non-authoritative:
   - `docs/temp/report_draft_staging.tex`
   - `docs/temp/REPORT_DRAFT_CHECKLIST.md`
 
 ## Next task (single target)
 
-Complete phases 6-7: fill AI-tool usage/verification lessons and add concise reproducibility appendix text in the draft.
+Complete phase 8 and migration: run LaTeX quality pass, migrate finalized content to the final report destination, and retire temporary staging files.
 
 ## Definition of done for next task
 
-- Replace all TODOs in `Lessons Learned from AI Tool Usage` with concrete, project-specific content.
-- Add a short reproducibility appendix-style subsection in the draft (or equivalent section content) with the key command flow and artifact pointers.
-- Ensure all remaining TODO markers are either removed or intentionally deferred only for final compile/polish.
+- Draft compiles cleanly in the final report toolchain (or any compile issues are resolved and documented).
+- Figure/table references and formatting are publication-ready.
+- Final report destination contains migrated content from `docs/temp/report_draft_staging.tex`.
+- Temporary checklist/draft files are removed only after migration confirmation.
