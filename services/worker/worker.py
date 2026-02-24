@@ -84,6 +84,7 @@ else:
 
 
 def _coerce_int(value: Any, default: int) -> int:
+    """Coerce a raw value into the expected runtime type."""
     try:
         return int(value)
     except Exception:
@@ -119,6 +120,7 @@ def _resolve_worker_config() -> Any:
             pass
 
     class _FallbackConfig:
+        """ fallback config state and behavior."""
         service_name = "worker"
         log_level = "INFO"
         coordinator_addr = "127.0.0.1:50054"
@@ -137,6 +139,7 @@ def _resolve_worker_config() -> Any:
 
 
 def _resolve_logger(cfg: Any) -> logging.Logger:
+    """Resolve a runtime dependency from configuration."""
     service_name = getattr(cfg, "service_name", "worker")
     level = getattr(cfg, "log_level", "INFO")
 
@@ -170,6 +173,7 @@ def _resolve_logger(cfg: Any) -> logging.Logger:
 
 
 def _emit(logger: logging.Logger, event: str, **fields: Any) -> None:
+    """Internal helper to  emit."""
     if log_event is not None:
         try:
             log_event(logger, event=event, **fields)
@@ -189,12 +193,14 @@ def _emit(logger: logging.Logger, event: str, **fields: Any) -> None:
 
 
 def _now_ms() -> int:
+    """Internal helper to  now ms."""
     if _common is not None:
         return int(now_ms())  # type: ignore[misc]
     return int(time.time() * 1000)
 
 
 def _resolve_worker_id(cfg: Any) -> str:
+    """Resolve a runtime dependency from configuration."""
     candidate = str(getattr(cfg, "worker_id", "") or "").strip()
     if candidate:
         return candidate
@@ -219,6 +225,7 @@ class WorkerRuntime:
     """Deterministic worker loop with coordinator RPC integration."""
 
     def __init__(self, config: Any, logger: logging.Logger) -> None:
+        """Initialize worker runtime instance state."""
         self._cfg = config
         self._logger = logger
         self._stop_event = threading.Event()
@@ -278,6 +285,7 @@ class WorkerRuntime:
         self._last_heartbeat_at_ms = 0
 
     def start(self) -> None:
+        """Start."""
         _emit(
             self._logger,
             "worker.startup.ready",
@@ -288,6 +296,7 @@ class WorkerRuntime:
         )
 
     def stop(self) -> None:
+        """Stop."""
         if self._stop_event.is_set():
             return
         self._stop_event.set()
@@ -296,6 +305,7 @@ class WorkerRuntime:
         _emit(self._logger, "worker.shutdown.complete", worker_id=self._worker_id)
 
     def run(self) -> int:
+        """Execute the configured workflow."""
         self.start()
         try:
             while not self._stop_event.is_set():
@@ -305,6 +315,7 @@ class WorkerRuntime:
         return 0
 
     def _run_iteration(self) -> None:
+        """Internal helper to  run iteration."""
         now = _now_ms()
         if now - self._last_heartbeat_at_ms >= self._heartbeat_interval_ms:
             self._send_heartbeat(now)
@@ -326,6 +337,7 @@ class WorkerRuntime:
         self._stop_event.wait(sleep_ms / 1000.0)
 
     def _send_heartbeat(self, heartbeat_at_ms: int) -> None:
+        """Internal helper to  send heartbeat."""
         _emit(
             self._logger,
             "worker.heartbeat.attempt",
@@ -367,6 +379,7 @@ class WorkerRuntime:
             )
 
     def _fetch_work(self) -> tuple[Optional[pb2.FetchWorkResponse], int]:
+        """Internal helper to  fetch work."""
         _emit(
             self._logger,
             "worker.fetch.attempt",
@@ -411,6 +424,7 @@ class WorkerRuntime:
             return None, self._fetch_idle_sleep_ms
 
     def _execute_and_report(self, fetch: pb2.FetchWorkResponse) -> None:
+        """Internal helper to  execute and report."""
         job_id = str(fetch.job_id).strip()
         spec = getattr(fetch, "spec", public_pb2.JobSpec())
         job_type = str(getattr(spec, "job_type", "")).strip()
@@ -477,12 +491,14 @@ class WorkerRuntime:
         )
 
     def _planned_runtime_ms(self, spec: Any) -> int:
+        """Internal helper to  planned runtime ms."""
         raw = _coerce_int(getattr(spec, "work_duration_ms", 0), 0)
         if raw <= 0:
             return 120
         return max(20, min(raw, 2000))
 
     def _build_output_bytes(self, job_id: str, spec: Any, runtime_ms: int) -> bytes:
+        """Build derived runtime data for this operation."""
         job_type = str(getattr(spec, "job_type", "")).strip()
         payload_size_bytes = max(0, _coerce_int(getattr(spec, "payload_size_bytes", 0), 0))
         base = (
@@ -492,6 +508,7 @@ class WorkerRuntime:
         return base.encode("utf-8")
 
     def _report_with_retry(self, request: pb2.ReportWorkOutcomeRequest) -> bool:
+        """Internal helper to  report with retry."""
         backoff_ms = self._report_initial_backoff_ms
         for attempt in range(1, self._report_max_attempts + 1):
             _emit(

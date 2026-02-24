@@ -1,3 +1,5 @@
+"""Test coverage for test owner routing."""
+
 from __future__ import annotations
 
 import hashlib
@@ -7,7 +9,9 @@ from common.owner_routing import owner_for_key, owner_index_for_key
 
 
 class OwnerRoutingTests(unittest.TestCase):
+    """Owner routing tests state and behavior."""
     def test_owner_index_matches_locked_formula(self) -> None:
+        """Verify expected behavior for this scenario."""
         key = "client-request-abc-123"
         node_count = 6
         digest = hashlib.sha256(key.encode("utf-8")).digest()
@@ -15,6 +19,7 @@ class OwnerRoutingTests(unittest.TestCase):
         self.assertEqual(expected, owner_index_for_key(key=key, node_count=node_count))
 
     def test_owner_for_key_uses_ordered_node_list(self) -> None:
+        """Verify expected behavior for this scenario."""
         nodes = [
             "127.0.0.1:51051",
             "127.0.0.1:52051",
@@ -28,6 +33,7 @@ class OwnerRoutingTests(unittest.TestCase):
         self.assertEqual(nodes[idx], owner_for_key(key=key, ordered_nodes=nodes))
 
     def test_invalid_arguments(self) -> None:
+        """Verify expected behavior for this scenario."""
         with self.assertRaises(ValueError):
             owner_index_for_key(key="", node_count=6)
         with self.assertRaises(ValueError):

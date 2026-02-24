@@ -1,3 +1,5 @@
+"""Test coverage for test coordinator report outcome idempotency."""
+
 import logging
 import sys
 import unittest
@@ -28,35 +30,46 @@ except ModuleNotFoundError:  # pragma: no cover
 
 
 class _FakeRpcError(grpc.RpcError):
+    """ fake rpc error state and behavior."""
     def __init__(self, status_code, details="rpc error"):
+        """Initialize  fake rpc error instance state."""
         super().__init__()
         self._status_code = status_code
         self._details = details
 
     def code(self):
+        """Code."""
         return self._status_code
 
     def details(self):
+        """Details."""
         return self._details
 
 
 class _FakeContext:
+    """ fake context state and behavior."""
     def __init__(self):
+        """Initialize  fake context instance state."""
         self._code = None
         self._details = ""
 
     def set_code(self, code):
+        """Set code."""
         self._code = code
 
     def set_details(self, details):
+        """Set details."""
         self._details = details
 
 
 class _ResultClientAdapter:
+    """ result client adapter state and behavior."""
     def __init__(self):
+        """Initialize  result client adapter instance state."""
         self._servicer = ResultServicer(config=SimpleNamespace(max_output_bytes=262144))
 
     def StoreResult(self, request, timeout=None):
+        """Store result."""
         del timeout
         ctx = _FakeContext()
         resp = self._servicer.StoreResult(request, ctx)
@@ -65,6 +78,7 @@ class _ResultClientAdapter:
         return resp
 
     def GetResult(self, request, timeout=None):
+        """Get result."""
         del timeout
         ctx = _FakeContext()
         resp = self._servicer.GetResult(request, ctx)
@@ -74,10 +88,13 @@ class _ResultClientAdapter:
 
 
 class _JobClientAdapter:
+    """ job client adapter state and behavior."""
     def __init__(self):
+        """Initialize  job client adapter instance state."""
         self._servicer = JobServicer(config=SimpleNamespace(max_dedup_keys=10000))
 
     def CreateJob(self, request, timeout=None):
+        """Create job."""
         del timeout
         ctx = _FakeContext()
         resp = self._servicer.CreateJob(request, ctx)
@@ -86,6 +103,7 @@ class _JobClientAdapter:
         return resp
 
     def TransitionJobStatus(self, request, timeout=None):
+        """Transition job status."""
         del timeout
         ctx = _FakeContext()
         resp = self._servicer.TransitionJobStatus(request, ctx)
@@ -94,6 +112,7 @@ class _JobClientAdapter:
         return resp
 
     def GetJobRecord(self, request, timeout=None):
+        """Get job record."""
         del timeout
         ctx = _FakeContext()
         resp = self._servicer.GetJobRecord(request, ctx)
@@ -103,7 +122,9 @@ class _JobClientAdapter:
 
 
 class CoordinatorReportOutcomeIdempotencyTests(unittest.TestCase):
+    """Coordinator report outcome idempotency tests state and behavior."""
     def _build_runtime(self):
+        """Build derived runtime data for this operation."""
         cfg = SimpleNamespace(
             heartbeat_interval_ms=1000,
             worker_timeout_ms=4000,
@@ -124,6 +145,7 @@ class CoordinatorReportOutcomeIdempotencyTests(unittest.TestCase):
         return runtime, job_client, result_client
 
     def _create_running_job(self, job_client, suffix):
+        """Internal helper to  create running job."""
         created = job_client.CreateJob(
             pb2.CreateJobRequest(
                 spec=public_pb2.JobSpec(
@@ -147,6 +169,7 @@ class CoordinatorReportOutcomeIdempotencyTests(unittest.TestCase):
         return created.job_id
 
     def test_first_terminal_write_is_accepted_and_persisted_for_done_and_failed(self):
+        """Verify expected behavior for this scenario."""
         for outcome, expected_status, failure_reason in [
             (public_pb2.JOB_OUTCOME_SUCCEEDED, public_pb2.DONE, ""),
             (public_pb2.JOB_OUTCOME_FAILED, public_pb2.FAILED, "simulated-failure"),
@@ -177,6 +200,7 @@ class CoordinatorReportOutcomeIdempotencyTests(unittest.TestCase):
                 self.assertEqual(result.terminal_status, expected_status)
 
     def test_duplicate_equivalent_report_is_idempotent_and_stable(self):
+        """Verify expected behavior for this scenario."""
         coordinator, job_client, result_client = self._build_runtime()
         job_id = self._create_running_job(job_client, suffix="duplicate")
         request = pb2.ReportWorkOutcomeRequest(
@@ -205,6 +229,7 @@ class CoordinatorReportOutcomeIdempotencyTests(unittest.TestCase):
         self.assertEqual(result.checksum, "checksum-1")
 
     def test_conflicting_repeated_terminal_report_does_not_corrupt_state(self):
+        """Verify expected behavior for this scenario."""
         coordinator, job_client, result_client = self._build_runtime()
         job_id = self._create_running_job(job_client, suffix="conflict")
 

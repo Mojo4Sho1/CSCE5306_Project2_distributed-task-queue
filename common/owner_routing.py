@@ -1,3 +1,5 @@
+"""Shared owner routing utilities used across services and scripts."""
+
 from __future__ import annotations
 
 import hashlib

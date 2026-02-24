@@ -1,3 +1,5 @@
+"""Test coverage for test design b client routing."""
+
 from __future__ import annotations
 
 import unittest
@@ -7,7 +9,9 @@ from common.owner_routing import owner_index_for_key
 
 
 class DesignBClientRoutingTests(unittest.TestCase):
+    """Design bclient routing tests state and behavior."""
     def setUp(self) -> None:
+        """Set up."""
         self.targets = [
             "127.0.0.1:51051",
             "127.0.0.1:52051",
@@ -18,6 +22,7 @@ class DesignBClientRoutingTests(unittest.TestCase):
         ]
 
     def test_submit_empty_key_round_robin_progression(self) -> None:
+        """Verify expected behavior for this scenario."""
         router = DesignBClientRouter(self.targets)
         first = router.submit_target("")
         second = router.submit_target("   ")
@@ -28,6 +33,7 @@ class DesignBClientRoutingTests(unittest.TestCase):
         self.assertEqual((2, self.targets[2], "round_robin"), third)
 
     def test_submit_non_empty_key_uses_deterministic_owner(self) -> None:
+        """Verify expected behavior for this scenario."""
         router = DesignBClientRouter(self.targets)
         key = "client-request-abc-123"
         expected_idx = owner_index_for_key(key=key, node_count=len(self.targets))
@@ -39,6 +45,7 @@ class DesignBClientRoutingTests(unittest.TestCase):
         self.assertEqual((expected_idx, self.targets[expected_idx], "owner"), second)
 
     def test_job_scoped_routing_uses_job_id_owner(self) -> None:
+        """Verify expected behavior for this scenario."""
         router = DesignBClientRouter(self.targets)
         job_id = "91509fd2-8bf0-4c6e-a0b3-730a4b8f0dc8"
         expected_idx = owner_index_for_key(key=job_id, node_count=len(self.targets))
@@ -48,6 +55,7 @@ class DesignBClientRoutingTests(unittest.TestCase):
         self.assertEqual(self.targets[expected_idx], actual_target)
 
     def test_round_robin_wraps_after_node_count(self) -> None:
+        """Verify expected behavior for this scenario."""
         router = DesignBClientRouter(self.targets, round_robin_start=5)
         first = router.submit_target("")
         second = router.submit_target("")
@@ -56,6 +64,7 @@ class DesignBClientRoutingTests(unittest.TestCase):
         self.assertEqual((0, self.targets[0], "round_robin"), second)
 
     def test_build_ordered_targets(self) -> None:
+        """Verify expected behavior for this scenario."""
         ports = [51051, 52051, 53051]
         self.assertEqual(
             ["127.0.0.1:51051", "127.0.0.1:52051", "127.0.0.1:53051"],
@@ -63,6 +72,7 @@ class DesignBClientRoutingTests(unittest.TestCase):
         )
 
     def test_invalid_arguments(self) -> None:
+        """Verify expected behavior for this scenario."""
         with self.assertRaises(ValueError):
             DesignBClientRouter([])
         with self.assertRaises(ValueError):

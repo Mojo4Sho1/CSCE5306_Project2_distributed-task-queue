@@ -1,3 +1,5 @@
+"""RPC method implementations for the job service."""
+
 from __future__ import annotations
 
 import logging
@@ -56,6 +58,7 @@ _ALLOWED_TRANSITIONS = {
 
 @dataclass
 class _JobRecord:
+    """ job record state and behavior."""
     job_id: str
     status: int
     job_type: str
@@ -71,6 +74,7 @@ class _JobRecord:
 
 @dataclass
 class _DedupEntry:
+    """ dedup entry state and behavior."""
     fingerprint: Tuple[str, int, int, Tuple[Tuple[str, str], ...]]
     job_id: str
 
@@ -87,6 +91,7 @@ class JobServicer(pb2_grpc.JobInternalServiceServicer):
     """
 
     def __init__(self, config: Optional[object] = None, logger: Optional[logging.Logger] = None) -> None:
+        """Initialize job servicer instance state."""
         self._logger = logger or logging.getLogger("job.servicer")
         configured_cap = int(getattr(config, "max_dedup_keys", _DEFAULT_MAX_DEDUP_KEYS))
         self._max_dedup_keys = configured_cap if configured_cap > 0 else _DEFAULT_MAX_DEDUP_KEYS
@@ -106,10 +111,12 @@ class JobServicer(pb2_grpc.JobInternalServiceServicer):
         self._dedup: OrderedDict[str, _DedupEntry] = OrderedDict()
 
     def _fingerprint(self, spec: public_pb2.JobSpec) -> Tuple[str, int, int, Tuple[Tuple[str, str], ...]]:
+        """Internal helper to  fingerprint."""
         labels_tuple = tuple(sorted((str(k), str(v)) for k, v in spec.labels.items()))
         return (str(spec.job_type), int(spec.work_duration_ms), int(spec.payload_size_bytes), labels_tuple)
 
     def _summary_from_record(self, rec: _JobRecord) -> public_pb2.JobSummary:
+        """Internal helper to  summary from record."""
         return public_pb2.JobSummary(
             job_id=rec.job_id,
             status=rec.status,
@@ -121,10 +128,12 @@ class JobServicer(pb2_grpc.JobInternalServiceServicer):
         )
 
     def _set_error(self, context: grpc.ServicerContext, code: grpc.StatusCode, detail: str) -> None:
+        """Populate RPC error code and details on the context."""
         context.set_code(code)
         context.set_details(detail)
 
     def _coerce_sort(self, sort: int) -> int:
+        """Coerce a raw value into the expected runtime type."""
         if sort == public_pb2.JOB_SORT_UNSPECIFIED:
             return public_pb2.CREATED_AT_DESC
         if sort in (public_pb2.CREATED_AT_DESC, public_pb2.CREATED_AT_ASC):
@@ -132,6 +141,7 @@ class JobServicer(pb2_grpc.JobInternalServiceServicer):
         return public_pb2.CREATED_AT_DESC
 
     def _parse_offset(self, token: str) -> Optional[int]:
+        """Internal helper to  parse offset."""
         value = (token or "").strip()
         if value == "":
             return 0
@@ -140,12 +150,14 @@ class JobServicer(pb2_grpc.JobInternalServiceServicer):
         return int(value)
 
     def _validate_status_filter(self, statuses) -> bool:
+        """Validate input values and raise on violations."""
         for status in statuses:
             if status == public_pb2.JOB_STATUS_UNSPECIFIED:
                 return False
         return True
 
     def _new_job_id(self) -> str:
+        """Internal helper to  new job id."""
         if not self._owner_routing_enabled:
             return str(uuid.uuid4())
         for _ in range(max(1, self._owner_job_id_max_attempts)):
@@ -156,6 +168,7 @@ class JobServicer(pb2_grpc.JobInternalServiceServicer):
         raise RuntimeError("failed to generate owner-affine job_id")
 
     def CreateJob(self, request: pb2.CreateJobRequest, context: grpc.ServicerContext) -> pb2.CreateJobResponse:
+        """Create job."""
         if not request.spec.job_type.strip():
             self._set_error(context, grpc.StatusCode.INVALID_ARGUMENT, "spec.job_type must be non-empty")
             return pb2.CreateJobResponse(job_id="", status=public_pb2.JOB_STATUS_UNSPECIFIED)
@@ -217,6 +230,7 @@ class JobServicer(pb2_grpc.JobInternalServiceServicer):
         request: pb2.DeleteJobIfStatusRequest,
         context: grpc.ServicerContext,
     ) -> pb2.DeleteJobIfStatusResponse:
+        """Delete job if status."""
         with self._lock:
             rec = self._jobs.get(request.job_id)
             if rec is None:
@@ -232,6 +246,7 @@ class JobServicer(pb2_grpc.JobInternalServiceServicer):
             return pb2.DeleteJobIfStatusResponse(deleted=True, current_status=request.expected_status)
 
     def GetJobRecord(self, request: pb2.GetJobRecordRequest, context: grpc.ServicerContext) -> pb2.GetJobRecordResponse:
+        """Get job record."""
         with self._lock:
             rec = self._jobs.get(request.job_id)
             if rec is None:
@@ -248,6 +263,7 @@ class JobServicer(pb2_grpc.JobInternalServiceServicer):
         request: pb2.ListJobRecordsRequest,
         context: grpc.ServicerContext,
     ) -> pb2.ListJobRecordsResponse:
+        """List job records."""
         offset = self._parse_offset(request.page.page_token)
         if offset is None:
             self._set_error(context, grpc.StatusCode.INVALID_ARGUMENT, "page.page_token must be a non-negative integer string")
@@ -289,6 +305,7 @@ class JobServicer(pb2_grpc.JobInternalServiceServicer):
         request: pb2.TransitionJobStatusRequest,
         context: grpc.ServicerContext,
     ) -> pb2.TransitionJobStatusResponse:
+        """Transition job status."""
         if request.expected_from_status == public_pb2.JOB_STATUS_UNSPECIFIED:
             self._set_error(context, grpc.StatusCode.INVALID_ARGUMENT, "expected_from_status must be specified")
             return pb2.TransitionJobStatusResponse(applied=False, current_status=public_pb2.JOB_STATUS_UNSPECIFIED)
@@ -330,6 +347,7 @@ class JobServicer(pb2_grpc.JobInternalServiceServicer):
         request: pb2.SetCancelRequestedRequest,
         context: grpc.ServicerContext,
     ) -> pb2.SetCancelRequestedResponse:
+        """Set cancel requested."""
         with self._lock:
             rec = self._jobs.get(request.job_id)
             if rec is None:

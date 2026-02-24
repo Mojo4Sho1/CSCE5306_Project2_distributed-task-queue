@@ -1,3 +1,5 @@
+"""Command-line helper for run benchmark scaffold."""
+
 from __future__ import annotations
 
 import argparse
@@ -19,6 +21,7 @@ from common.loadgen_contracts import (
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments for this command."""
     parser = argparse.ArgumentParser(
         description="Run benchmark scaffold phases and write contract artifacts."
     )
@@ -63,6 +66,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    """Run the command-line entrypoint."""
     args = parse_args()
     scenario_path = Path(args.scenario)
     output_dir = Path(args.output_dir)

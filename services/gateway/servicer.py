@@ -1,3 +1,5 @@
+"""RPC method implementations for the gateway service."""
+
 from __future__ import annotations
 
 import logging
@@ -48,6 +50,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         queue_client: Optional[Any] = None,
         result_client: Optional[Any] = None,
     ) -> None:
+        """Initialize gateway servicer instance state."""
         self._config = config
         self._logger = logger or logging.getLogger("gateway.servicer")
         self._job_channel = None
@@ -61,6 +64,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         self._init_clients()
 
     def _init_clients(self) -> None:
+        """Internal helper to  init clients."""
         if self._job_client is None:
             job_addr = str(getattr(self._config, "job_addr", "")).strip()
             if job_addr:
@@ -85,6 +89,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         code: grpc.StatusCode,
         detail: str,
     ) -> None:
+        """Populate RPC error code and details on the context."""
         context.set_code(code)
         context.set_details(detail)
 
@@ -96,6 +101,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         exc: grpc.RpcError,
         job_id: str = "",
     ) -> None:
+        """Internal helper to  map downstream error."""
         code = exc.code()
         detail = exc.details() or ""
 
@@ -138,6 +144,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         need_queue: bool = False,
         need_result: bool = False,
     ) -> bool:
+        """Internal helper to  require upstreams."""
         if need_job and self._job_client is None:
             self._set_error(context, grpc.StatusCode.UNAVAILABLE, "job service upstream not configured")
             return False
@@ -156,6 +163,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         *,
         operation: str,
     ) -> Optional[internal_pb2.GetJobRecordResponse]:
+        """Internal helper to  fetch record."""
         try:
             return self._job_client.GetJobRecord(  # type: ignore[union-attr]
                 internal_pb2.GetJobRecordRequest(job_id=job_id),
@@ -171,6 +179,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         reason: str,
         context: grpc.ServicerContext,
     ) -> bool:
+        """Internal helper to  store cancel result."""
         summary = reason.strip() or _CANCEL_RESULT_SUMMARY_DEFAULT
         try:
             resp = self._result_client.StoreResult(  # type: ignore[union-attr]
@@ -199,6 +208,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         reason: str,
         context: grpc.ServicerContext,
     ) -> Optional[internal_pb2.SetCancelRequestedResponse]:
+        """Internal helper to  set cancel requested."""
         try:
             return self._job_client.SetCancelRequested(  # type: ignore[union-attr]
                 internal_pb2.SetCancelRequestedRequest(
@@ -213,6 +223,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
             return None
 
     def _attempt_submit_compensation(self, job_id: str) -> None:
+        """Internal helper to  attempt submit compensation."""
         if self._job_client is None:
             return
         try:
@@ -239,6 +250,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         request: pb2.SubmitJobRequest,
         context: grpc.ServicerContext,
     ) -> pb2.SubmitJobResponse:
+        """Submit job."""
         if not self._require_upstreams(context, need_job=True, need_queue=True):
             return pb2.SubmitJobResponse()
 
@@ -294,6 +306,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         request: pb2.GetJobStatusRequest,
         context: grpc.ServicerContext,
     ) -> pb2.GetJobStatusResponse:
+        """Get job status."""
         job_id = request.job_id.strip()
         if not job_id:
             self._set_error(context, grpc.StatusCode.INVALID_ARGUMENT, "job_id must be non-empty")
@@ -321,6 +334,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         request: pb2.GetJobResultRequest,
         context: grpc.ServicerContext,
     ) -> pb2.GetJobResultResponse:
+        """Get job result."""
         job_id = request.job_id.strip()
         if not job_id:
             self._set_error(context, grpc.StatusCode.INVALID_ARGUMENT, "job_id must be non-empty")
@@ -384,6 +398,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         request: pb2.CancelJobRequest,
         context: grpc.ServicerContext,
     ) -> pb2.CancelJobResponse:
+        """Cancel job."""
         job_id = request.job_id.strip()
         reason = request.reason.strip()
         if not job_id:
@@ -486,6 +501,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         request: pb2.ListJobsRequest,
         context: grpc.ServicerContext,
     ) -> pb2.ListJobsResponse:
+        """List jobs."""
         if not self._require_upstreams(context, need_job=True):
             return pb2.ListJobsResponse()
 

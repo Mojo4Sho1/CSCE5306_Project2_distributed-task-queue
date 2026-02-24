@@ -245,6 +245,7 @@ def _validate_serve_args(
     max_workers: int,
     shutdown_grace_s: float,
 ) -> None:
+    """Validate input values and raise on violations."""
     if not isinstance(host, str) or not host.strip():
         raise ValueError("host must be a non-empty string")
 
@@ -264,6 +265,7 @@ def _validate_serve_args(
 def _normalize_options(
     options: Optional[List[Tuple[str, int]]]
 ) -> List[Tuple[str, int]]:
+    """Internal helper to  normalize options."""
     if options is None:
         return list(_DEFAULT_SERVER_OPTIONS)
 
@@ -306,6 +308,7 @@ def _install_signal_handlers(handler) -> List[Tuple[int, object]]:
 
 
 def _restore_signal_handlers(previous: List[Tuple[int, object]]) -> None:
+    """Internal helper to  restore signal handlers."""
     for sig, prev in previous:
         try:
             signal.signal(sig, prev)
@@ -340,6 +343,7 @@ def _wait_stop_result(stop_result, timeout: float) -> None:
 
 def _logger_service_name(logger) -> str:
     # Best-effort extraction from custom attribute set by init_logger.
+    """Internal helper to  logger service name."""
     service_name = getattr(logger, "_taskqueue_service_name", None)
     if isinstance(service_name, str) and service_name.strip():
         return service_name.strip()
@@ -377,6 +381,7 @@ def _try_register_health(server: grpc.Server, logger):
 
 
 def _set_health_serving(health_servicer, logger) -> None:
+    """Internal helper to  set health serving."""
     try:
         from grpc_health.v1 import health_pb2  # type: ignore
 
@@ -393,6 +398,7 @@ def _set_health_serving(health_servicer, logger) -> None:
 
 
 def _set_health_not_serving(health_servicer, logger) -> None:
+    """Internal helper to  set health not serving."""
     try:
         from grpc_health.v1 import health_pb2  # type: ignore
 

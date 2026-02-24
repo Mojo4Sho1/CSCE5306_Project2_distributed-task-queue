@@ -1,3 +1,5 @@
+"""RPC method implementations for the coordinator service."""
+
 from __future__ import annotations
 
 import logging
@@ -47,9 +49,11 @@ _TERMINAL_STATUSES = {
 
 
 class _WorkerState:
+    """ worker state state and behavior."""
     __slots__ = ("last_seen_at_ms", "last_heartbeat_at_ms", "capacity_hint")
 
     def __init__(self, last_seen_at_ms: int, last_heartbeat_at_ms: int, capacity_hint: int) -> None:
+        """Initialize  worker state instance state."""
         self.last_seen_at_ms = last_seen_at_ms
         self.last_heartbeat_at_ms = last_heartbeat_at_ms
         self.capacity_hint = capacity_hint
@@ -66,6 +70,7 @@ class CoordinatorServicer(pb2_grpc.CoordinatorInternalServiceServicer):
         queue_client=None,
         result_client=None,
     ) -> None:
+        """Initialize coordinator servicer instance state."""
         self._config = config
         self._logger = logger or logging.getLogger("coordinator.servicer")
         self._heartbeat_interval_ms = int(getattr(config, "heartbeat_interval_ms", 1000))
@@ -87,6 +92,7 @@ class CoordinatorServicer(pb2_grpc.CoordinatorInternalServiceServicer):
         self._init_clients()
 
     def _init_clients(self) -> None:
+        """Internal helper to  init clients."""
         if self._job_client is None:
             job_addr = str(getattr(self._config, "job_addr", "")).strip()
             if job_addr:
@@ -106,13 +112,16 @@ class CoordinatorServicer(pb2_grpc.CoordinatorInternalServiceServicer):
                 self._result_client = pb2_grpc.ResultInternalServiceStub(self._result_channel)
 
     def _set_error(self, context: grpc.ServicerContext, code: grpc.StatusCode, detail: str) -> None:
+        """Populate RPC error code and details on the context."""
         context.set_code(code)
         context.set_details(detail)
 
     def _clamp_retry_after(self, value: int) -> int:
+        """Internal helper to  clamp retry after."""
         return max(FETCHWORK_RETRY_AFTER_MIN_MS, min(int(value), FETCHWORK_RETRY_AFTER_MAX_MS))
 
     def _prune_expired_workers_locked(self, now_ts_ms: int) -> None:
+        """Internal helper to  prune expired workers locked."""
         expired = [
             worker_id
             for worker_id, state in self._workers.items()
@@ -122,6 +131,7 @@ class CoordinatorServicer(pb2_grpc.CoordinatorInternalServiceServicer):
             self._workers.pop(worker_id, None)
 
     def _is_worker_live(self, worker_id: str, now_ts_ms: int) -> bool:
+        """Internal helper to  is worker live."""
         with self._lock:
             self._prune_expired_workers_locked(now_ts_ms)
             state = self._workers.get(worker_id)
@@ -134,6 +144,7 @@ class CoordinatorServicer(pb2_grpc.CoordinatorInternalServiceServicer):
         request: pb2.WorkerHeartbeatRequest,
         context: grpc.ServicerContext,
     ) -> pb2.WorkerHeartbeatResponse:
+        """Worker heartbeat."""
         worker_id = request.worker_id.strip()
         if not worker_id:
             self._set_error(context, grpc.StatusCode.INVALID_ARGUMENT, "worker_id must be non-empty")
@@ -161,6 +172,7 @@ class CoordinatorServicer(pb2_grpc.CoordinatorInternalServiceServicer):
         request: pb2.FetchWorkRequest,
         context: grpc.ServicerContext,
     ) -> pb2.FetchWorkResponse:
+        """Fetch work."""
         worker_id = request.worker_id.strip()
         if not worker_id:
             self._set_error(context, grpc.StatusCode.INVALID_ARGUMENT, "worker_id must be non-empty")
@@ -245,6 +257,7 @@ class CoordinatorServicer(pb2_grpc.CoordinatorInternalServiceServicer):
         request: pb2.ReportWorkOutcomeRequest,
         context: grpc.ServicerContext,
     ) -> pb2.ReportWorkOutcomeResponse:
+        """Report work outcome."""
         worker_id = request.worker_id.strip()
         if not worker_id:
             self._set_error(context, grpc.StatusCode.INVALID_ARGUMENT, "worker_id must be non-empty")

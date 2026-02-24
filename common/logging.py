@@ -138,6 +138,7 @@ def log_event(
 
 
 def _get_service_name(logger: logging.Logger) -> str:
+    """Internal helper to  get service name."""
     service = getattr(logger, _SERVICE_ATTR, None)
     if isinstance(service, str) and service.strip():
         return service.strip()
@@ -151,6 +152,7 @@ def _get_service_name(logger: logging.Logger) -> str:
 
 
 def _normalize_level(level: Any) -> int:
+    """Internal helper to  normalize level."""
     if isinstance(level, int):
         return level
 
@@ -172,6 +174,7 @@ def _normalize_level(level: Any) -> int:
 
 
 def _level_name(level: Any) -> str:
+    """Internal helper to  level name."""
     if isinstance(level, str):
         name = level.strip().upper()
         return name if name in _ALLOWED_LEVEL_NAMES else "INFO"

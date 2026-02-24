@@ -23,16 +23,19 @@ import grpc
 
 @dataclass
 class CheckResult:
+    """Check result state and behavior."""
     name: str
     passed: bool
     detail: str
 
 
 def _repo_root() -> Path:
+    """Internal helper to  repo root."""
     return Path(__file__).resolve().parents[2]
 
 
 def _ensure_import_paths() -> None:
+    """Internal helper to  ensure import paths."""
     repo_root = _repo_root()
     generated_dir = repo_root / "generated"
     if str(generated_dir) not in sys.path:
@@ -42,6 +45,7 @@ def _ensure_import_paths() -> None:
 
 
 def _status_name(public_pb2, status_value: int) -> str:
+    """Return a human-readable label for a status value."""
     try:
         return public_pb2.JobStatus.Name(int(status_value))
     except Exception:
@@ -49,6 +53,7 @@ def _status_name(public_pb2, status_value: int) -> str:
 
 
 def _print_summary(checks: List[CheckResult]) -> int:
+    """Print structured command output for operators."""
     print("\n=== Design B Client Routing Smoke Summary ===")
     all_passed = True
     for c in checks:
@@ -69,6 +74,7 @@ def _expect_rpc_error(
     call: Callable[[], object],
     expected_code: grpc.StatusCode,
 ) -> CheckResult:
+    """Assert expected behavior for the smoke check."""
     try:
         call()
         return CheckResult(name=name, passed=False, detail=f"expected {expected_code.name}, got OK")
@@ -81,16 +87,19 @@ def _expect_rpc_error(
 
 
 def _build_stubs(public_pb2_grpc, targets: Sequence[str]) -> List[object]:
+    """Build derived runtime data for this operation."""
     return [public_pb2_grpc.TaskQueuePublicServiceStub(grpc.insecure_channel(target)) for target in targets]
 
 
 def _other_index(owner_index: int, node_count: int) -> int:
+    """Internal helper to  other index."""
     if node_count <= 1:
         return owner_index
     return 0 if owner_index != 0 else 1
 
 
 def main() -> int:
+    """Run the command-line entrypoint."""
     parser = argparse.ArgumentParser(description="Smoke probe for Design B client routing policy")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--ports", default="51051,52051,53051,54051,55051,56051")

@@ -52,6 +52,7 @@ from services.worker.worker import WorkerRuntime
 
 
 def _env_str(name: str, default: str) -> str:
+    """Internal helper to  env str."""
     value = os.getenv(name)
     if value is None:
         return default
@@ -60,6 +61,7 @@ def _env_str(name: str, default: str) -> str:
 
 
 def _env_int(name: str, default: int, minimum: int = 1) -> int:
+    """Internal helper to  env int."""
     raw = os.getenv(name, "").strip()
     if not raw:
         return default
@@ -71,6 +73,7 @@ def _env_int(name: str, default: int, minimum: int = 1) -> int:
 
 
 def _env_float(name: str, default: float, minimum: float = 0.0) -> float:
+    """Internal helper to  env float."""
     raw = os.getenv(name, "").strip()
     if not raw:
         return default
@@ -82,16 +85,19 @@ def _env_float(name: str, default: float, minimum: float = 0.0) -> float:
 
 
 def _default_monolith_node_order() -> list[str]:
+    """Internal helper to  default monolith node order."""
     return [f"monolith-{idx}" for idx in range(1, 7)]
 
 
 def _parse_monolith_node_order(raw: str) -> list[str]:
+    """Internal helper to  parse monolith node order."""
     parts = [token.strip() for token in raw.split(",")]
     ordered = [token for token in parts if token]
     return ordered or _default_monolith_node_order()
 
 
 def _resolve_logger(node_id: str, log_level: str) -> logging.Logger:
+    """Resolve a runtime dependency from configuration."""
     try:
         return init_logger(service_name=f"monolith.{node_id}", level=log_level)
     except Exception:
@@ -107,6 +113,7 @@ def _resolve_logger(node_id: str, log_level: str) -> logging.Logger:
 
 
 def _emit(logger: logging.Logger, event: str, **fields: Any) -> None:
+    """Internal helper to  emit."""
     try:
         log_event(logger, event=event, **fields)
         return
@@ -119,6 +126,7 @@ class MonolithNodeRuntime:
     """Baseline single-node monolith runtime for Design B bring-up."""
 
     def __init__(self) -> None:
+        """Initialize monolith node runtime instance state."""
         self._node_id = _env_str("MONOLITH_NODE_ID", "monolith-1")
         self._host = _env_str("MONOLITH_BIND_HOST", "0.0.0.0")
         self._public_port = _env_int("MONOLITH_PUBLIC_PORT", 50051, minimum=1)
@@ -220,6 +228,7 @@ class MonolithNodeRuntime:
         self._worker_thread: Optional[threading.Thread] = None
 
     def _register_services(self, server: grpc.Server) -> None:
+        """Internal helper to  register services."""
         taskqueue_internal_pb2_grpc.add_JobInternalServiceServicer_to_server(
             JobServicer(config=self._job_cfg, logger=self._logger),
             server,
@@ -242,6 +251,7 @@ class MonolithNodeRuntime:
         )
 
     def _start_worker(self) -> None:
+        """Internal helper to  start worker."""
         if not self._worker_enabled:
             _emit(self._logger, "monolith.worker.disabled", node_id=self._node_id)
             return
@@ -261,6 +271,7 @@ class MonolithNodeRuntime:
         )
 
     def _stop_worker(self) -> None:
+        """Internal helper to  stop worker."""
         if self._worker_runtime is None:
             return
         self._worker_runtime.stop()
@@ -269,6 +280,7 @@ class MonolithNodeRuntime:
         _emit(self._logger, "monolith.worker.stopped", node_id=self._node_id)
 
     def run(self) -> int:
+        """Execute the configured workflow."""
         bind_addr = f"{self._host}:{self._public_port}"
         _emit(
             self._logger,
@@ -335,6 +347,7 @@ def run() -> int:
 
 
 def main() -> int:
+    """Run the command-line entrypoint."""
     return run()
 
 

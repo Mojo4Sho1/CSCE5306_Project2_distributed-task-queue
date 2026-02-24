@@ -23,10 +23,12 @@ import grpc
 
 
 def _repo_root() -> Path:
+    """Internal helper to  repo root."""
     return Path(__file__).resolve().parents[2]
 
 
 def _ensure_import_paths() -> None:
+    """Internal helper to  ensure import paths."""
     repo_root = _repo_root()
     generated_dir = repo_root / "generated"
     if str(generated_dir) not in sys.path:
@@ -36,6 +38,7 @@ def _ensure_import_paths() -> None:
 
 
 def _parse_labels(label_args: Iterable[str]) -> Dict[str, str]:
+    """Internal helper to  parse labels."""
     labels: Dict[str, str] = {}
     for raw in label_args:
         if "=" not in raw:
@@ -50,6 +53,7 @@ def _parse_labels(label_args: Iterable[str]) -> Dict[str, str]:
 
 
 def _load_spec_json(spec_file: str) -> Dict[str, object]:
+    """Internal helper to  load spec json."""
     with open(spec_file, "r", encoding="utf-8") as f:
         payload = json.load(f)
     if not isinstance(payload, dict):
@@ -58,6 +62,7 @@ def _load_spec_json(spec_file: str) -> Dict[str, object]:
 
 
 def _status_name(public_pb2, status_value: int) -> str:
+    """Return a human-readable label for a status value."""
     try:
         return public_pb2.JobStatus.Name(int(status_value))
     except Exception:
@@ -65,6 +70,7 @@ def _status_name(public_pb2, status_value: int) -> str:
 
 
 def _build_spec(args, public_pb2):
+    """Build derived runtime data for this operation."""
     spec_payload: Dict[str, object] = {}
     if getattr(args, "spec_file", ""):
         spec_payload = _load_spec_json(args.spec_file)
@@ -97,10 +103,12 @@ def _build_spec(args, public_pb2):
 
 
 def _print_json(payload: Dict[str, object]) -> None:
+    """Print structured command output for operators."""
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
 def main() -> int:
+    """Run the command-line entrypoint."""
     parser = argparse.ArgumentParser(description="Manual user client for Gateway public API")
     parser.add_argument("--host", default="127.0.0.1", help="Gateway host")
     parser.add_argument("--port", type=int, default=50051, help="Gateway port")

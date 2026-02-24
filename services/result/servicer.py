@@ -1,3 +1,5 @@
+"""RPC method implementations for the result service."""
+
 from __future__ import annotations
 
 import logging
@@ -29,6 +31,7 @@ _TERMINAL_STATUSES = {
 
 @dataclass
 class _ResultRecord:
+    """ result record state and behavior."""
     job_id: str
     terminal_status: int
     runtime_ms: int
@@ -41,6 +44,7 @@ class ResultServicer(pb2_grpc.ResultInternalServiceServicer):
     """ResultInternalService v1 implementation for terminal result envelopes."""
 
     def __init__(self, config: Optional[object] = None, logger: Optional[logging.Logger] = None) -> None:
+        """Initialize result servicer instance state."""
         self._logger = logger or logging.getLogger("result.servicer")
         configured_cap = int(getattr(config, "max_output_bytes", _DEFAULT_MAX_OUTPUT_BYTES))
         self._max_output_bytes = configured_cap if configured_cap > 0 else _DEFAULT_MAX_OUTPUT_BYTES
@@ -49,6 +53,7 @@ class ResultServicer(pb2_grpc.ResultInternalServiceServicer):
         self._results: dict[str, _ResultRecord] = {}
 
     def _set_error(self, context: grpc.ServicerContext, code: grpc.StatusCode, detail: str) -> None:
+        """Populate RPC error code and details on the context."""
         context.set_code(code)
         context.set_details(detail)
 
@@ -57,6 +62,7 @@ class ResultServicer(pb2_grpc.ResultInternalServiceServicer):
         request: pb2.StoreResultRequest,
         context: grpc.ServicerContext,
     ) -> pb2.StoreResultResponse:
+        """Store result."""
         job_id = request.job_id.strip()
         if not job_id:
             self._set_error(context, grpc.StatusCode.INVALID_ARGUMENT, "job_id must be non-empty")
@@ -120,6 +126,7 @@ class ResultServicer(pb2_grpc.ResultInternalServiceServicer):
         request: pb2.GetResultRequest,
         context: grpc.ServicerContext,
     ) -> pb2.GetResultResponse:
+        """Get result."""
         job_id = request.job_id.strip()
         if not job_id:
             self._set_error(context, grpc.StatusCode.INVALID_ARGUMENT, "job_id must be non-empty")

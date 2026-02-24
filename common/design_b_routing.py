@@ -1,3 +1,5 @@
+"""Shared design b routing utilities used across services and scripts."""
+
 from __future__ import annotations
 
 import threading
@@ -51,6 +53,7 @@ class DesignBClientRouter:
     """
 
     def __init__(self, ordered_nodes: Sequence[str], round_robin_start: int = 0) -> None:
+        """Initialize design bclient router instance state."""
         nodes = [str(node).strip() for node in ordered_nodes if str(node).strip()]
         if not nodes:
             raise ValueError("ordered_nodes must be non-empty")
@@ -60,19 +63,23 @@ class DesignBClientRouter:
 
     @property
     def ordered_nodes(self) -> tuple[str, ...]:
+        """Return items in deterministic order for stable routing."""
         return self._nodes
 
     def next_round_robin_target(self) -> tuple[int, str]:
+        """Return the next value in the scheduling sequence."""
         with self._lock:
             idx = self._rr_index
             self._rr_index = (self._rr_index + 1) % len(self._nodes)
         return idx, self._nodes[idx]
 
     def owner_target_for_key(self, key: str) -> tuple[int, str]:
+        """Owner target for key."""
         idx = owner_index_for_key(key=key, node_count=len(self._nodes))
         return idx, self._nodes[idx]
 
     def submit_target(self, client_request_id: str) -> tuple[int, str, str]:
+        """Submit target."""
         dedup_key = (client_request_id or "").strip()
         if dedup_key:
             idx, node = self.owner_target_for_key(dedup_key)
@@ -81,6 +88,7 @@ class DesignBClientRouter:
         return idx, node, "round_robin"
 
     def job_target(self, job_id: str) -> tuple[int, str]:
+        """Job target."""
         job_key = (job_id or "").strip()
         if not job_key:
             raise ValueError("job_id must be non-empty")
