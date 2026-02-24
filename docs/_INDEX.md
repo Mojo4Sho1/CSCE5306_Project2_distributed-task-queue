@@ -90,13 +90,8 @@ If two sources conflict, use this precedence:
   - interpretation guardrails.
 
 ## Temporary Planning
-- **`docs/temp/`**  
-  Optional non-authoritative planning/checklist artifacts used during active implementation transitions.  
-  This directory may be empty between milestones; any files added here should be removed once their trigger conditions are satisfied.
-- **`docs/temp/REPORT_DRAFT_CHECKLIST.md`** *(temporary)*  
-  Active checklist for staged report-draft completion; use for phase-by-phase execution tracking during handoff.
-- **`docs/temp/report_draft_staging.tex`** *(temporary)*  
-  Non-authoritative staging draft for report content before migration to final report destination.
+- Temporary report-planning artifacts were retired on 2026-02-24 after report finalization in Overleaf.
+- Use `docs/handoff/CURRENT_STATUS.md` and `docs/handoff/NEXT_TASK.md` for active short-horizon planning.
 
 ## Spec (authoritative v1 semantics)
 - **`docs/spec/architecture.md`**  

@@ -1,83 +1,67 @@
 # Next Task
 
-**Last updated:** 2026-02-23  
+**Last updated:** 2026-02-24  
 **Owner:** Joe + Codex
 
 ## Task summary
 
-Complete report drafting phase 8 and final migration workflow: perform LaTeX quality/polish pass, migrate finalized content out of temporary staging, and execute temp-file cleanup once migration is confirmed.
+Define a repository retention/archival policy for loadgen artifacts, then synchronize docs to that policy.
 
 ## Why this task is next
 
-- Phases 1-7 are now complete in `docs/temp/report_draft_staging.tex`.
-- Remaining work is publication readiness (compile/polish) and transitioning from temporary staging to final report destination.
-- Keeping migration and cleanup explicit reduces risk of stale duplicate drafts and handoff ambiguity.
+- Cleanup of obsolete report-temp/handoff scratch assets is complete.
+- The remaining high-impact repo hygiene decision is whether and when to prune raw per-run starter-matrix directories.
+- Without an explicit policy, future cleanup may accidentally remove reproducibility-critical artifacts.
 
 ## Scope (in)
 
-- Phase 8 quality pass:
-  - Compile draft in final report toolchain (Overleaf/local LaTeX) and fix any syntax/formatting issues.
-  - Resolve table width, caption consistency, and section cross-reference polish.
-  - Confirm figure imports map to the intended files under `results/loadgen/analysis/starter_matrix_2026-02-20/plots/`.
-- Final migration:
-  - Migrate finalized report content from `docs/temp/report_draft_staging.tex` to final report destination.
-  - Keep traceability references intact during migration.
-- Temp cleanup and doc sync:
-  - Update `docs/temp/REPORT_DRAFT_CHECKLIST.md` exit criteria.
-  - Remove temp draft/checklist files only after migration is verified.
-  - Synchronize handoff docs to reflect post-migration state.
+- Decide retention class for:
+  - `results/loadgen/analysis/starter_matrix_2026-02-20/` (canonical evidence package)
+  - `results/loadgen/design_a_s_*/` and `results/loadgen/design_b_s_*/` (raw per-run outputs)
+  - Related scenario files in `scripts/loadgen/scenarios/` used for reproducibility/demo.
+- Record policy and rationale in handoff/spec docs.
+- If pruning is approved, produce an explicit target list and verification scan before deletion.
 
 ## Scope (out)
 
-- New benchmark execution, scenario authoring, or code/runtime behavior changes.
-- Changes to locked fairness/proto/runtime semantics.
+- Runtime behavior changes.
+- Proto/API contract changes.
+- Any benchmark re-runs.
 
 ## Dependencies / prerequisites
 
-- Draft + checklist:
-  - `docs/temp/report_draft_staging.tex`
-  - `docs/temp/REPORT_DRAFT_CHECKLIST.md`
-- Evidence artifacts:
-  - `results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`
-  - `results/loadgen/analysis/starter_matrix_2026-02-20/plots/`
-- Handoff status docs:
-  - `docs/handoff/CURRENT_STATUS.md`
-  - `docs/handoff/NEXT_TASK.md`
-- Final report destination/toolchain (Overleaf or equivalent LaTeX project).
+- Existing reproducibility guidance: `docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md`
+- Existing evidence index: `results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`
 
 ## Implementation notes
 
-- Preserve source-backed wording and numeric values; do not alter benchmark claims during polish-only edits.
-- Treat `docs/temp/` files as staging artifacts until migration completes.
-- If compile issues require content changes, keep them minimal and non-semantic.
+- Preserve reproducibility first; do not delete artifacts without a written policy decision.
+- Keep canonical evidence index and aggregate tables/plots intact.
+- If uncertain, defer deletion and document rationale.
 
 ## Subtasks
 
-- [ ] Run phase-8 compile/polish pass on the staged report (syntax, tables, figures, references).
-- [ ] Migrate finalized report content to the final report destination.
-- [ ] Mark checklist exit criteria progress in `docs/temp/REPORT_DRAFT_CHECKLIST.md`.
-- [ ] Remove `docs/temp` draft/checklist only after migration is verified.
-- [ ] Update handoff docs (`CURRENT_STATUS.md`, `NEXT_TASK.md`) to point to post-migration follow-up work.
+- [ ] Inventory current loadgen artifact classes and sizes.
+- [ ] Propose retention tiers (canonical, optional, disposable).
+- [ ] Approve/document policy in handoff + spec docs.
+- [ ] If approved, execute pruning with explicit verification scans.
+- [ ] Re-scan for broken references and update docs.
 
 ## Acceptance criteria (definition of done)
 
-- Final report compiles cleanly in the target toolchain (or any known residual issue is explicitly documented).
-- Content is migrated from temp staging to the final report destination without losing artifact traceability references.
-- Checklist reflects phase 8 completion and migration/cleanup state accurately.
-- Handoff docs no longer present phases 6-7 as pending.
+- A documented retention policy exists and is linked from handoff docs.
+- Canonical evidence artifacts are explicitly protected.
+- Any pruned artifacts are listed and validated with post-delete scans.
+- No documentation pointers remain to removed artifacts.
 
 ## Verification checklist
 
-- [ ] LaTeX compile check in final report environment (Overleaf/local).
-- [ ] `rg -n "Phase 8" docs/temp/REPORT_DRAFT_CHECKLIST.md`
-- [ ] Migration target contains updated sections:
-  - AI-tool lessons
-  - reproducibility appendix content
-  - artifact pointer references
-- [ ] If temp cleanup executed: confirm `docs/temp/` removal status is reflected in docs.
+- [ ] `rg -n "starter_matrix_2026-02-20|design_a_s_|design_b_s_" README.md docs scripts tests results`
+- [ ] `find results/loadgen -maxdepth 2 -type d | sort`
+- [ ] `git status --short` shows only intentional policy/doc (and optional pruning) changes.
 
 ## Risks / rollback notes
 
-- Compile/polish edits can unintentionally alter technical meaning; keep semantic drift at zero.
-- Migrating to final destination can introduce copy/paste divergence between repo staging and final source.
-- Deleting temp files before migration verification can cause loss of working history; cleanup must be last.
+- Over-pruning can break reproducibility and make evidence audits harder.
+- Under-pruning can keep repository size/noise higher than needed.
+- If a deletion decision is later reversed, restore artifacts from VCS history or archived bundle.
