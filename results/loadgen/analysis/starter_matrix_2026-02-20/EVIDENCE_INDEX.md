@@ -75,12 +75,17 @@ Use these only with the guardrails below.
    - Starter scenarios are fixed offered-load profiles and do not establish absolute saturation ceilings for either design.
 2. Environment-bounded external validity:
    - Results were produced in one concrete local environment and should be interpreted as bounded to this setup unless replicated elsewhere.
-3. Locked parity assumptions from fairness spec (`docs/spec/fairness-evaluation.md`):
-   - total capacity parity (`TOTAL_WORKER_SLOTS = 6` across both designs),
+3. Locked interpretation controls from fairness spec (`docs/spec/fairness-evaluation.md`):
+   - equal node count across designs (6 vs 6) for this starter matrix,
+   - as-run effective worker-loop capacity differs for recorded runs (Design A: 1 loop, Design B: 6 loops),
    - primary parity conclusions are based on `SubmitJob/GetJobStatus/GetJobResult/CancelJob`,
    - starter primary scenarios use `ListJobs = 0%`,
    - deterministic owner routing is required in Design B for job-scoped operations,
    - fixed warmup/measure/cooldown windows and shared measurement logic are required.
+
+## As-Run Capacity Note
+
+The 2026-02-20 starter matrix should be interpreted as a comparison with equal node count but different effective execution capacity: Design A executed one worker loop while Design B executed six embedded worker loops. Any throughput/latency deltas should be read with that as-run capacity difference explicitly in scope.
 
 ## Consumption Rule
 

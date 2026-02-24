@@ -13,11 +13,11 @@ This file centralizes frozen constants and default values used across services, 
 
 | Constant | Value | Notes |
 |---|---:|---|
-| `TOTAL_WORKER_SLOTS` | `6` | Fixed total execution capacity across both designs for parity |
+| `DESIGN_A_FUNCTIONAL_NODES` | `6` | Design A service count (Gateway, Job, Queue, Coordinator, Worker, Result) |
 | `DESIGN_A_WORKER_CONTAINERS` | `1` | Microservices design |
-| `DESIGN_A_SLOTS_PER_WORKER` | `6` | Microservices design |
+| `DESIGN_A_EFFECTIVE_WORKER_LOOPS` | `1` | As-run starter-matrix behavior (single sequential worker loop) |
 | `DESIGN_B_MONOLITH_NODES` | `6` | Monolith-per-node design |
-| `DESIGN_B_SLOTS_PER_NODE` | `1` | Monolith-per-node design |
+| `DESIGN_B_EFFECTIVE_WORKER_LOOPS` | `6` | As-run starter-matrix behavior (one loop per monolith node) |
 
 ---
 

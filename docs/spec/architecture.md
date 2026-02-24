@@ -194,9 +194,9 @@ Internal RPC topologies may differ by design, but client-visible behavior remain
 
 ## 9) Capacity and Fairness Architecture Constraints (v1)
 
-- Total worker concurrency budget remains equal across designs:
-  - **Design A:** 1 Worker container with 6 execution slots
-  - **Design B:** 6 monolith nodes with 1 execution slot each
+- Starter-matrix as-run capacity framing:
+  - **Design A:** 1 worker container with 1 sequential worker loop (effective execution concurrency: 1)
+  - **Design B:** 6 monolith nodes, each with 1 embedded worker loop (effective execution concurrency: 6)
 - Measurement parity requires identical hardware, workload profiles, warm-up policy, run duration, and aggregation logic.
 
 Detailed routing and evaluation constraints are defined in:

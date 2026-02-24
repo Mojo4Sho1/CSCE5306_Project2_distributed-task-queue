@@ -356,7 +356,8 @@ Retry semantics note:
 Use this runbook after both designs and the load generator are complete.
 
 1. Lock parity before any measurement:
-   - same total worker-slot capacity across designs (per locked constants),
+   - same node count and workload controls across designs, while explicitly recording effective as-run worker-loop capacity,
+   - for recorded starter-matrix evidence (2026-02-20): Design A executed 1 worker loop and Design B executed 6 worker loops,
    - same workload mix, request pacing model, runtime, and warmup/cooldown windows,
    - same host resource limits and background-load conditions.
 2. Keep production retry semantics enabled for benchmark realism:

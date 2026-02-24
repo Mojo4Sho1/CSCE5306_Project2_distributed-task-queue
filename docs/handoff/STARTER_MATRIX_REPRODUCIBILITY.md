@@ -94,10 +94,13 @@ Always carry these constraints into report text:
 - Starter matrix is fixed-pacing evidence, not absolute max-throughput proof.
 - External validity is bounded to the measured environment unless independently replicated.
 - Fairness interpretation assumes locked parity controls from `docs/spec/fairness-evaluation.md`:
-  - equal total worker slots,
+  - equal node count (6 vs 6) but different as-run effective worker-loop capacity for the recorded 2026-02-20 runs (A=1 loop, B=6 loops),
   - deterministic owner routing in Design B,
   - `ListJobs=0%` for primary parity conclusions,
   - shared timing windows and measurement logic.
+
+Capacity-matching note for future experiments:
+- Matching effective execution capacity would require additional steps (for example scaling Design A workers or disabling embedded workers in some Design B nodes), and those adjustments were not part of the recorded starter-matrix runs indexed in current evidence artifacts.
 
 ## 6) Validation Checks
 

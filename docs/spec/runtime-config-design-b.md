@@ -14,7 +14,7 @@
 - Compose file: `docker/docker-compose.design-b.yml`
 - Node count: `6` containers (`monolith-1..monolith-6`)
 - Process model: one Python process per node (`python -m services.monolith.main`)
-- Execution slot mapping: one in-process worker loop per node (baseline target: total `6` slots)
+- Worker execution model: one in-process worker loop per node (6 loops total in baseline compose topology)
 
 ## Node runtime wiring
 

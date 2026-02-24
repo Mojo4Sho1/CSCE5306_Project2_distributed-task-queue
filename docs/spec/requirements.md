@@ -35,7 +35,7 @@ FR-6 is not part of the client-facing equivalence surface between Design A and D
 5. **NFR-5 Baseline Fault Handling:**  
    Coordinator tracks worker heartbeats and marks workers unavailable after timeout; queue operations do not silently drop queued jobs.
 6. **NFR-6 Capacity Fairness:**  
-   Both designs run with the same total worker-slot budget during comparisons.
+   Comparisons are interpreted with equal node count and explicit disclosure of as-run effective worker-loop capacity.
 
 ---
 

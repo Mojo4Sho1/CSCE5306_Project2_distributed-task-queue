@@ -10,8 +10,8 @@
 5. Is job runtime **fixed or variable**? If fixed, what is the approximate duration? If variable, what is the distribution or range?
 6. What causes a job to end as **DONE** vs **FAILED**? Are retries implemented anywhere?
 
-## C) Worker-slot fairness (ensure designs are truly comparable)
-7. In Design A (microservices): the “1 worker container × 6 slots” — are those slots implemented as threads, async tasks, processes, or something else?
+## C) Worker-loop fairness (ensure designs are truly comparable)
+7. In Design A (microservices): is the worker service a single execution loop, or does it implement any real parallel execution model (threads, async tasks, processes)?
 8. In Design B (monolith-per-node): do the 6 monolith containers each run their own worker execution loop with exactly **1 slot**?
 9. Do Design A and Design B use the same queueing policy (FIFO/priority), dispatch logic, and backpressure behavior under load?
 
@@ -38,7 +38,7 @@
 5. In current runtime behavior, effective job runtime is fixed at about `120 ms` for normal runs because coordinator `FetchWork` currently returns `spec.work_duration_ms=0`, and worker defaults `<=0` to `120 ms`. (Worker logic can clamp explicit values to `[20, 2000]` if present, but that value is not propagated in current fetch path.)
 6. `DONE` vs `FAILED`: worker reports `FAILED` only when `job_type` contains `"force-fail"` (deterministic failure trigger); otherwise it reports success (`DONE`). Retries are implemented for transient RPC failures in worker `ReportWorkOutcome` and client-side RPC adapter retries (retryable codes), with `SubmitJob` retries only when `client_request_id` is non-empty.
 
-### C) Worker-slot fairness (ensure designs are truly comparable)
+### C) Worker-loop fairness (ensure designs are truly comparable)
 7. In implemented code, Design A worker execution is a single worker loop (single thread/slot behavior), not a 6-thread/process executor inside one worker process.
 8. Yes. In Design B baseline, each of the 6 monolith containers starts one in-process worker loop (`1` slot per node baseline).
 9. Queue discipline is FIFO in both designs where queue service logic is used, but global behavior is not identical under load because Design B relies on deterministic owner routing with per-node state and no inter-node forwarding in v1.

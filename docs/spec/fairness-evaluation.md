@@ -2,7 +2,7 @@
 
 **Document path:** `docs/spec/fairness-evaluation.md`  
 **Status:** Locked for v1 benchmarking and report analysis  
-**Last updated:** 2026-02-19
+**Last updated:** 2026-02-24
 
 ---
 
@@ -56,12 +56,12 @@ Primary parity and performance conclusions are based on:
 
 ## 4) Fairness Controls (Locked)
 
-## 4.1 Capacity parity
-- `TOTAL_WORKER_SLOTS = 6` by default for both designs.
-- Design A mapping: 1 Worker container with 6 execution slots.
-- Design B mapping: 6 monolith containers with 1 execution slot each.
-
-No benchmark run is valid if total execution capacity differs across designs.
+## 4.1 As-run effective execution capacity
+- For starter-matrix runs executed on 2026-02-20:
+  - Design A ran one worker container with one sequential worker loop (effective concurrency: 1 job at a time).
+  - Design B ran six monolith containers, each with one embedded worker loop (effective concurrency: 6 jobs at a time total).
+- Therefore the recorded starter-matrix comparison has equal node count (6 vs 6) but different effective execution capacity as-run (1 vs 6 worker loops).
+- In this v1 repo runtime, each worker loop executes one job at a time.
 
 ## 4.2 Ingress parity
 - Design A: all client load targets Gateway only.
@@ -89,7 +89,7 @@ Monolith nodes do not forward job-scoped requests to each other in v1.
   - this is why Section 5 is correctness-critical in Design B, not just a load-balancing choice.
 
 Operational interpretation for new users/agents:
-- If comparing fairness/performance only, follow capacity and workload parity rules.
+- If comparing fairness/performance only, follow workload parity rules and always report effective worker-loop counts observed as-run.
 - If validating semantic parity in Design B, routing correctness is a first-order prerequisite.
 
 ## 4.5 Measurement parity
@@ -219,7 +219,7 @@ Each benchmark scenario must follow this sequence:
 1. **Environment setup**
    - Deploy selected design (A or B)
    - Verify all required services are healthy
-   - Confirm slot budget equals `TOTAL_WORKER_SLOTS`
+   - Record node count and effective worker-loop counts observed at runtime
 
 2. **Warm-up**
    - Run non-recorded traffic for fixed warm-up duration
@@ -305,7 +305,6 @@ Each recorded row should include at least:
 - `concurrency`
 - `work_duration_ms`
 - `request_mix_profile`
-- `total_worker_slots`
 
 Summary artifacts should include:
 - percentile tables by method/design/scenario
@@ -329,7 +328,7 @@ Benchmark contract reference (live-capable implementation):
 
 A run is **invalid** and must be rerun if any of the following occur:
 
-1. Capacity mismatch across designs (slot budget differs)
+1. Node-count mismatch across designs for the compared scenario
 2. Different workload parameters between A/B in same scenario
 3. Health/readiness failures during measurement window
 4. Incomplete logs or corrupted results file
@@ -349,7 +348,8 @@ For each workload axis and profile, report:
 5. Brief bottleneck interpretation tied to architecture
 
 Required clarity statements in report/slides:
-- `TOTAL_WORKER_SLOTS` equality across designs
+- equal node count does not imply equal effective worker-loop execution capacity
+- as-run effective worker loops for starter-matrix runs (A=1, B=6)
 - Design B routing policy used by load generator
 - `ListJobs` parity scope limitations in v1
 
@@ -358,7 +358,7 @@ Required clarity statements in report/slides:
 ## 14) Threats to Fairness and Mitigations
 
 ## Threat: Different execution capacity
-- **Mitigation:** fixed `TOTAL_WORKER_SLOTS`
+- **Mitigation:** explicitly report effective runtime worker-loop counts alongside node count for every reported comparison
 
 ## Threat: Routing-induced semantic drift in Design B
 - **Mitigation:** deterministic owner routing by `client_request_id`/`job_id`
@@ -397,7 +397,7 @@ Any fairness-affecting change requires explicit entry in project change notes:
 4. Whether previous benchmark data remains valid
 
 Examples of fairness-affecting changes:
-- worker-slot mapping
+- worker-loop count or enablement
 - routing algorithm or node order
 - retry/deadline defaults
 - workload mix definition
@@ -408,7 +408,8 @@ Examples of fairness-affecting changes:
 ## 17) Quick Compliance Checklist (Per Scenario)
 
 - [ ] Same hardware/environment
-- [ ] Same `TOTAL_WORKER_SLOTS`
+- [ ] Same node count across compared designs for the scenario
+- [ ] Effective worker-loop counts recorded and disclosed
 - [ ] Same workload profile and duration
 - [ ] Correct ingress/routing policy by design
 - [ ] Warm-up applied before recording

@@ -26,6 +26,8 @@
 
 \setstretch{1.08}
 
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+
 \title{\textbf{Distributed Task Queue System:\\Design, Implementation, and Evaluation}}
 \author{Joe Caldwell}
 \date{\today}
@@ -127,7 +129,7 @@ NFR-2 & \textbf{Scalability Testability}: The system supports controlled load te
 NFR-3 & \textbf{Performance Observability}: The evaluation records throughput (requests/sec and jobs/sec), latency percentiles (p50/p95/p99), and end-to-end completion time. \\
 NFR-4 & \textbf{Reproducibility}: A clean environment can reproduce deployment and benchmarking using documented Docker Compose and scripts. \\
 NFR-5 & \textbf{Baseline Fault Handling}: The coordinator tracks worker heartbeats and marks workers unavailable after timeout so queued jobs are not silently lost. \\
-NFR-6 & \textbf{Capacity Fairness}: Both designs run with the same total worker-slot budget during comparisons. \\
+NFR-6 & \textbf{Capacity Framing}: Comparisons lock node count and workload controls, while reporting realized as-run worker-loop capacity separately. \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -155,7 +157,6 @@ FR-6 & Coordinator, Worker, Queue \\
 \end{table}
 
 \section{Evaluation Methodology}
-
 \subsection{Experimental Setup}
 \textbf{Execution host:} All benchmark runs were executed on a single local machine (no multi-host cluster).
 The host system is a MacBook Air with an Apple M1 chip (8 CPU cores: 4 performance + 4 efficiency) and \SI{16}{GB} of memory, running macOS \texttt{15.6.1}.
@@ -206,7 +207,7 @@ Primary parity conclusions in v1 are restricted to \texttt{SubmitJob}, \texttt{G
 \subsection{Fairness Controls}
 The benchmark fairness contract is locked by \texttt{docs/spec/fairness-evaluation.md}. The key controls used for this report are:
 \begin{itemize}
-    \item \textbf{Capacity parity:} \texttt{TOTAL\_WORKER\_SLOTS=6} for both designs (Design A: 1 worker container x 6 slots; Design B: 6 monolith nodes x 1 slot).
+    \item \textbf{Capacity interpretation:} the recorded starter-matrix runs used equal node count but different as-run worker-loop capacity (Design A: 1 loop, Design B: 6 loops).
     \item \textbf{Ingress parity:} Design A client load enters Gateway only; Design B uses deterministic routing policy with round-robin for empty \texttt{client\_request\_id} submit traffic and key-based owner routing for non-empty keys.
     \item \textbf{State-coherence routing in Design B:} \texttt{GetJobStatus}, \texttt{GetJobResult}, and \texttt{CancelJob} are routed by \texttt{job\_id}; monolith nodes do not forward job-scoped requests in v1.
     \item \textbf{Measurement parity:} same hardware class, workload matrix, warm-up/cooldown policy, run duration, and client-side measurement implementation across both designs.
@@ -261,7 +262,7 @@ All numeric values in this section are traceable to:
 
 \section{Analysis of System-Design Trade-offs}
 The benchmark data in this repository supports the conclusion that the monolith-per-node baseline (Design B) performed better than the microservice baseline (Design A) for this v1 configuration, particularly under medium/high sustained load.
-That interpretation is consistent with your intuition: both designs were run with equal worker-slot capacity (\texttt{TOTAL\_WORKER\_SLOTS=6}), but the microservice topology introduces additional networked service boundaries (Gateway, Job, Queue, Coordinator, Result) that can add queueing and coordination overhead under pressure.
+That interpretation is consistent with your intuition: the recorded runs used equal node count but different as-run worker-loop capacity (Design A: 1 loop, Design B: 6 loops).
 
 \subsection{Why Design B likely won in this dataset}
 \begin{itemize}
@@ -350,7 +351,8 @@ conda run -n grpc python scripts/loadgen/aggregate_starter_matrix.py \
 \end{itemize}
 
 \noindent
-Interpretation must retain fairness guardrails from \texttt{docs/spec/fairness-evaluation.md}: equal worker-slot budget, Design B owner-routing rules for job-scoped operations, fixed timing windows, and \texttt{ListJobs=0\%} in primary parity scenarios.
+Interpretation must retain fairness guardrails from \texttt{docs/spec/fairness-evaluation.md}: equal node count with explicit as-run worker-loop disclosure (A=1, B=6 for starter-matrix evidence), Design B owner-routing rules for job-scoped operations, fixed timing windows, and \texttt{ListJobs=0\%} in primary parity scenarios.
+
 
 \section{Conclusion}
 This project demonstrates practical trade-offs between service decomposition and function colocation in distributed systems.

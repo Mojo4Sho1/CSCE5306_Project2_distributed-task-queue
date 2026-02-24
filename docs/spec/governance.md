@@ -56,7 +56,7 @@ Frozen clarifications:
 ## 3) Ambiguity Lock Register (Resolved)
 
 1. Submit anomaly handling: compensation + anomaly logging on create/enqueue partial failure.
-2. Worker-slot fairness: equal total worker slots across designs with fixed per-design mapping.
+2. Fairness framing for starter-matrix evidence: equal node count across designs, but documented as-run effective worker-loop capacity may differ and must be disclosed explicitly.
 3. Ingress policy: fixed request routing policy per design.
 4. Terminal race precedence: first valid terminal write wins.
 5. Sort behavior: enum-based sort (`CREATED_AT_DESC` / `CREATED_AT_ASC`), no free-text sort.

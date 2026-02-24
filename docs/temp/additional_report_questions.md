@@ -5,16 +5,16 @@ Resolve the A/B comparison semantics and ensure the reportâ€™s â€œfairn
 
 ---
 
-## A) Effective worker capacity and â€œslotâ€ semantics (highest priority)
+## A) Effective worker capacity semantics (highest priority)
 1. **Design A worker concurrency actually used in benchmarks**
    - During the starter-matrix runs for Design A, how many *worker execution loops* were active in total?
    - Was there exactly **one worker container** with **one loop**, or were worker containers **scaled/replicated** (e.g., `--scale worker=N`)?
    - If scaled, what was the exact scaling factor and how was it invoked?
 
-2. **Meaning of `TOTAL_WORKER_SLOTS=6` in Design A**
-   - Where is `TOTAL_WORKER_SLOTS` defined and enforced?
-   - Does it correspond to *real parallel execution capacity* (threads/async tasks/processes), or is it only a *logical budget* (e.g., coordinator permits)?
-   - If the worker process is single-loop, how can it realize more than one â€œslotâ€ concurrently (if at all)?
+2. **Meaning of node count vs worker-loop capacity in Design A**
+   - Where is node count (`6` functional services) defined?
+   - Does any mechanism create *real parallel execution capacity* inside the single worker service process?
+   - If the worker process is single-loop, confirm that effective concurrent execution remains one job at a time.
 
 3. **Design B effective worker capacity during benchmarks**
    - During starter-matrix runs for Design B, did **each of the 6 monolith containers** start a worker loop by default?
@@ -116,10 +116,10 @@ Resolve the A/B comparison semantics and ensure the reportâ€™s â€œfairn
    - Evidence: Design A compose defines a single `worker` service, and starter-matrix execution logs show only `docker-worker-1` (no `worker-2+`, no `--scale worker=N` in reproducibility commands).
    - I found no repo evidence that worker service was scaled during those runs.
 
-2. **Meaning of `TOTAL_WORKER_SLOTS=6` in Design A**
-   - `TOTAL_WORKER_SLOTS` is defined/enforced in benchmark scenario contracts as a locked value (`6`), not in worker runtime concurrency control.
-   - It functions as a fairness/control metadata budget in scenarios and artifact rows.
-   - Current worker process behavior is single-loop (`run -> _run_iteration -> fetch one -> execute one -> report one`), so runtime does not realize 6 concurrent in-process slots.
+2. **Meaning of node count vs worker-loop capacity in Design A**
+   - The `6` value for Design A describes six functional services in the architecture, not six worker execution lanes.
+   - Current worker process behavior is single-loop (`run -> _run_iteration -> fetch one -> execute one -> report one`).
+   - Effective execution concurrency in recorded starter runs is one job at a time in Design A.
 
 3. **Design B effective worker capacity during benchmarks**
    - Yes, the 6 monolith containers are started in starter-matrix runs.
@@ -127,9 +127,9 @@ Resolve the A/B comparison semantics and ensure the reportâ€™s â€œfairn
    - So effective baseline is 1 worker loop per node, 6 loops total, unless explicitly disabled (not seen in compose/runbook/log evidence).
 
 4. **Were A and B intentionally matched on total worker capacity?**
-   - Intent/documentation says yes (A: 1x6, B: 6x1).
+   - Earlier intent language described A/B with parity assumptions that overstated Design A worker concurrency.
    - Executed runtime evidence indicates **effective mismatch** in this code path: Design A behaves as one active loop while Design B has six active loops.
-   - Therefore parity is asserted by contract/metadata, but not fully realized by observed Design A runtime behavior.
+   - Therefore results should be interpreted as equal node count with different effective worker-loop capacity.
 
 5. **Owner selection mechanisms (precise behavior)**
    - `SubmitJob` in Design B uses:
