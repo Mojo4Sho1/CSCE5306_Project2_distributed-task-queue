@@ -157,6 +157,20 @@ FR-6 & Coordinator, Worker, Queue \\
 \section{Evaluation Methodology}
 
 \subsection{Experimental Setup}
+\textbf{Execution host:} All benchmark runs were executed on a single local machine (no multi-host cluster).
+The host system is a MacBook Air with an Apple M1 chip (8 CPU cores: 4 performance + 4 efficiency) and \SI{16}{GB} of memory, running macOS \texttt{15.6.1}.
+Docker Desktop was used to run Linux containers on Apple Silicon; the Docker Engine reports \texttt{OSType=linux} and \texttt{Architecture=aarch64}.\\
+
+\noindent
+\textbf{Container runtime:} Docker Engine \texttt{24.0.6} and Docker Compose \texttt{v2.22.0-desktop.2}.\\
+
+\noindent
+\textbf{System size:} Each design was deployed with six functional containerized nodes, and the workload generator ran as a separate client process (not counted as a system node).\\
+
+\noindent
+\textbf{Workload driver:} A dedicated load-generator client issued controlled gRPC traffic and wrote per-run artifacts under \texttt{results/loadgen/<scenario\_id>/<run\_id>/}.
+
+\subsection{Experimental Setup}
 \textbf{Hardware environment:} local host environment used for the 2026-02-20 starter-matrix executions; this draft intentionally treats hardware/software version capture as limited unless explicitly available in execution logs.\\
 \textbf{Number of nodes:} 6 functional containerized nodes per design\\
 \textbf{Workload driver:} a separate load-generator client issues controlled gRPC traffic and writes per-run artifacts under \texttt{results/loadgen/<scenario\_id>/<run\_id>/}.\\
