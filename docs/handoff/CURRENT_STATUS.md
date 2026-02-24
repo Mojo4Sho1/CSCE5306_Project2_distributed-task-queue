@@ -143,6 +143,19 @@ The items below are candidates that may be removable after verification. This se
   3. Update `docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md` to reflect archived raw-data location.
   4. Only then remove local raw directories from repo.
 
+### Candidate 6: one-off handoff task note `docs/handoff/codex_plot_fix_tasks.md` (high confidence)
+
+- Why it may be removed:
+  - It is an execution checklist for a completed one-time plotting refresh task.
+  - The durable implementation lives in `scripts/loadgen/aggregate_starter_matrix.py`; keeping the note is not required for reproducibility.
+- Safe removal steps:
+  1. Confirm plot outputs are regenerated and committed:
+     - `results/loadgen/analysis/starter_matrix_2026-02-20/plots/ab_p95_latency_primary_methods.png`
+     - `results/loadgen/analysis/starter_matrix_2026-02-20/plots/ab_terminal_throughput_by_scenario.png`
+  2. Confirm no live references rely on the handoff note:
+     - `rg -n "codex_plot_fix_tasks.md" README.md docs scripts tests results`
+  3. Delete `docs/handoff/codex_plot_fix_tasks.md`.
+
 ## Active coordination notes
 
 - The report draft now covers phases 1-7 with evidence-backed narrative and reproducibility guidance.

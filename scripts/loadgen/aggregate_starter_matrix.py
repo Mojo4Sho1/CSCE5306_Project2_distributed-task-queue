@@ -23,6 +23,18 @@ SCENARIO_CORE_ORDER = (
     "s_high_poll_heavy",
     "s_high_balanced",
 )
+SCENARIO_REPORT_IDS = {
+    "s_low_submit_heavy": "S1",
+    "s_low_balanced": "S2",
+    "s_low_poll_heavy": "S3",
+    "s_medium_submit_heavy": "S4",
+    "s_medium_balanced": "S5",
+    "s_medium_poll_heavy": "S6",
+    "s_high_submit_heavy": "S7",
+    "s_high_balanced": "S8",
+    "s_high_poll_heavy": "S9",
+}
+SCENARIO_PLOT_ORDER = tuple(SCENARIO_REPORT_IDS.keys())
 
 
 def parse_args() -> argparse.Namespace:
@@ -363,13 +375,13 @@ def _write_plots(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # 1) Mean p95 latency A vs B per scenario for each primary method.
-    fig, axes = plt.subplots(2, 2, figsize=(16, 10), constrained_layout=True)
+    fig, axes = plt.subplots(2, 2, figsize=(7.2, 5.6), constrained_layout=True)
     for idx, method in enumerate(PRIMARY_METHODS):
         ax = axes[idx // 2][idx % 2]
         scenarios: list[str] = []
         values_a: list[float] = []
         values_b: list[float] = []
-        for scenario in SCENARIO_CORE_ORDER:
+        for scenario in SCENARIO_PLOT_ORDER:
             a_sid = f"design_a_{scenario}"
             b_sid = f"design_b_{scenario}"
             a_row = next(
@@ -402,24 +414,26 @@ def _write_plots(
         width = 0.4
         ax.bar([p - width / 2 for p in x], values_a, width=width, label="A_microservices")
         ax.bar([p + width / 2 for p in x], values_b, width=width, label="B_monolith")
-        ax.set_title(f"{method} p95 Latency (ms)")
+        ax.set_title(method, fontsize=12)
         ax.set_xticks(x)
-        ax.set_xticklabels(scenarios, rotation=30, ha="right")
-        ax.set_ylabel("ms")
+        ax.set_xticklabels([SCENARIO_REPORT_IDS[s] for s in scenarios], rotation=0)
+        if idx % 2 == 0:
+            ax.set_ylabel("p95 latency (ms)", fontsize=12)
+        ax.tick_params(axis="both", labelsize=11)
     handles, labels = axes[0][0].get_legend_handles_labels()
     if handles and labels:
-        fig.legend(handles, labels, loc="upper center", ncol=2)
+        axes[0][0].legend(handles, labels, loc="upper left", fontsize=11)
     p1 = output_dir / "ab_p95_latency_primary_methods.png"
-    fig.savefig(p1, dpi=150)
+    fig.savefig(p1, dpi=300, bbox_inches="tight")
     plt.close(fig)
     plot_paths.append(str(p1))
 
     # 2) Terminal throughput mean per scenario (A vs B).
-    fig2, ax2 = plt.subplots(figsize=(16, 5), constrained_layout=True)
+    fig2, ax2 = plt.subplots(figsize=(7.2, 3.2), constrained_layout=True)
     scenarios2: list[str] = []
     values2_a: list[float] = []
     values2_b: list[float] = []
-    for scenario in SCENARIO_CORE_ORDER:
+    for scenario in SCENARIO_PLOT_ORDER:
         a_sid = f"design_a_{scenario}"
         b_sid = f"design_b_{scenario}"
         a_row = next(
@@ -448,13 +462,14 @@ def _write_plots(
     width2 = 0.4
     ax2.bar([p - width2 / 2 for p in x2], values2_a, width=width2, label="A_microservices")
     ax2.bar([p + width2 / 2 for p in x2], values2_b, width=width2, label="B_monolith")
-    ax2.set_title("Terminal Job Throughput by Scenario")
-    ax2.set_ylabel("throughput_rps")
+    ax2.set_ylabel("jobs/s", fontsize=12)
+    ax2.set_xlabel("Scenario", fontsize=12)
     ax2.set_xticks(x2)
-    ax2.set_xticklabels(scenarios2, rotation=30, ha="right")
-    ax2.legend()
+    ax2.set_xticklabels([SCENARIO_REPORT_IDS[s] for s in scenarios2], rotation=0)
+    ax2.tick_params(axis="both", labelsize=11)
+    ax2.legend(fontsize=11)
     p2 = output_dir / "ab_terminal_throughput_by_scenario.png"
-    fig2.savefig(p2, dpi=150)
+    fig2.savefig(p2, dpi=300, bbox_inches="tight")
     plt.close(fig2)
     plot_paths.append(str(p2))
     return plot_paths
