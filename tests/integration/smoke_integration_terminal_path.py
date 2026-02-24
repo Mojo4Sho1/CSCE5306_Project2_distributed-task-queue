@@ -23,19 +23,19 @@ import grpc
 
 @dataclass
 class CheckResult:
-    """Check result state and behavior."""
+    """One smoke-check result record."""
     name: str
     passed: bool
     detail: str
 
 
 def _repo_root() -> Path:
-    """Internal helper to  repo root."""
+    """Return repository root for import bootstrapping."""
     return Path(__file__).resolve().parents[2]
 
 
 def _status_name(pb2_module, status_value: int) -> str:
-    """Return a human-readable label for a status value."""
+    """Return status name text for readable assertions."""
     try:
         return pb2_module.JobStatus.Name(int(status_value))
     except Exception:
@@ -48,7 +48,7 @@ def _expect_ok(
     validator: Callable[[object], bool],
     detail_fn: Callable[[object], str],
 ) -> CheckResult:
-    """Assert expected behavior for the smoke check."""
+    """Assert expected RPC outcome for this check."""
     try:
         response = rpc_call()
         return CheckResult(name=name, passed=validator(response), detail=detail_fn(response))
@@ -61,7 +61,7 @@ def _expect_ok(
 
 
 def _print_summary(checks: List[CheckResult]) -> int:
-    """Print structured command output for operators."""
+    """Print a concise pass/fail summary for smoke checks."""
     print("\n=== Integration Terminal Path Smoke Summary ===")
     max_name = max((len(c.name) for c in checks), default=10)
     all_passed = True
@@ -79,7 +79,7 @@ def _print_summary(checks: List[CheckResult]) -> int:
 
 
 def main() -> int:
-    """Run the command-line entrypoint."""
+    """Run the smoke test script and return an exit code."""
     parser = argparse.ArgumentParser(description="Integration smoke for worker-driven terminalization path")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--gateway-port", type=int, default=50051)

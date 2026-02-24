@@ -52,7 +52,7 @@ from services.worker.worker import WorkerRuntime
 
 
 def _env_str(name: str, default: str) -> str:
-    """Internal helper to  env str."""
+    """Read optional string environment variable with fallback default."""
     value = os.getenv(name)
     if value is None:
         return default
@@ -61,7 +61,7 @@ def _env_str(name: str, default: str) -> str:
 
 
 def _env_int(name: str, default: int, minimum: int = 1) -> int:
-    """Internal helper to  env int."""
+    """Read optional integer environment variable with fallback default."""
     raw = os.getenv(name, "").strip()
     if not raw:
         return default
@@ -73,7 +73,7 @@ def _env_int(name: str, default: int, minimum: int = 1) -> int:
 
 
 def _env_float(name: str, default: float, minimum: float = 0.0) -> float:
-    """Internal helper to  env float."""
+    """Read optional float environment variable with fallback default."""
     raw = os.getenv(name, "").strip()
     if not raw:
         return default
@@ -85,19 +85,19 @@ def _env_float(name: str, default: float, minimum: float = 0.0) -> float:
 
 
 def _default_monolith_node_order() -> list[str]:
-    """Internal helper to  default monolith node order."""
+    """Return default monolith node order used for deterministic owner routing."""
     return [f"monolith-{idx}" for idx in range(1, 7)]
 
 
 def _parse_monolith_node_order(raw: str) -> list[str]:
-    """Internal helper to  parse monolith node order."""
+    """Parse comma-separated MONOLITH_NODE_ORDER into normalized node identifiers."""
     parts = [token.strip() for token in raw.split(",")]
     ordered = [token for token in parts if token]
     return ordered or _default_monolith_node_order()
 
 
 def _resolve_logger(node_id: str, log_level: str) -> logging.Logger:
-    """Resolve a runtime dependency from configuration."""
+    """Create monolith runtime logger with node and service metadata fields."""
     try:
         return init_logger(service_name=f"monolith.{node_id}", level=log_level)
     except Exception:
@@ -113,7 +113,7 @@ def _resolve_logger(node_id: str, log_level: str) -> logging.Logger:
 
 
 def _emit(logger: logging.Logger, event: str, **fields: Any) -> None:
-    """Internal helper to  emit."""
+    """Emit structured monolith node lifecycle and bootstrap events."""
     try:
         log_event(logger, event=event, **fields)
         return
@@ -228,7 +228,7 @@ class MonolithNodeRuntime:
         self._worker_thread: Optional[threading.Thread] = None
 
     def _register_services(self, server: grpc.Server) -> None:
-        """Internal helper to  register services."""
+        """Register public/internal servicers on the shared monolith gRPC server."""
         taskqueue_internal_pb2_grpc.add_JobInternalServiceServicer_to_server(
             JobServicer(config=self._job_cfg, logger=self._logger),
             server,
@@ -251,7 +251,7 @@ class MonolithNodeRuntime:
         )
 
     def _start_worker(self) -> None:
-        """Internal helper to  start worker."""
+        """Start embedded worker runtime when this monolith node owns worker execution."""
         if not self._worker_enabled:
             _emit(self._logger, "monolith.worker.disabled", node_id=self._node_id)
             return
@@ -271,7 +271,7 @@ class MonolithNodeRuntime:
         )
 
     def _stop_worker(self) -> None:
-        """Internal helper to  stop worker."""
+        """Stop embedded worker runtime during monolith shutdown."""
         if self._worker_runtime is None:
             return
         self._worker_runtime.stop()
@@ -280,7 +280,7 @@ class MonolithNodeRuntime:
         _emit(self._logger, "monolith.worker.stopped", node_id=self._node_id)
 
     def run(self) -> int:
-        """Execute the configured workflow."""
+        """Run monolith node gRPC server and embedded components until shutdown signal."""
         bind_addr = f"{self._host}:{self._public_port}"
         _emit(
             self._logger,
@@ -347,7 +347,7 @@ def run() -> int:
 
 
 def main() -> int:
-    """Run the command-line entrypoint."""
+    """Start monolith node runtime from environment-driven configuration."""
     return run()
 
 

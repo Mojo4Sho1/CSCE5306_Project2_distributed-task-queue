@@ -31,7 +31,7 @@ _TERMINAL_STATUSES = {
 
 @dataclass
 class _ResultRecord:
-    """ result record state and behavior."""
+    """In-memory result payload and metadata stored per job id."""
     job_id: str
     terminal_status: int
     runtime_ms: int
@@ -53,7 +53,7 @@ class ResultServicer(pb2_grpc.ResultInternalServiceServicer):
         self._results: dict[str, _ResultRecord] = {}
 
     def _set_error(self, context: grpc.ServicerContext, code: grpc.StatusCode, detail: str) -> None:
-        """Populate RPC error code and details on the context."""
+        """Set gRPC status code and detail text on the current Result RPC context."""
         context.set_code(code)
         context.set_details(detail)
 

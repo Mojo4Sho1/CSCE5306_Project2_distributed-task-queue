@@ -11,13 +11,13 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Target:
-    """Target state and behavior."""
+    """Health probe target parsed from command-line input."""
     host: str
     port: int
 
 
 def _parse_target(value: str) -> Target:
-    """Internal helper to  parse target."""
+    """Parse host:port text into a validated probe target."""
     raw = (value or "").strip()
     if not raw or ":" not in raw:
         raise argparse.ArgumentTypeError("target must be in host:port format")
@@ -68,7 +68,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _probe_tcp(target: Target, timeout_ms: int) -> tuple[bool, str]:
-    """Internal helper to  probe tcp."""
+    """Attempt a TCP connection to verify service reachability."""
     timeout_s = timeout_ms / 1000.0
     try:
         with socket.create_connection((target.host, target.port), timeout=timeout_s):
@@ -79,12 +79,12 @@ def _probe_tcp(target: Target, timeout_ms: int) -> tuple[bool, str]:
 
 def _probe_worker(target: Target, timeout_ms: int) -> tuple[bool, str]:
     # Worker health in v1 is defined as coordinator reachability.
-    """Internal helper to  probe worker."""
+    """Run worker-specific probe logic and return health status details."""
     return _probe_tcp(target, timeout_ms)
 
 
 def main() -> int:
-    """Run the command-line entrypoint."""
+    """Run connectivity and worker health probes for supplied targets."""
     parser = _build_parser()
     args = parser.parse_args()
 

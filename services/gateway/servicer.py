@@ -64,7 +64,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         self._init_clients()
 
     def _init_clients(self) -> None:
-        """Internal helper to  init clients."""
+        """Initialize downstream service stubs (job, queue, coordinator, result) on first request."""
         if self._job_client is None:
             job_addr = str(getattr(self._config, "job_addr", "")).strip()
             if job_addr:
@@ -89,7 +89,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         code: grpc.StatusCode,
         detail: str,
     ) -> None:
-        """Populate RPC error code and details on the context."""
+        """Set gRPC status code and detail text on the current Gateway RPC context."""
         context.set_code(code)
         context.set_details(detail)
 
@@ -101,7 +101,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         exc: grpc.RpcError,
         job_id: str = "",
     ) -> None:
-        """Internal helper to  map downstream error."""
+        """Translate downstream service failures into public gateway-facing status codes."""
         code = exc.code()
         detail = exc.details() or ""
 
@@ -144,7 +144,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         need_queue: bool = False,
         need_result: bool = False,
     ) -> bool:
-        """Internal helper to  require upstreams."""
+        """Validate that required downstream stubs are initialized before handling RPCs."""
         if need_job and self._job_client is None:
             self._set_error(context, grpc.StatusCode.UNAVAILABLE, "job service upstream not configured")
             return False
@@ -163,7 +163,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         *,
         operation: str,
     ) -> Optional[internal_pb2.GetJobRecordResponse]:
-        """Internal helper to  fetch record."""
+        """Fetch authoritative job record from Job service for gateway status/result logic."""
         try:
             return self._job_client.GetJobRecord(  # type: ignore[union-attr]
                 internal_pb2.GetJobRecordRequest(job_id=job_id),
@@ -179,7 +179,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         reason: str,
         context: grpc.ServicerContext,
     ) -> bool:
-        """Internal helper to  store cancel result."""
+        """Persist synthetic cancel result payload in Result service after cancellation."""
         summary = reason.strip() or _CANCEL_RESULT_SUMMARY_DEFAULT
         try:
             resp = self._result_client.StoreResult(  # type: ignore[union-attr]
@@ -208,7 +208,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
         reason: str,
         context: grpc.ServicerContext,
     ) -> Optional[internal_pb2.SetCancelRequestedResponse]:
-        """Internal helper to  set cancel requested."""
+        """Set cancel-requested flag in Job service before queue/worker processing."""
         try:
             return self._job_client.SetCancelRequested(  # type: ignore[union-attr]
                 internal_pb2.SetCancelRequestedRequest(
@@ -223,7 +223,7 @@ class GatewayServicer(pb2_grpc.TaskQueuePublicServiceServicer):
             return None
 
     def _attempt_submit_compensation(self, job_id: str) -> None:
-        """Internal helper to  attempt submit compensation."""
+        """Compensate partial SubmitJob failures by rolling back created Job records."""
         if self._job_client is None:
             return
         try:

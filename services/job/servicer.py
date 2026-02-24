@@ -58,7 +58,7 @@ _ALLOWED_TRANSITIONS = {
 
 @dataclass
 class _JobRecord:
-    """ job record state and behavior."""
+    """In-memory Job service record containing status, payload, and timestamps."""
     job_id: str
     status: int
     job_type: str
@@ -74,7 +74,7 @@ class _JobRecord:
 
 @dataclass
 class _DedupEntry:
-    """ dedup entry state and behavior."""
+    """Idempotency-key deduplication cache entry for CreateJob requests."""
     fingerprint: Tuple[str, int, int, Tuple[Tuple[str, str], ...]]
     job_id: str
 
@@ -111,12 +111,12 @@ class JobServicer(pb2_grpc.JobInternalServiceServicer):
         self._dedup: OrderedDict[str, _DedupEntry] = OrderedDict()
 
     def _fingerprint(self, spec: public_pb2.JobSpec) -> Tuple[str, int, int, Tuple[Tuple[str, str], ...]]:
-        """Internal helper to  fingerprint."""
+        """Build a stable fingerprint used to detect conflicting idempotent CreateJob retries."""
         labels_tuple = tuple(sorted((str(k), str(v)) for k, v in spec.labels.items()))
         return (str(spec.job_type), int(spec.work_duration_ms), int(spec.payload_size_bytes), labels_tuple)
 
     def _summary_from_record(self, rec: _JobRecord) -> public_pb2.JobSummary:
-        """Internal helper to  summary from record."""
+        """Project a full job record into public summary fields used by list/status APIs."""
         return public_pb2.JobSummary(
             job_id=rec.job_id,
             status=rec.status,
@@ -128,12 +128,12 @@ class JobServicer(pb2_grpc.JobInternalServiceServicer):
         )
 
     def _set_error(self, context: grpc.ServicerContext, code: grpc.StatusCode, detail: str) -> None:
-        """Populate RPC error code and details on the context."""
+        """Set gRPC status code and detail text on the current Job RPC context."""
         context.set_code(code)
         context.set_details(detail)
 
     def _coerce_sort(self, sort: int) -> int:
-        """Coerce a raw value into the expected runtime type."""
+        """Parse and validate ListJobRecords sort option."""
         if sort == public_pb2.JOB_SORT_UNSPECIFIED:
             return public_pb2.CREATED_AT_DESC
         if sort in (public_pb2.CREATED_AT_DESC, public_pb2.CREATED_AT_ASC):
@@ -141,7 +141,7 @@ class JobServicer(pb2_grpc.JobInternalServiceServicer):
         return public_pb2.CREATED_AT_DESC
 
     def _parse_offset(self, token: str) -> Optional[int]:
-        """Internal helper to  parse offset."""
+        """Parse pagination offset token used by ListJobRecords."""
         value = (token or "").strip()
         if value == "":
             return 0
@@ -157,7 +157,7 @@ class JobServicer(pb2_grpc.JobInternalServiceServicer):
         return True
 
     def _new_job_id(self) -> str:
-        """Internal helper to  new job id."""
+        """Generate a new globally unique job id for CreateJob."""
         if not self._owner_routing_enabled:
             return str(uuid.uuid4())
         for _ in range(max(1, self._owner_job_id_max_attempts)):

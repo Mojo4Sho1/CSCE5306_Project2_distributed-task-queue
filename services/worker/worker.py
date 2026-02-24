@@ -84,7 +84,7 @@ else:
 
 
 def _coerce_int(value: Any, default: int) -> int:
-    """Coerce a raw value into the expected runtime type."""
+    """Parse integer worker runtime settings from environment/config sources."""
     try:
         return int(value)
     except Exception:
@@ -120,7 +120,7 @@ def _resolve_worker_config() -> Any:
             pass
 
     class _FallbackConfig:
-        """ fallback config state and behavior."""
+        """Environment-backed defaults used when shared config loading is unavailable."""
         service_name = "worker"
         log_level = "INFO"
         coordinator_addr = "127.0.0.1:50054"
@@ -139,7 +139,7 @@ def _resolve_worker_config() -> Any:
 
 
 def _resolve_logger(cfg: Any) -> logging.Logger:
-    """Resolve a runtime dependency from configuration."""
+    """Create worker runtime logger with service-aware structured fields."""
     service_name = getattr(cfg, "service_name", "worker")
     level = getattr(cfg, "log_level", "INFO")
 
@@ -173,7 +173,7 @@ def _resolve_logger(cfg: Any) -> logging.Logger:
 
 
 def _emit(logger: logging.Logger, event: str, **fields: Any) -> None:
-    """Internal helper to  emit."""
+    """Emit structured worker lifecycle/operation log events."""
     if log_event is not None:
         try:
             log_event(logger, event=event, **fields)
@@ -193,14 +193,14 @@ def _emit(logger: logging.Logger, event: str, **fields: Any) -> None:
 
 
 def _now_ms() -> int:
-    """Internal helper to  now ms."""
+    """Return current monotonic-clock time in milliseconds."""
     if _common is not None:
         return int(now_ms())  # type: ignore[misc]
     return int(time.time() * 1000)
 
 
 def _resolve_worker_id(cfg: Any) -> str:
-    """Resolve a runtime dependency from configuration."""
+    """Resolve stable worker id from config/hostname or generated fallback."""
     candidate = str(getattr(cfg, "worker_id", "") or "").strip()
     if candidate:
         return candidate
@@ -305,7 +305,7 @@ class WorkerRuntime:
         _emit(self._logger, "worker.shutdown.complete", worker_id=self._worker_id)
 
     def run(self) -> int:
-        """Execute the configured workflow."""
+        """Run the worker main loop until stopped, sending heartbeats and processing fetched work."""
         self.start()
         try:
             while not self._stop_event.is_set():
@@ -315,7 +315,7 @@ class WorkerRuntime:
         return 0
 
     def _run_iteration(self) -> None:
-        """Internal helper to  run iteration."""
+        """Execute one worker loop iteration: heartbeat, fetch work, execute, and report outcome."""
         now = _now_ms()
         if now - self._last_heartbeat_at_ms >= self._heartbeat_interval_ms:
             self._send_heartbeat(now)
@@ -337,7 +337,7 @@ class WorkerRuntime:
         self._stop_event.wait(sleep_ms / 1000.0)
 
     def _send_heartbeat(self, heartbeat_at_ms: int) -> None:
-        """Internal helper to  send heartbeat."""
+        """Send worker heartbeat to coordinator and process lease/retry hints."""
         _emit(
             self._logger,
             "worker.heartbeat.attempt",
@@ -379,7 +379,7 @@ class WorkerRuntime:
             )
 
     def _fetch_work(self) -> tuple[Optional[pb2.FetchWorkResponse], int]:
-        """Internal helper to  fetch work."""
+        """Fetch one work item from coordinator, honoring backoff when no work is available."""
         _emit(
             self._logger,
             "worker.fetch.attempt",
@@ -424,7 +424,7 @@ class WorkerRuntime:
             return None, self._fetch_idle_sleep_ms
 
     def _execute_and_report(self, fetch: pb2.FetchWorkResponse) -> None:
-        """Internal helper to  execute and report."""
+        """Execute fetched job payload and report terminal outcome to coordinator."""
         job_id = str(fetch.job_id).strip()
         spec = getattr(fetch, "spec", public_pb2.JobSpec())
         job_type = str(getattr(spec, "job_type", "")).strip()
@@ -491,14 +491,14 @@ class WorkerRuntime:
         )
 
     def _planned_runtime_ms(self, spec: Any) -> int:
-        """Internal helper to  planned runtime ms."""
+        """Derive deterministic simulated runtime from job payload for repeatable tests."""
         raw = _coerce_int(getattr(spec, "work_duration_ms", 0), 0)
         if raw <= 0:
             return 120
         return max(20, min(raw, 2000))
 
     def _build_output_bytes(self, job_id: str, spec: Any, runtime_ms: int) -> bytes:
-        """Build derived runtime data for this operation."""
+        """Build synthetic worker output bytes from payload and execution metadata."""
         job_type = str(getattr(spec, "job_type", "")).strip()
         payload_size_bytes = max(0, _coerce_int(getattr(spec, "payload_size_bytes", 0), 0))
         base = (
@@ -508,7 +508,7 @@ class WorkerRuntime:
         return base.encode("utf-8")
 
     def _report_with_retry(self, request: pb2.ReportWorkOutcomeRequest) -> bool:
-        """Internal helper to  report with retry."""
+        """Report work outcome with bounded retries and jittered backoff on transient errors."""
         backoff_ms = self._report_initial_backoff_ms
         for attempt in range(1, self._report_max_attempts + 1):
             _emit(

@@ -81,7 +81,7 @@ else:
 
 
 def _coerce_int(value: Any, default: int) -> int:
-    """Coerce a raw value into the expected runtime type."""
+    """Parse integer configuration values for queue server startup."""
     try:
         return int(value)
     except Exception:
@@ -120,7 +120,7 @@ def _resolve_queue_config() -> Any:
             pass
 
     class _FallbackConfig:
-        """ fallback config state and behavior."""
+        """Environment-backed defaults used when shared config loading is unavailable."""
         service_name = "queue"
         log_level = "INFO"
         bind_host = "0.0.0.0"
@@ -134,7 +134,7 @@ def _resolve_queue_config() -> Any:
 
 
 def _resolve_logger(cfg: Any) -> logging.Logger:
-    """Resolve a runtime dependency from configuration."""
+    """Create the queue service logger from config and environment settings."""
     service_name = getattr(cfg, "service_name", "queue")
     level = getattr(cfg, "log_level", "INFO")
 
@@ -243,7 +243,7 @@ def _instantiate_servicer(servicer_cls: Type[Any], cfg: Any, logger: logging.Log
 
 
 def _bind_addr(cfg: Any) -> str:
-    """Build the bind address used by the gRPC server."""
+    """Return the queue gRPC server bind address as "host:port"."""
     host = getattr(cfg, "bind_host", None) or getattr(cfg, "host", "0.0.0.0")
     port = _coerce_int(getattr(cfg, "port", getattr(cfg, "queue_port", 50053)), 50053)
     return f"{host}:{port}"

@@ -49,7 +49,7 @@ JOB_STATUS_VALUE_TO_NAME = {
 
 
 def _require_non_empty_str(raw: Any, field_name: str) -> str:
-    """Internal helper to  require non empty str."""
+    """Validate that a required scenario field is a non-empty string."""
     value = str(raw or "").strip()
     if not value:
         raise ValueError(f"{field_name} must be non-empty")
@@ -57,7 +57,7 @@ def _require_non_empty_str(raw: Any, field_name: str) -> str:
 
 
 def _require_positive_int(raw: Any, field_name: str) -> int:
-    """Internal helper to  require positive int."""
+    """Validate that a scenario field is a strictly positive integer."""
     value = int(raw)
     if value <= 0:
         raise ValueError(f"{field_name} must be > 0")
@@ -65,7 +65,7 @@ def _require_positive_int(raw: Any, field_name: str) -> int:
 
 
 def _require_non_negative_float(raw: Any, field_name: str) -> float:
-    """Internal helper to  require non negative float."""
+    """Validate that a scenario field is a non-negative float."""
     value = float(raw)
     if value < 0:
         raise ValueError(f"{field_name} must be >= 0")
@@ -73,7 +73,7 @@ def _require_non_negative_float(raw: Any, field_name: str) -> float:
 
 
 def _require_positive_float(raw: Any, field_name: str) -> float:
-    """Internal helper to  require positive float."""
+    """Validate that a scenario field is a strictly positive float."""
     value = float(raw)
     if value <= 0:
         raise ValueError(f"{field_name} must be > 0")
@@ -82,7 +82,7 @@ def _require_positive_float(raw: Any, field_name: str) -> float:
 
 @dataclass(frozen=True)
 class BenchmarkScenario:
-    """Benchmark scenario state and behavior."""
+    """Typed scenario contract for a benchmark run configuration."""
     scenario_id: str
     design: str
     concurrency: int
@@ -185,7 +185,7 @@ class BenchmarkScenario:
 
     @staticmethod
     def _parse_request_mix_weights(raw: Any) -> dict[str, int]:
-        """Internal helper to  parse request mix weights."""
+        """Normalize per-method request weights used by load-generation scheduling."""
         if not isinstance(raw, Mapping):
             raise ValueError("request_mix_weights must be a mapping")
 
@@ -201,7 +201,7 @@ class BenchmarkScenario:
         return parsed
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize this object for persistence or transport."""
+        """Serialize the scenario for metadata and reproducible run artifacts."""
         payload = asdict(self)
         payload["design_b_ordered_targets"] = list(self.design_b_ordered_targets)
         return payload
@@ -209,7 +209,7 @@ class BenchmarkScenario:
 
 @dataclass(frozen=True)
 class BenchmarkRow:
-    """Benchmark row state and behavior."""
+    """Single measurement row captured from one benchmark RPC operation."""
     design: str
     scenario_id: str
     run_id: str
@@ -228,7 +228,7 @@ class BenchmarkRow:
     total_worker_slots: int
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize this object for persistence or transport."""
+        """Serialize a measurement row for JSON/CSV output artifacts."""
         return asdict(self)
 
 
@@ -236,7 +236,7 @@ ROW_FIELDS = tuple(BenchmarkRow.__dataclass_fields__.keys())
 
 
 def write_rows_jsonl(rows: Iterable[BenchmarkRow], output_path: Path) -> int:
-    """Write output artifacts to disk."""
+    """Write benchmark measurement rows to newline-delimited JSON."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     count = 0
     with output_path.open("w", encoding="utf-8", newline="\n") as handle:
@@ -248,7 +248,7 @@ def write_rows_jsonl(rows: Iterable[BenchmarkRow], output_path: Path) -> int:
 
 
 def write_rows_csv(rows: Iterable[BenchmarkRow], output_path: Path) -> int:
-    """Write output artifacts to disk."""
+    """Write benchmark measurement rows to CSV for tabular analysis."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     count = 0
     with output_path.open("w", encoding="utf-8", newline="") as handle:
@@ -261,7 +261,7 @@ def write_rows_csv(rows: Iterable[BenchmarkRow], output_path: Path) -> int:
 
 
 def load_scenario_config(config_path: Path) -> BenchmarkScenario:
-    """Load data from disk and validate its shape."""
+    """Load and validate a benchmark scenario JSON file from disk."""
     with config_path.open("r", encoding="utf-8") as handle:
         payload = json.load(handle)
     return BenchmarkScenario.from_dict(payload)
@@ -269,7 +269,7 @@ def load_scenario_config(config_path: Path) -> BenchmarkScenario:
 
 @dataclass(frozen=True)
 class RunContext:
-    """Run context state and behavior."""
+    """Mutable per-run context shared across phase execution and adapters."""
     scenario: BenchmarkScenario
     run_id: str
     repeat_index: int
@@ -295,7 +295,7 @@ class RunContext:
 
 @dataclass(frozen=True)
 class RunArtifacts:
-    """Run artifacts state and behavior."""
+    """Filesystem paths and metadata produced for one benchmark run."""
     run_id: str
     run_dir: Path
     rows_jsonl_path: Path
@@ -307,7 +307,7 @@ class RunArtifacts:
 
 
 class PhaseEngine(Protocol):
-    """Phase engine state and behavior."""
+    """Interface for executing warmup/measure/cooldown phase traffic."""
     def run_phase(
         self,
         *,
@@ -316,7 +316,7 @@ class PhaseEngine(Protocol):
         duration_seconds: float,
         recorded: bool,
     ) -> list[BenchmarkRow]:
-        """Execute the configured workflow."""
+        """Run one benchmark phase and return operation-level measurements."""
         ...
 
 
@@ -355,7 +355,7 @@ class BenchmarkRunner:
         phase_engine: PhaseEngine | None = None,
         overwrite: bool = False,
     ) -> list[RunArtifacts]:
-        """Execute the configured workflow."""
+        """Execute all configured runs and persist artifacts under the output root."""
         artifacts: list[RunArtifacts] = []
         for repeat_index in range(self._scenario.repetitions):
             run_id = build_stable_run_id(
@@ -414,7 +414,7 @@ class BenchmarkRunner:
         return artifacts
 
     def _prepare_run_dir(self, *, run_dir: Path, overwrite: bool) -> None:
-        """Internal helper to  prepare run dir."""
+        """Create or replace the deterministic run directory for one run index."""
         if not run_dir.exists():
             return
         if not overwrite:
@@ -427,7 +427,7 @@ class BenchmarkRunner:
             run_dir.unlink()
 
     def _build_design_b_router(self) -> DesignBClientRouter | None:
-        """Build derived runtime data for this operation."""
+        """Build a Design-B router when scenario targets provide multiple monolith nodes."""
         if self._scenario.design != "B_monolith":
             return None
         return DesignBClientRouter(
@@ -441,7 +441,7 @@ class BenchmarkRunner:
         context: RunContext,
         phase_engine: PhaseEngine | None,
     ) -> tuple[dict[str, Any], list[BenchmarkRow]]:
-        """Internal helper to  execute phases."""
+        """Execute warmup, measure, and cooldown phases for a run."""
         phases = (
             ("warmup", self._scenario.warmup_seconds, False),
             ("measure", self._scenario.measure_seconds, True),
@@ -479,14 +479,14 @@ class BenchmarkRunner:
         context: RunContext,
         operation_hook: Callable[[RunContext, str], Sequence[BenchmarkRow]] | None,
     ) -> list[BenchmarkRow]:
-        """Internal helper to  collect measurement rows."""
+        """Flatten per-phase operation results into persisted measurement rows."""
         if not operation_hook:
             return []
         return list(operation_hook(context, "measure"))
 
 
 def build_stable_run_id(scenario_id: str, run_seed: int, repeat_index: int) -> str:
-    """Build derived runtime data for this operation."""
+    """Build a deterministic run identifier from scenario id and run index."""
     base = f"{scenario_id}:{int(run_seed)}:{int(repeat_index)}"
     digest = hashlib.sha256(base.encode("utf-8")).hexdigest()[:10]
     return f"{scenario_id}-r{repeat_index:02d}-{digest}"
@@ -514,7 +514,7 @@ class RequestMixScheduler:
         self._lock = threading.Lock()
 
     def next_method(self) -> str:
-        """Return the next value in the scheduling sequence."""
+        """Choose the next RPC method according to configured request-mix weights."""
         with self._lock:
             method = self._methods[self._index]
             self._index = (self._index + 1) % len(self._methods)
@@ -522,7 +522,7 @@ class RequestMixScheduler:
 
 
 class OperationAdapter(Protocol):
-    """Operation adapter state and behavior."""
+    """Adapter interface used by phase engines to execute public API operations."""
     def known_job_count(self, context: RunContext) -> int:
         """Known job count."""
         ...
@@ -582,7 +582,7 @@ class LiveTrafficEngine:
         duration_seconds: float,
         recorded: bool,
     ) -> list[BenchmarkRow]:
-        """Execute the configured workflow."""
+        """Generate timed live traffic for a phase at the configured request rate."""
         if duration_seconds <= 0:
             return []
 
@@ -646,7 +646,7 @@ class LiveTrafficEngine:
         return rows
 
     def _request_interval_seconds(self) -> float | None:
-        """Internal helper to  request interval seconds."""
+        """Convert configured request rate to per-request sleep interval seconds."""
         if self._request_rate_rps is None:
             return None
         return float(self._scenario.concurrency) / self._request_rate_rps
@@ -738,7 +738,7 @@ class GrpcPublicApiAdapter:
         worker_id: int,
         op_index: int,
     ) -> BenchmarkRow:
-        """Internal helper to  execute submit."""
+        """Execute a SubmitJob request, including optional idempotency-key routing behavior."""
         client_request_id = self._build_client_request_id(
             context=context,
             worker_id=worker_id,
@@ -796,7 +796,7 @@ class GrpcPublicApiAdapter:
         )
 
     def _execute_get_status(self, *, context: RunContext, rng: random.Random) -> BenchmarkRow:
-        """Internal helper to  execute get status."""
+        """Execute GetJobStatus for a known job id and capture RPC result metrics."""
         job_id = self._pick_job_id(context.run_id, rng)
         if not job_id:
             return self._execute_submit(context=context, rng=rng, worker_id=0, op_index=-1)
@@ -838,7 +838,7 @@ class GrpcPublicApiAdapter:
         )
 
     def _execute_get_result(self, *, context: RunContext, rng: random.Random) -> BenchmarkRow:
-        """Internal helper to  execute get result."""
+        """Execute GetJobResult for a known job id and capture RPC result metrics."""
         job_id = self._pick_job_id(context.run_id, rng)
         if not job_id:
             return self._execute_submit(context=context, rng=rng, worker_id=0, op_index=-1)
@@ -884,7 +884,7 @@ class GrpcPublicApiAdapter:
         )
 
     def _execute_cancel(self, *, context: RunContext, rng: random.Random) -> BenchmarkRow:
-        """Internal helper to  execute cancel."""
+        """Execute CancelJob for a known job id and capture RPC result metrics."""
         job_id = self._pick_job_id(context.run_id, rng)
         if not job_id:
             return self._execute_submit(context=context, rng=rng, worker_id=0, op_index=-1)
@@ -933,7 +933,7 @@ class GrpcPublicApiAdapter:
         )
 
     def _execute_list_jobs(self, *, context: RunContext) -> BenchmarkRow:
-        """Internal helper to  execute list jobs."""
+        """Execute ListJobs and capture RPC result metrics."""
         if context.scenario.design == "A_microservices":
             target = str(context.scenario.design_a_gateway_target)
         else:
@@ -974,20 +974,20 @@ class GrpcPublicApiAdapter:
         )
 
     def _scenario_targets(self) -> list[str]:
-        """Internal helper to  scenario targets."""
+        """Resolve submit/job ingress targets from scenario-level endpoint settings."""
         if self._scenario.design == "A_microservices":
             return [str(self._scenario.design_a_gateway_target)]
         return list(self._scenario.design_b_ordered_targets)
 
     def _register_job_id(self, run_id: str, job_id: str) -> None:
-        """Internal helper to  register job id."""
+        """Record newly observed job ids for subsequent status/result/cancel calls."""
         with self._jobs_lock:
             jobs = self._run_jobs.setdefault(run_id, [])
             if job_id not in jobs:
                 jobs.append(job_id)
 
     def _pick_job_id(self, run_id: str, rng: random.Random) -> str | None:
-        """Internal helper to  pick job id."""
+        """Select an existing job id for non-submit operations, or return None if unavailable."""
         with self._jobs_lock:
             jobs = self._run_jobs.get(run_id, [])
             if not jobs:
@@ -1001,7 +1001,7 @@ class GrpcPublicApiAdapter:
         worker_id: int,
         op_index: int,
     ) -> str:
-        """Build derived runtime data for this operation."""
+        """Build a client request id that stays stable across retry attempts."""
         mode = context.scenario.submit_client_request_id_mode
         if mode == "empty":
             return ""
@@ -1019,7 +1019,7 @@ class GrpcPublicApiAdapter:
         allow_retry: bool,
         rng: random.Random,
     ) -> "_RpcAttemptResult":
-        """Internal helper to  invoke with retry."""
+        """Invoke an RPC with bounded retries based on idempotency and gRPC status codes."""
         del method
         max_attempts = RETRY_MAX_ATTEMPTS if allow_retry else 1
         backoff_window_s = RETRY_INITIAL_DELAY_MS / 1000.0
@@ -1040,7 +1040,7 @@ class GrpcPublicApiAdapter:
 
 @dataclass(frozen=True)
 class _RpcAttemptResult:
-    """ rpc attempt result state and behavior."""
+    """Details from one RPC attempt, including timing and status metadata."""
     grpc_code: str
     response: Any | None
     attempt_count: int
@@ -1100,13 +1100,13 @@ def summarize_measurement_rows(rows: Sequence[BenchmarkRow], measure_seconds: fl
 
 
 def write_summary_json(summary: Mapping[str, Any], output_path: Path) -> None:
-    """Write output artifacts to disk."""
+    """Write aggregate run summary metrics to JSON."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
 
 def write_summary_csv(summary: Mapping[str, Any], output_path: Path) -> None:
-    """Write output artifacts to disk."""
+    """Write aggregate per-method summary metrics to CSV."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fields = (
         "method",
@@ -1147,7 +1147,7 @@ def write_summary_csv(summary: Mapping[str, Any], output_path: Path) -> None:
 
 
 def _percentile(values: Sequence[float], percentile: int) -> float:
-    """Internal helper to  percentile."""
+    """Compute a percentile value from a list of numeric samples."""
     if not values:
         return 0.0
     sorted_values = sorted(values)
@@ -1182,7 +1182,7 @@ def validate_stack_health_targets(
 
 
 def _parse_target_host_port(target: str) -> tuple[str, int]:
-    """Internal helper to  parse target host port."""
+    """Parse a host:port ingress target string used by health prechecks."""
     raw = str(target or "").strip()
     if ":" not in raw:
         raise ValueError(f"target must be host:port, got {raw!r}")
@@ -1212,12 +1212,12 @@ def _status_name(value: Any) -> str:
 
 
 def _is_terminal_job_status(value: Any) -> bool:
-    """Internal helper to  is terminal job status."""
+    """Return whether a job status name represents a terminal lifecycle state."""
     return _status_name(value) in TERMINAL_JOB_STATUS_NAMES
 
 
 def _elapsed_latency_ms(start_monotonic: float, monotonic_fn: Callable[[], float]) -> float:
-    """Internal helper to  elapsed latency ms."""
+    """Compute operation latency in milliseconds from start/end monotonic timestamps."""
     elapsed_ms = max(0.0, (monotonic_fn() - start_monotonic) * 1000.0)
     if elapsed_ms <= 0.0:
         return 0.001
@@ -1225,13 +1225,13 @@ def _elapsed_latency_ms(start_monotonic: float, monotonic_fn: Callable[[], float
 
 
 def _phase_seed(base_seed: int, repeat_index: int, phase_name: str) -> int:
-    """Internal helper to  phase seed."""
+    """Derive a deterministic per-phase random seed from scenario seed and phase identity."""
     phase_offset = {"warmup": 11, "measure": 29, "cooldown": 53}.get(phase_name, 71)
     return int(base_seed) + (int(repeat_index) * 100_003) + phase_offset
 
 
 def _extract_grpc_code_name(exc: Exception) -> str:
-    """Internal helper to  extract grpc code name."""
+    """Extract normalized gRPC status-code name from an exception or return value."""
     try:
         code = exc.code()  # type: ignore[attr-defined]
         if hasattr(code, "name"):
@@ -1242,7 +1242,7 @@ def _extract_grpc_code_name(exc: Exception) -> str:
 
 
 def _load_public_proto_modules() -> tuple[ModuleType, ModuleType, ModuleType]:
-    """Internal helper to  load public proto modules."""
+    """Load generated public proto modules used by the gRPC adapter at runtime."""
     repo_root = Path(__file__).resolve().parents[1]
     generated_dir = repo_root / "generated"
     if str(generated_dir) not in sys.path:

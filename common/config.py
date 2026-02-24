@@ -40,7 +40,7 @@ class ConfigError(Exception):
 
 @dataclass(frozen=True)
 class BaseServiceConfig:
-    """Base service config state and behavior."""
+    """Shared host/port/logging settings common to every service process."""
     service_name: str
     host: str
     port: int
@@ -50,7 +50,7 @@ class BaseServiceConfig:
 
 @dataclass(frozen=True)
 class GatewayConfig(BaseServiceConfig):
-    """Gateway config state and behavior."""
+    """Resolved runtime configuration for the Gateway service."""
     job_addr: str
     queue_addr: str
     result_addr: str
@@ -59,19 +59,19 @@ class GatewayConfig(BaseServiceConfig):
 
 @dataclass(frozen=True)
 class JobConfig(BaseServiceConfig):
-    """Job config state and behavior."""
+    """Resolved runtime configuration for the Job service."""
     max_dedup_keys: int
 
 
 @dataclass(frozen=True)
 class QueueConfig(BaseServiceConfig):
-    """Queue config state and behavior."""
+    """Resolved runtime configuration for the Queue service."""
     pass
 
 
 @dataclass(frozen=True)
 class CoordinatorConfig(BaseServiceConfig):
-    """Coordinator config state and behavior."""
+    """Resolved runtime configuration for the Coordinator service."""
     job_addr: str
     queue_addr: str
     result_addr: str
@@ -82,7 +82,7 @@ class CoordinatorConfig(BaseServiceConfig):
 
 @dataclass(frozen=True)
 class WorkerConfig(BaseServiceConfig):
-    """Worker config state and behavior."""
+    """Resolved runtime configuration for worker polling and retry behavior."""
     coordinator_addr: str
     worker_id: str
     heartbeat_interval_ms: int
@@ -98,7 +98,7 @@ class WorkerConfig(BaseServiceConfig):
 
 @dataclass(frozen=True)
 class ResultConfig(BaseServiceConfig):
-    """Result config state and behavior."""
+    """Resolved runtime configuration for the Result service."""
     max_output_bytes: int
 
 
@@ -512,7 +512,7 @@ def load_service_config(service_name: Optional[str] = None) -> ServiceConfig:
 
 
 def _resolve_service_name(service_name: Optional[str]) -> str:
-    """Resolve a runtime dependency from configuration."""
+    """Resolve and validate normalized service name for config dispatch."""
     raw = service_name if service_name is not None else os.getenv("SERVICE_NAME")
 
     if raw is None or not raw.strip():
@@ -525,7 +525,7 @@ def _resolve_service_name(service_name: Optional[str]) -> str:
 
 
 def _normalize_service_name(value: str) -> str:
-    """Internal helper to  normalize service name."""
+    """Normalize user-provided service name aliases to canonical names."""
     normalized = value.strip().lower()
     if normalized in _SERVICE_NAME_ALIASES:
         normalized = _SERVICE_NAME_ALIASES[normalized]
@@ -541,7 +541,7 @@ def _normalize_service_name(value: str) -> str:
 
 
 def _get_required_str(name: str, errors: list[str]) -> Optional[str]:
-    """Read a required configuration value and validate it."""
+    """Read a required string environment value and append validation errors when missing."""
     raw = os.getenv(name)
     if raw is None or not raw.strip():
         errors.append(f"{name} is required and must be non-empty")
@@ -550,7 +550,7 @@ def _get_required_str(name: str, errors: list[str]) -> Optional[str]:
 
 
 def _get_optional_str(name: str, default: str) -> str:
-    """Read an optional configuration value with validation."""
+    """Read an optional string environment value with optional length checks."""
     raw = os.getenv(name)
     if raw is None:
         return default
@@ -564,7 +564,7 @@ def _get_required_int(
     min_value: Optional[int] = None,
     max_value: Optional[int] = None,
 ) -> Optional[int]:
-    """Read a required configuration value and validate it."""
+    """Read a required integer environment value with bounds validation."""
     raw = os.getenv(name)
     if raw is None or not raw.strip():
         errors.append(f"{name} is required and must be an integer")
@@ -588,7 +588,7 @@ def _get_optional_int(
     min_value: Optional[int] = None,
     max_value: Optional[int] = None,
 ) -> int:
-    """Read an optional configuration value with validation."""
+    """Read an optional integer environment value with bounds validation."""
     raw = os.getenv(name)
     if raw is None or not raw.strip():
         value = default
@@ -611,7 +611,7 @@ def _get_optional_float(
     min_value: Optional[float] = None,
     max_value: Optional[float] = None,
 ) -> float:
-    """Read an optional configuration value with validation."""
+    """Read an optional float environment value with bounds validation."""
     raw = os.getenv(name)
     if raw is None or not raw.strip():
         value = default
@@ -656,7 +656,7 @@ def _validate_float_range(
 
 
 def _get_required_addr(name: str, errors: list[str]) -> Optional[str]:
-    """Read a required configuration value and validate it."""
+    """Read required host:port style address string used for service endpoints."""
     raw = _get_required_str(name, errors)
     if raw is None:
         return None
@@ -669,7 +669,7 @@ def _get_required_addr(name: str, errors: list[str]) -> Optional[str]:
 
 
 def _raise_if_errors(errors: list[str], service_name: str) -> None:
-    """Internal helper to  raise if errors."""
+    """Raise a single ValueError containing all accumulated configuration validation errors."""
     if not errors:
         return
 

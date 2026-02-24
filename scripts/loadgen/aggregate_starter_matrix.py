@@ -44,14 +44,14 @@ def parse_args() -> argparse.Namespace:
 
 
 def _safe_mean(values: list[float]) -> float:
-    """Internal helper to  safe mean."""
+    """Return the arithmetic mean, defaulting to 0.0 for empty samples."""
     if not values:
         return 0.0
     return float(sum(values) / len(values))
 
 
 def _safe_std(values: list[float]) -> float:
-    """Internal helper to  safe std."""
+    """Return sample standard deviation, defaulting to 0.0 for fewer than two samples."""
     if len(values) < 2:
         return 0.0
     mean = _safe_mean(values)
@@ -60,7 +60,7 @@ def _safe_std(values: list[float]) -> float:
 
 
 def _safe_cv(values: list[float]) -> float:
-    """Internal helper to  safe cv."""
+    """Return coefficient of variation (std/mean), or 0.0 when mean is zero."""
     mean = _safe_mean(values)
     if mean == 0.0:
         return 0.0
@@ -68,12 +68,12 @@ def _safe_cv(values: list[float]) -> float:
 
 
 def _round(value: float) -> float:
-    """Internal helper to  round."""
+    """Round numeric aggregates to six decimals for stable CSV/markdown output."""
     return round(float(value), 6)
 
 
 def _scenario_sort_key(scenario_id: str) -> tuple[int, str]:
-    """Internal helper to  scenario sort key."""
+    """Build a stable sort key so starter-matrix scenarios appear in pedagogical order."""
     core = _scenario_core(scenario_id)
     try:
         idx = SCENARIO_CORE_ORDER.index(core)
@@ -83,7 +83,7 @@ def _scenario_sort_key(scenario_id: str) -> tuple[int, str]:
 
 
 def _scenario_core(scenario_id: str) -> str:
-    """Internal helper to  scenario core."""
+    """Strip design prefix from scenario ids so A/B variants share a common key."""
     core = scenario_id
     if core.startswith("design_a_"):
         core = core[len("design_a_") :]
@@ -93,7 +93,7 @@ def _scenario_core(scenario_id: str) -> str:
 
 
 def _non_ok_rate(grpc_rates: dict[str, Any]) -> float:
-    """Internal helper to  non ok rate."""
+    """Compute non-OK gRPC rate from per-code proportions in summary artifacts."""
     ok = float(grpc_rates.get("OK", 0.0))
     rate = 1.0 - ok
     if rate < 0.0:
@@ -102,7 +102,7 @@ def _non_ok_rate(grpc_rates: dict[str, Any]) -> float:
 
 
 def _iter_run_summary_files(results_root: Path) -> list[Path]:
-    """Internal helper to  iter run summary files."""
+    """Enumerate summary.json files for starter-matrix scenario run directories."""
     matches: list[Path] = []
     for scenario_dir in sorted(results_root.glob("design_*_s_*")):
         if not scenario_dir.is_dir():
@@ -116,7 +116,7 @@ def _iter_run_summary_files(results_root: Path) -> list[Path]:
 
 
 def _load_run_rows(summary_paths: list[Path]) -> list[dict[str, Any]]:
-    """Internal helper to  load run rows."""
+    """Load per-run summary/metadata files into normalized method-level rows."""
     rows: list[dict[str, Any]] = []
     for summary_path in summary_paths:
         run_dir = summary_path.parent
@@ -153,7 +153,7 @@ def _load_run_rows(summary_paths: list[Path]) -> list[dict[str, Any]]:
 
 
 def _write_csv(path: Path, fieldnames: list[str], rows: list[dict[str, Any]]) -> None:
-    """Internal helper to  write csv."""
+    """Write aggregate tables to CSV with deterministic headers and ordering."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
@@ -163,7 +163,7 @@ def _write_csv(path: Path, fieldnames: list[str], rows: list[dict[str, Any]]) ->
 
 
 def _aggregate_by_scenario_design_method(run_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Internal helper to  aggregate by scenario design method."""
+    """Aggregate run rows by scenario, design, and RPC method."""
     grouped: dict[tuple[str, str, str], list[dict[str, Any]]] = defaultdict(list)
     for row in run_rows:
         key = (row["scenario_id"], row["design"], row["method"])
@@ -193,7 +193,7 @@ def _aggregate_by_scenario_design_method(run_rows: list[dict[str, Any]]) -> list
 
 
 def _aggregate_terminal_by_scenario_design(run_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Internal helper to  aggregate terminal by scenario design."""
+    """Aggregate terminal-job throughput metrics by scenario and design."""
     grouped: dict[tuple[str, str, str], dict[str, Any]] = {}
     for row in run_rows:
         method = str(row["method"])
@@ -233,7 +233,7 @@ def _aggregate_terminal_by_scenario_design(run_rows: list[dict[str, Any]]) -> li
 
 
 def _ab_delta_table(method_agg_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Internal helper to  ab delta table."""
+    """Compute primary-method A vs B delta table for throughput and p95 latency."""
     bucket: dict[tuple[str, str], dict[str, dict[str, Any]]] = defaultdict(dict)
     for row in method_agg_rows:
         scenario_id = _scenario_core(str(row["scenario_id"]))
@@ -278,7 +278,7 @@ def _write_markdown_summary(
     method_agg_rows: list[dict[str, Any]],
     terminal_rows: list[dict[str, Any]],
 ) -> None:
-    """Internal helper to  write markdown summary."""
+    """Write a human-readable starter-matrix summary with global rollups."""
     design_run_dirs: dict[str, set[str]] = defaultdict(set)
     for row in run_rows:
         design_run_dirs[str(row["design"])].add(str(row["run_id"]))
@@ -353,7 +353,7 @@ def _write_plots(
     method_agg_rows: list[dict[str, Any]],
     terminal_rows: list[dict[str, Any]],
 ) -> list[str]:
-    """Internal helper to  write plots."""
+    """Render optional A/B comparison plots when matplotlib is available."""
     try:
         import matplotlib.pyplot as plt  # type: ignore
     except Exception:
@@ -461,7 +461,7 @@ def _write_plots(
 
 
 def main() -> int:
-    """Run the command-line entrypoint."""
+    """Build starter-matrix aggregate artifacts (CSV, markdown, optional plots) from run outputs."""
     args = parse_args()
     results_root = Path(args.results_root)
     output_dir = Path(args.output_dir)

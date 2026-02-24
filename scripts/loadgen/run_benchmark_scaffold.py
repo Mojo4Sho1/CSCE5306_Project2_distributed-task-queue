@@ -66,7 +66,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """Run the command-line entrypoint."""
+    """Load a benchmark scenario, optionally precheck stack health, run phases, and print artifact locations."""
     args = parse_args()
     scenario_path = Path(args.scenario)
     output_dir = Path(args.output_dir)

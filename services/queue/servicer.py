@@ -37,7 +37,7 @@ class QueueServicer(pb2_grpc.QueueInternalServiceServicer):
         self._queue: OrderedDict[str, int] = OrderedDict()
 
     def _set_error(self, context: grpc.ServicerContext, code: grpc.StatusCode, detail: str) -> None:
-        """Populate RPC error code and details on the context."""
+        """Set gRPC status code and detail text on the current Queue RPC context."""
         context.set_code(code)
         context.set_details(detail)
 

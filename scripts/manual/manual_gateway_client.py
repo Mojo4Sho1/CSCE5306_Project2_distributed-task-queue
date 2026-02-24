@@ -23,12 +23,12 @@ import grpc
 
 
 def _repo_root() -> Path:
-    """Internal helper to  repo root."""
+    """Return repository root path used for local import setup."""
     return Path(__file__).resolve().parents[2]
 
 
 def _ensure_import_paths() -> None:
-    """Internal helper to  ensure import paths."""
+    """Ensure repo root is on sys.path so generated/client modules import cleanly."""
     repo_root = _repo_root()
     generated_dir = repo_root / "generated"
     if str(generated_dir) not in sys.path:
@@ -38,7 +38,7 @@ def _ensure_import_paths() -> None:
 
 
 def _parse_labels(label_args: Iterable[str]) -> Dict[str, str]:
-    """Internal helper to  parse labels."""
+    """Parse repeated key=value labels from CLI flags into a dictionary."""
     labels: Dict[str, str] = {}
     for raw in label_args:
         if "=" not in raw:
@@ -53,7 +53,7 @@ def _parse_labels(label_args: Iterable[str]) -> Dict[str, str]:
 
 
 def _load_spec_json(spec_file: str) -> Dict[str, object]:
-    """Internal helper to  load spec json."""
+    """Load a JSON job spec from disk for SubmitJob requests."""
     with open(spec_file, "r", encoding="utf-8") as f:
         payload = json.load(f)
     if not isinstance(payload, dict):
@@ -70,7 +70,7 @@ def _status_name(public_pb2, status_value: int) -> str:
 
 
 def _build_spec(args, public_pb2):
-    """Build derived runtime data for this operation."""
+    """Build final SubmitJob spec from CLI options and optional JSON file."""
     spec_payload: Dict[str, object] = {}
     if getattr(args, "spec_file", ""):
         spec_payload = _load_spec_json(args.spec_file)
@@ -108,7 +108,7 @@ def _print_json(payload: Dict[str, object]) -> None:
 
 
 def main() -> int:
-    """Run the command-line entrypoint."""
+    """Run manual Gateway API calls from the command line for ad-hoc debugging."""
     parser = argparse.ArgumentParser(description="Manual user client for Gateway public API")
     parser.add_argument("--host", default="127.0.0.1", help="Gateway host")
     parser.add_argument("--port", type=int, default=50051, help="Gateway port")

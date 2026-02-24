@@ -11,14 +11,14 @@ import taskqueue_internal_pb2 as pb2
 
 
 class _FakeStub:
-    """ fake stub state and behavior."""
+    """Test stub for coordinator RPC responses."""
     def __init__(self, outcomes):
-        """Initialize  fake stub instance state."""
+        """Initialize test state."""
         self._outcomes = list(outcomes)
         self.calls = 0
 
     def ReportWorkOutcome(self, request, timeout=None):
-        """Report work outcome."""
+        """Test helper for report work outcome."""
         self.calls += 1
         if not self._outcomes:
             return SimpleNamespace(accepted=False)
@@ -29,26 +29,26 @@ class _FakeStub:
 
 
 class _FakeRpcError(grpc.RpcError):
-    """ fake rpc error state and behavior."""
+    """Test double for RPC error responses."""
     def __init__(self, status_code, details="transient error"):
-        """Initialize  fake rpc error instance state."""
+        """Initialize test state."""
         super().__init__()
         self._status_code = status_code
         self._details = details
 
     def code(self):
-        """Code."""
+        """Return the configured status code."""
         return self._status_code
 
     def details(self):
-        """Details."""
+        """Return the configured error details."""
         return self._details
 
 
 class WorkerReportRetryTests(unittest.TestCase):
-    """Worker report retry tests state and behavior."""
+    """Behavioral tests for worker report retry."""
     def _build_runtime(self, *, initial_ms=100, multiplier=2.0, max_ms=1000, attempts=4):
-        """Build derived runtime data for this operation."""
+        """Build a runtime instance wired with test doubles."""
         cfg = SimpleNamespace(
             service_name="worker",
             log_level="INFO",
@@ -71,7 +71,7 @@ class WorkerReportRetryTests(unittest.TestCase):
         return runtime
 
     def test_retry_wait_uses_full_jitter_bounds_and_window_progression(self):
-        """Verify expected behavior for this scenario."""
+        """Checks retry wait uses full jitter bounds and window progression."""
         runtime = self._build_runtime(initial_ms=100, multiplier=2.0, max_ms=1000, attempts=4)
         runtime._stub = _FakeStub(
             [
@@ -99,7 +99,7 @@ class WorkerReportRetryTests(unittest.TestCase):
         runtime._stop_event.wait.assert_any_call(0.4)
 
     def test_retry_window_is_capped_by_max_backoff(self):
-        """Verify expected behavior for this scenario."""
+        """Checks retry window is capped by max backoff."""
         runtime = self._build_runtime(initial_ms=700, multiplier=2.0, max_ms=1000, attempts=4)
         runtime._stub = _FakeStub(
             [
@@ -124,7 +124,7 @@ class WorkerReportRetryTests(unittest.TestCase):
         self.assertEqual(randint_mock.call_args_list[2].args, (0, 1000))
 
     def test_success_on_first_attempt_has_no_retry_wait(self):
-        """Verify expected behavior for this scenario."""
+        """Checks success on first attempt has no retry wait."""
         runtime = self._build_runtime(initial_ms=100, multiplier=2.0, max_ms=1000, attempts=4)
         runtime._stub = _FakeStub([SimpleNamespace(accepted=True)])
         runtime._stop_event = Mock()
@@ -141,7 +141,7 @@ class WorkerReportRetryTests(unittest.TestCase):
         runtime._stop_event.wait.assert_not_called()
 
     def test_stop_event_set_after_retry_wait_exits_early(self):
-        """Verify expected behavior for this scenario."""
+        """Checks stop event set after retry wait exits early."""
         runtime = self._build_runtime(initial_ms=100, multiplier=2.0, max_ms=1000, attempts=4)
         runtime._stub = _FakeStub(
             [
@@ -162,7 +162,7 @@ class WorkerReportRetryTests(unittest.TestCase):
         runtime._stop_event.wait.assert_called_once_with(0.025)
 
     def test_transient_rpc_error_retries_and_then_succeeds(self):
-        """Verify expected behavior for this scenario."""
+        """Checks transient rpc error retries and then succeeds."""
         runtime = self._build_runtime(initial_ms=100, multiplier=2.0, max_ms=1000, attempts=4)
         runtime._stub = _FakeStub(
             [
@@ -184,7 +184,7 @@ class WorkerReportRetryTests(unittest.TestCase):
         runtime._stop_event.wait.assert_called_once_with(0.04)
 
     def test_transient_rpc_error_retries_until_max_attempts(self):
-        """Verify expected behavior for this scenario."""
+        """Checks transient rpc error retries until max attempts."""
         runtime = self._build_runtime(initial_ms=100, multiplier=2.0, max_ms=1000, attempts=4)
         runtime._stub = _FakeStub(
             [

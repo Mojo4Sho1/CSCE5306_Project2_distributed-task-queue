@@ -24,32 +24,32 @@ from common.loadgen_contracts import (
 
 
 class _FakeClock:
-    """ fake clock state and behavior."""
+    """Test clock double for deterministic timing."""
     def __init__(self) -> None:
-        """Initialize  fake clock instance state."""
+        """Initialize test state."""
         self.now = 0.0
 
     def monotonic(self) -> float:
-        """Monotonic."""
+        """Return synthetic monotonic clock time."""
         return self.now
 
     def sleep(self, seconds: float) -> None:
-        """Sleep."""
+        """Advance synthetic clock by the requested duration."""
         self.now += max(0.0, float(seconds))
 
 
 class _FakeAdapter:
-    """ fake adapter state and behavior."""
+    """Test adapter double for synthetic benchmark rows."""
     def __init__(self) -> None:
-        """Initialize  fake adapter instance state."""
+        """Initialize test state."""
         self._jobs: dict[str, list[str]] = {}
 
     def known_job_count(self, context) -> int:
-        """Known job count."""
+        """Return known job count for the current run."""
         return len(self._jobs.get(context.run_id, []))
 
     def execute(self, *, context, method, rng, worker_id, op_index):
-        """Execute."""
+        """Execute a synthetic operation and return a benchmark row."""
         del rng, worker_id
         start_ts_ms = int(op_index * 100)
         job_id = None
@@ -79,26 +79,26 @@ class _FakeAdapter:
 
 
 class _FakeRpcError(Exception):
-    """ fake rpc error state and behavior."""
+    """Test double for RPC error responses."""
     def __init__(self, code_name: str) -> None:
-        """Initialize  fake rpc error instance state."""
+        """Initialize test state."""
         super().__init__(code_name)
         self._code_name = code_name
 
     def code(self):
-        """Code."""
+        """Return the configured status code."""
         return SimpleNamespace(name=self._code_name)
 
 
 class _SubmitStub:
-    """ submit stub state and behavior."""
+    """Test stub for submit behavior."""
     def __init__(self, failure_count: int) -> None:
-        """Initialize  submit stub instance state."""
+        """Initialize test state."""
         self.failure_count = int(failure_count)
         self.calls = 0
 
     def SubmitJob(self, request, timeout=None):
-        """Submit job."""
+        """Simulate SubmitJob behavior for test scenarios."""
         del request, timeout
         self.calls += 1
         if self.calls <= self.failure_count:
@@ -107,9 +107,9 @@ class _SubmitStub:
 
 
 class LoadgenContractTests(unittest.TestCase):
-    """Loadgen contract tests state and behavior."""
+    """Behavioral tests for loadgen contract."""
     def test_scenario_parse_and_design_b_router_wiring(self) -> None:
-        """Verify expected behavior for this scenario."""
+        """Checks scenario parse and design b router wiring."""
         raw = {
             "scenario_id": "b_scaffold_parse",
             "design": "B_monolith",
@@ -156,7 +156,7 @@ class LoadgenContractTests(unittest.TestCase):
         self.assertEqual((0, "127.0.0.1:51051", "round_robin"), capture["submit"])
 
     def test_output_serialization_and_run_artifacts(self) -> None:
-        """Verify expected behavior for this scenario."""
+        """Checks output serialization and run artifacts."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
             scenario_path = tmp_path / "scenario.json"
@@ -228,7 +228,7 @@ class LoadgenContractTests(unittest.TestCase):
             )
 
     def test_run_dir_collision_fails_by_default(self) -> None:
-        """Verify expected behavior for this scenario."""
+        """Checks run dir collision fails by default."""
         scenario = BenchmarkScenario.from_dict(
             {
                 "scenario_id": "collision_default_fail",
@@ -282,7 +282,7 @@ class LoadgenContractTests(unittest.TestCase):
                 runner.run(operation_hook=_hook)
 
     def test_run_dir_collision_overwrite_replaces_artifacts(self) -> None:
-        """Verify expected behavior for this scenario."""
+        """Checks run dir collision overwrite replaces artifacts."""
         scenario = BenchmarkScenario.from_dict(
             {
                 "scenario_id": "collision_overwrite",
@@ -370,7 +370,7 @@ class LoadgenContractTests(unittest.TestCase):
             self.assertEqual("job-second", second_rows[0]["job_id"])
 
     def test_request_mix_scheduler_distribution(self) -> None:
-        """Verify expected behavior for this scenario."""
+        """Checks request mix scheduler distribution."""
         scheduler = RequestMixScheduler(
             {"SubmitJob": 2, "GetJobStatus": 1, "GetJobResult": 0, "CancelJob": 0, "ListJobs": 0},
             seed=42,
@@ -380,7 +380,7 @@ class LoadgenContractTests(unittest.TestCase):
         self.assertEqual(100, sum(1 for item in seen if item == "GetJobStatus"))
 
     def test_live_engine_with_mocked_adapter_records_measure_rows(self) -> None:
-        """Verify expected behavior for this scenario."""
+        """Checks live engine with mocked adapter records measure rows."""
         scenario = BenchmarkScenario.from_dict(
             {
                 "scenario_id": "live_mock",
@@ -411,7 +411,7 @@ class LoadgenContractTests(unittest.TestCase):
         self.assertEqual(3, artifacts[0].row_count)
 
     def test_submit_retry_policy_non_empty_vs_empty_idempotency_key(self) -> None:
-        """Verify expected behavior for this scenario."""
+        """Checks submit retry policy non empty vs empty idempotency key."""
         scenario = BenchmarkScenario.from_dict(
             {
                 "scenario_id": "retry_policy",
@@ -495,7 +495,7 @@ class LoadgenContractTests(unittest.TestCase):
         self.assertEqual(1, empty_stub.calls)
 
     def test_summary_latency_precision_and_job_terminal_throughput(self) -> None:
-        """Verify expected behavior for this scenario."""
+        """Checks summary latency precision and job terminal throughput."""
         rows = [
             BenchmarkRow(
                 design="A_microservices",
@@ -541,7 +541,7 @@ class LoadgenContractTests(unittest.TestCase):
         self.assertEqual(0.5, summary["job_terminal_throughput"]["throughput_rps"])
 
     def test_precheck_health_targets_reports_unhealthy(self) -> None:
-        """Verify expected behavior for this scenario."""
+        """Checks precheck health targets reports unhealthy."""
         scenario = BenchmarkScenario.from_dict(
             {
                 "scenario_id": "precheck_probe",

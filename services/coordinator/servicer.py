@@ -49,7 +49,7 @@ _TERMINAL_STATUSES = {
 
 
 class _WorkerState:
-    """ worker state state and behavior."""
+    """Coordinator-side liveness and lease-tracking state for one worker id."""
     __slots__ = ("last_seen_at_ms", "last_heartbeat_at_ms", "capacity_hint")
 
     def __init__(self, last_seen_at_ms: int, last_heartbeat_at_ms: int, capacity_hint: int) -> None:
@@ -92,7 +92,7 @@ class CoordinatorServicer(pb2_grpc.CoordinatorInternalServiceServicer):
         self._init_clients()
 
     def _init_clients(self) -> None:
-        """Internal helper to  init clients."""
+        """Initialize queue/job/result downstream stubs used by coordinator RPC handlers."""
         if self._job_client is None:
             job_addr = str(getattr(self._config, "job_addr", "")).strip()
             if job_addr:
@@ -112,16 +112,16 @@ class CoordinatorServicer(pb2_grpc.CoordinatorInternalServiceServicer):
                 self._result_client = pb2_grpc.ResultInternalServiceStub(self._result_channel)
 
     def _set_error(self, context: grpc.ServicerContext, code: grpc.StatusCode, detail: str) -> None:
-        """Populate RPC error code and details on the context."""
+        """Set gRPC status code and detail text on the current Coordinator RPC context."""
         context.set_code(code)
         context.set_details(detail)
 
     def _clamp_retry_after(self, value: int) -> int:
-        """Internal helper to  clamp retry after."""
+        """Clamp retry-after milliseconds to configured coordinator bounds."""
         return max(FETCHWORK_RETRY_AFTER_MIN_MS, min(int(value), FETCHWORK_RETRY_AFTER_MAX_MS))
 
     def _prune_expired_workers_locked(self, now_ts_ms: int) -> None:
-        """Internal helper to  prune expired workers locked."""
+        """Drop stale worker heartbeat entries while holding worker-state lock."""
         expired = [
             worker_id
             for worker_id, state in self._workers.items()
@@ -131,7 +131,7 @@ class CoordinatorServicer(pb2_grpc.CoordinatorInternalServiceServicer):
             self._workers.pop(worker_id, None)
 
     def _is_worker_live(self, worker_id: str, now_ts_ms: int) -> bool:
-        """Internal helper to  is worker live."""
+        """Return whether worker heartbeat freshness is within live timeout."""
         with self._lock:
             self._prune_expired_workers_locked(now_ts_ms)
             state = self._workers.get(worker_id)

@@ -138,7 +138,7 @@ def log_event(
 
 
 def _get_service_name(logger: logging.Logger) -> str:
-    """Internal helper to  get service name."""
+    """Derive service name label used in structured log records."""
     service = getattr(logger, _SERVICE_ATTR, None)
     if isinstance(service, str) and service.strip():
         return service.strip()
@@ -152,7 +152,7 @@ def _get_service_name(logger: logging.Logger) -> str:
 
 
 def _normalize_level(level: Any) -> int:
-    """Internal helper to  normalize level."""
+    """Normalize configured log level name to a logging module constant."""
     if isinstance(level, int):
         return level
 
@@ -174,7 +174,7 @@ def _normalize_level(level: Any) -> int:
 
 
 def _level_name(level: Any) -> str:
-    """Internal helper to  level name."""
+    """Return canonical uppercase level name for emitted log metadata."""
     if isinstance(level, str):
         name = level.strip().upper()
         return name if name in _ALLOWED_LEVEL_NAMES else "INFO"

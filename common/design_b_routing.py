@@ -67,7 +67,7 @@ class DesignBClientRouter:
         return self._nodes
 
     def next_round_robin_target(self) -> tuple[int, str]:
-        """Return the next value in the scheduling sequence."""
+        """Return the next submit target for empty-idempotency-key requests using round-robin order."""
         with self._lock:
             idx = self._rr_index
             self._rr_index = (self._rr_index + 1) % len(self._nodes)
