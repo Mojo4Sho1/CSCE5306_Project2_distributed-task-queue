@@ -5,42 +5,46 @@
 
 ## Current focus
 
-Post-report repository cleanup execution and documentation sync.
+README onboarding simplification and post-cleanup documentation alignment.
 
 ## Completed in current focus
 
-- Removed obsolete report staging/scratch files:
-  - retired temporary report draft/checklist/question artifacts under the former `docs/temp/` workspace
-- Removed stale one-off handoff notes:
-  - retired obsolete plot-fix and scenario-mix scratch notes
-- Removed stale redirect stub:
-  - retired obsolete smoke-index redirect file
-- Removed now-empty `docs/temp/` directory.
-- Updated documentation navigation and handoff docs to match the cleaned repository state.
+- Reorganized `README.md` for first-time usability with a top-level "choose your path" flow.
+- Added a preflight checklist (env, Docker, ports) and concise setup instructions.
+- Split execution guidance into:
+  - Path A: manual user/demo flow on Design A,
+  - Path B: benchmark experiment for A vs B in sequential isolation.
+- Explicitly documented that README manual user flow is Design A-only.
+- Removed the full repository file tree from README to reduce onboarding noise.
 
 ## Passing checks
 
-- Removed-file reference scan returns no matches:
-  - `rg -n "<removed_artifact_name>" README.md docs scripts tests results` executed for each retired artifact family.
-- `docs/temp/` no longer exists:
-  - `find docs -maxdepth 2 -type d -name temp -print`
+- README command references map to existing scripts/compose files:
+  - `docker/docker-compose.design-a.yml`
+  - `docker/docker-compose.design-b.yml`
+  - `scripts/manual/manual_gateway_client.py`
+  - `scripts/loadgen/run_benchmark_scaffold.py`
+  - `scripts/loadgen/aggregate_starter_matrix.py`
 
 ## Known gaps/blockers
 
-- No blocker for cleanup scope.
+- Path-command runtime sanity checks (README Path A and Path B) are not yet executed after the reorganization.
 - Retention policy for raw starter-matrix per-run directories is still undecided.
 
 ## Active coordination notes
 
-- Overleaf remains the canonical final report source; in-repo report staging artifacts are intentionally retired.
-- Starter-matrix evidence package under `results/loadgen/analysis/starter_matrix_2026-02-20/` remains authoritative and preserved.
+- Overleaf remains the canonical final report source.
+- Existing benchmark evidence artifacts should not be overwritten during sanity checks.
+- For any sanity-run validation, prefer read-only checks and/or fresh non-colliding run IDs; avoid `--overwrite` unless explicitly intended.
 
 ## Next task (single target)
 
-Define and document a retention/archival policy for raw loadgen per-run artifacts (`results/loadgen/design_a_s_*/`, `results/loadgen/design_b_s_*/`) and aligned scenario files.
+Execute a non-destructive README path sanity check pass for Path A and Path B command flows, then capture outcomes and follow-on retention-policy actions.
 
 ## Definition of done for next task
 
-- A written retention decision is captured in handoff/spec documentation.
-- Any approved pruning scope is explicitly listed with guardrails and rollback notes.
-- Documentation clearly distinguishes canonical evidence artifacts vs disposable intermediates.
+- README Path A commands are validated end-to-end on a live Design A stack.
+- README Path B workflow is validated at least through stack startup, scenario invocation smoke, and aggregation command wiring.
+- Validation steps do not overwrite canonical notebook/reporting artifacts.
+- Any command drift discovered is fixed in docs immediately.
+- Retention-policy follow-up items remain explicitly tracked.

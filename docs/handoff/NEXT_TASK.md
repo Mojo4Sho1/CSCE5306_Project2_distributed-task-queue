@@ -5,63 +5,71 @@
 
 ## Task summary
 
-Define a repository retention/archival policy for loadgen artifacts, then synchronize docs to that policy.
+Run a non-destructive sanity-check pass for the README "choose your path" workflows (Path A and Path B), then document results and any command corrections.
 
 ## Why this task is next
 
-- Cleanup of obsolete report-temp/handoff scratch assets is complete.
-- The remaining high-impact repo hygiene decision is whether and when to prune raw per-run starter-matrix directories.
-- Without an explicit policy, future cleanup may accidentally remove reproducibility-critical artifacts.
+- README was reorganized to be first-time-user friendly and now serves as the primary execution runbook.
+- We need to confirm the exact documented command paths still execute as intended.
+- Validation must avoid rewriting existing benchmark artifacts used by notebook/reporting outputs.
 
 ## Scope (in)
 
-- Decide retention class for:
-  - `results/loadgen/analysis/starter_matrix_2026-02-20/` (canonical evidence package)
-  - `results/loadgen/design_a_s_*/` and `results/loadgen/design_b_s_*/` (raw per-run outputs)
-  - Related scenario files in `scripts/loadgen/scenarios/` used for reproducibility/demo.
-- Record policy and rationale in handoff/spec docs.
-- If pruning is approved, produce an explicit target list and verification scan before deletion.
+- Validate README Path A (Design A manual user/demo flow).
+- Validate README Path B (A/B benchmark workflow wiring and command correctness).
+- Record any command drift and update docs in the same change set.
+- Preserve existing canonical evidence artifacts during validation.
 
 ## Scope (out)
 
 - Runtime behavior changes.
 - Proto/API contract changes.
-- Any benchmark re-runs.
+- Full benchmark regeneration intended to replace canonical evidence.
 
 ## Dependencies / prerequisites
 
-- Existing reproducibility guidance: `docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md`
-- Existing evidence index: `results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`
+- `README.md` (new choose-your-path structure)
+- `docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md`
+- `results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`
 
 ## Implementation notes
 
-- Preserve reproducibility first; do not delete artifacts without a written policy decision.
-- Keep canonical evidence index and aggregate tables/plots intact.
-- If uncertain, defer deletion and document rationale.
+- Prefer non-destructive checks:
+  - stack boot/health checks,
+  - manual submit/status/result smoke,
+  - loadgen command wiring verification.
+- Do not use `--overwrite` unless explicit artifact replacement is intentionally approved.
+- If live loadgen emits new artifacts during sanity checks, use fresh, clearly non-canonical paths/IDs.
 
 ## Subtasks
 
-- [ ] Inventory current loadgen artifact classes and sizes.
-- [ ] Propose retention tiers (canonical, optional, disposable).
-- [ ] Approve/document policy in handoff + spec docs.
-- [ ] If approved, execute pruning with explicit verification scans.
-- [ ] Re-scan for broken references and update docs.
+- [ ] Validate Path A startup commands (`design-a` compose up/ps) and manual client commands (`submit/status/result`).
+- [ ] Validate Path B startup commands for both designs (`design-a` then `design-b`) and starter-matrix invocation loops.
+- [ ] Validate aggregation command wiring (`aggregate_starter_matrix.py`) against current paths.
+- [ ] Confirm no canonical artifact replacement occurred (especially under `results/loadgen/analysis/starter_matrix_2026-02-20/`).
+- [ ] Patch README/docs immediately if any command/path drift is discovered.
+- [ ] Keep retention-policy follow-up explicitly tracked after sanity pass.
 
 ## Acceptance criteria (definition of done)
 
-- A documented retention policy exists and is linked from handoff docs.
-- Canonical evidence artifacts are explicitly protected.
-- Any pruned artifacts are listed and validated with post-delete scans.
-- No documentation pointers remain to removed artifacts.
+- README Path A commands are executable as documented.
+- README Path B commands are executable as documented (at minimum as smoke-level wiring checks).
+- No existing canonical reporting/notebook artifacts are overwritten.
+- Any discovered command drift is fixed in-repo and documented.
+- Follow-on retention-policy work remains visible in handoff docs.
 
 ## Verification checklist
 
-- [ ] `rg -n "starter_matrix_2026-02-20|design_a_s_|design_b_s_" README.md docs scripts tests results`
-- [ ] `find results/loadgen -maxdepth 2 -type d | sort`
-- [ ] `git status --short` shows only intentional policy/doc (and optional pruning) changes.
+- [ ] `docker compose -f docker/docker-compose.design-a.yml ps`
+- [ ] `docker compose -f docker/docker-compose.design-b.yml ps`
+- [ ] `conda run -n grpc python scripts/manual/manual_gateway_client.py --help`
+- [ ] `conda run -n grpc python scripts/loadgen/run_benchmark_scaffold.py --help`
+- [ ] `conda run -n grpc python scripts/loadgen/aggregate_starter_matrix.py --help`
+- [ ] `find results/loadgen/analysis/starter_matrix_2026-02-20 -maxdepth 2 -type f | sort`
+- [ ] `git status --short` shows only intentional docs (and optional sanity-log) changes.
 
 ## Risks / rollback notes
 
-- Over-pruning can break reproducibility and make evidence audits harder.
-- Under-pruning can keep repository size/noise higher than needed.
-- If a deletion decision is later reversed, restore artifacts from VCS history or archived bundle.
+- Running heavy live benchmarks during sanity checks can accidentally create or replace artifacts.
+- Use explicit non-canonical run targets and avoid overwrite flags to reduce risk.
+- If accidental changes occur, restore canonical artifact state from VCS history before closing the task.
