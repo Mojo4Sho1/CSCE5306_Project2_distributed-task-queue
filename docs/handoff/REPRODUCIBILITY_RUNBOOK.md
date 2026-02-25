@@ -81,3 +81,6 @@ test -f notebooks/benchmark_analysis.ipynb
 
 - If README benchmark commands change, keep this runbook synchronized in the same change set.
 - If canonical evidence paths are updated, update this file and `results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md` together.
+- Sanity-check outputs from the 2026-02-25 README validation are intentionally non-canonical and live under:
+  - `results/loadgen/sanity_readme_2026-02-25/`
+  - `results/loadgen/analysis/sanity_readme_2026-02-25/`

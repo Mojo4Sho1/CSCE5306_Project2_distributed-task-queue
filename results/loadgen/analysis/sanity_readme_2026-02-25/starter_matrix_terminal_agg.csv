@@ -1,0 +1,3 @@
+scenario_id,design,run_count,terminal_jobs_mean,terminal_jobs_std,terminal_throughput_rps_mean,terminal_throughput_rps_std,terminal_throughput_cv
+design_a_s_low_balanced,A_microservices,3,87.0,5.567764,1.45,0.092796,0.063997
+design_b_s_low_balanced,B_monolith,3,86.666667,7.571878,1.444444,0.126198,0.087368

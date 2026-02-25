@@ -1,0 +1,5 @@
+scenario_id,method,a_throughput_rps_mean,b_throughput_rps_mean,throughput_delta_b_minus_a_rps,a_latency_p95_ms_mean,b_latency_p95_ms_mean,latency_p95_delta_b_minus_a_ms,a_non_ok_rate_mean,b_non_ok_rate_mean
+s_low_balanced,CancelJob,0.5,0.5,0.0,11.900667,10.791333,-1.109334,0.0,0.0
+s_low_balanced,GetJobResult,1.25,1.25,0.0,14.126,15.135667,1.009667,0.0,0.0
+s_low_balanced,GetJobStatus,1.5,1.5,0.0,11.396,11.134333,-0.261667,0.0,0.0
+s_low_balanced,SubmitJob,1.75,1.75,0.0,14.383667,12.240667,-2.143,0.0,0.0

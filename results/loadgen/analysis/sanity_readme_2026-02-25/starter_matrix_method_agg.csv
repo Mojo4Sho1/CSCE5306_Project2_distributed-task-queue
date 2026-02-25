@@ -1,0 +1,11 @@
+scenario_id,design,method,run_count,throughput_rps_mean,throughput_rps_std,latency_p95_ms_mean,latency_p95_ms_std,grpc_non_ok_rate_mean,grpc_non_ok_rate_std
+design_a_s_low_balanced,A_microservices,CancelJob,3,0.5,0.0,11.900667,2.45699,0.0,0.0
+design_a_s_low_balanced,A_microservices,GetJobResult,3,1.25,0.0,14.126,0.889169,0.0,0.0
+design_a_s_low_balanced,A_microservices,GetJobStatus,3,1.5,0.0,11.396,1.004859,0.0,0.0
+design_a_s_low_balanced,A_microservices,ListJobs,3,0.0,0.0,0.0,0.0,1.0,0.0
+design_a_s_low_balanced,A_microservices,SubmitJob,3,1.75,0.0,14.383667,0.72451,0.0,0.0
+design_b_s_low_balanced,B_monolith,CancelJob,3,0.5,0.0,10.791333,3.052434,0.0,0.0
+design_b_s_low_balanced,B_monolith,GetJobResult,3,1.25,0.0,15.135667,4.787162,0.0,0.0
+design_b_s_low_balanced,B_monolith,GetJobStatus,3,1.5,0.0,11.134333,2.672681,0.0,0.0
+design_b_s_low_balanced,B_monolith,ListJobs,3,0.0,0.0,0.0,0.0,1.0,0.0
+design_b_s_low_balanced,B_monolith,SubmitJob,3,1.75,0.0,12.240667,1.605124,0.0,0.0
