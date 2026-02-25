@@ -16,6 +16,8 @@ README onboarding simplification and post-cleanup documentation alignment.
   - Path B: benchmark experiment for A vs B in sequential isolation.
 - Explicitly documented that README manual user flow is Design A-only.
 - Removed the full repository file tree from README to reduce onboarding noise.
+- Renamed and slimmed reproducibility documentation to reduce redundancy:
+  - `docs/handoff/REPRODUCIBILITY_RUNBOOK.md` now complements README instead of duplicating command walkthroughs.
 
 ## Passing checks
 

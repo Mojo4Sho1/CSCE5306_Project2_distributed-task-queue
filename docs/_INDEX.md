@@ -77,8 +77,8 @@ If two sources conflict, use this precedence:
   - immediate next target.
 - **`docs/handoff/NEXT_TASK.md`**  
   Exact next implementation task and acceptance criteria.
-- **`docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md`**  
-  Minimal rerun/aggregation/notebook workflow for starter-matrix reproducibility.
+- **`docs/handoff/REPRODUCIBILITY_RUNBOOK.md`**  
+  Reproducibility guardrails, minimal rerun pattern, and notebook refresh workflow.
 
 ## Benchmark Evidence (Completed Starter Matrix)
 - **`results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`**  
@@ -174,7 +174,7 @@ Use these docs as source material for final deliverables:
 - **Evaluation methodology:** `docs/spec/fairness-evaluation.md`
 - **Performance/scalability analysis:** `results/` + report figures
 - **Starter matrix evidence package:** `results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`
-- **Starter matrix reproducibility commands:** `docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md`
+- **Starter matrix reproducibility commands:** `docs/handoff/REPRODUCIBILITY_RUNBOOK.md`
 - **AI-tool lessons learned:** add notes during implementation and summarize in final report
 
 ---

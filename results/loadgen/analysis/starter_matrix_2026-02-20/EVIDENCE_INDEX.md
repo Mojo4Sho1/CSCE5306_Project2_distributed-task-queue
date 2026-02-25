@@ -10,7 +10,7 @@
 - Aggregate analysis directory (this dataset):
   - `results/loadgen/analysis/starter_matrix_2026-02-20/`
 - Reproducibility runbook:
-  - `docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md`
+  - `docs/handoff/REPRODUCIBILITY_RUNBOOK.md`
 - Notebook entrypoint:
   - `notebooks/benchmark_analysis.ipynb`
 

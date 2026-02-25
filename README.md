@@ -177,7 +177,7 @@ Common issues:
 
 - `docs/_INDEX.md` (controlling documentation entry point)
 - `docs/spec/fairness-evaluation.md` (A/B fairness and workload controls)
-- `docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md` (rerun/aggregation workflow)
+- `docs/handoff/REPRODUCIBILITY_RUNBOOK.md` (reproducibility guardrails + notebook refresh workflow)
 - `results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md` (artifact package index)
 - `tests/_TEST_INDEX.md` and `scripts/_SCRIPT_INDEX.md` (extended command/index details)
 

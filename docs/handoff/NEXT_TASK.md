@@ -29,7 +29,7 @@ Run a non-destructive sanity-check pass for the README "choose your path" workfl
 ## Dependencies / prerequisites
 
 - `README.md` (new choose-your-path structure)
-- `docs/handoff/STARTER_MATRIX_REPRODUCIBILITY.md`
+- `docs/handoff/REPRODUCIBILITY_RUNBOOK.md`
 - `results/loadgen/analysis/starter_matrix_2026-02-20/EVIDENCE_INDEX.md`
 
 ## Implementation notes
